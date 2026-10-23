@@ -106,13 +106,13 @@ Runs the eight examples and the session sequence on seeds 1 and 2, in sample mod
 | Metric | Target |
 | --- | --- |
 | Solar, ToU and joint verdicts vs calculator on true data | 100% |
-| Fault recall | ≥ 90% |
+| Fault recall (faults ≥ +20%, the detection threshold) | ≥ 90% |
 | False fault flags | ≤ 1 across 30 outlets |
 | Realised saving within ±15% | ≥ 90% of serviced faults |
 | Runs within caps | 100% |
 | Median run time (sample / live) | ≤ 5 s / ≤ 120 s |
 
-Output: `eval/benchmark.md` with the table, every miss listed with its seed and reason. Faults below about +15% are expected to be missed more often; that limit is stated in the README.
+Output: `eval/benchmark.md` with the table, every miss listed with its seed and reason. Faults between +15% and +20% sit below the `fault_check` threshold: they are reported separately as a stated limit, not counted against recall (decided 24 Oct), and the README says so.
 
 ## 8. Limitations to state publicly
 

@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Purpose | Let a mock panel (team members, mentors, friends) score SmartFlux the way the real judges will, and find weaknesses before submission |
-| Based on | Official Rules §14 (criteria), weak and strong submission examples, mentor playbook, office-hours guide, disqualification checklist, technical execution guide (all in this repo) |
+| Based on | Official Rules §14 (criteria), weak and strong submission examples, mentor playbook, office-hours guide, disqualification checklist, technical execution guide (from the hackathon resource pack, not redistributed here) |
 | Version | 1.0, for [proposal v4](proposal.md) |
 
 ---
@@ -37,7 +37,7 @@ A submission that fails any of these is not competitive regardless of score.
 | G3 | Zetaris has a real role (removing it breaks live mode) | README sponsor section; `adapters/zetaris.ts`; `zetaris.query` log events | ☐ |
 | G4 | At least one Meterless Engine works in a feature, with a passing test | `engines/hmem`, `memory.test.ts` output | ☐ |
 | G5 | Meterless Nightshift is the primary AI provider | `adapters/llm.ts`; `model` on LLM log events | ☐ |
-| G6 | Built in Cursor (evidence) | `.cursor/rules`, deck slide | ☐ |
+| G6 | AI coding tool declared honestly (Cursor optional, award only) | README "Built with" line | ☐ |
 | G7 | Sample mode runs **real logic** with no credentials | Run an example with empty `.env`; outputs differ across inputs | ☐ |
 | G8 | No hardcoded outputs | Search code for `output_examples` reads or input-to-answer maps | ☐ |
 | G9 | Logs show agent-to-agent interaction | `logs/*.jsonl`: `target_agent`, `needs_revision` events | ☐ |
@@ -138,11 +138,11 @@ Score each criterion within its band. Anchors come from the official criteria an
 | # | Question | Answer | Proof |
 | --- | --- | --- | --- |
 | S1 | If I removed Zetaris, what breaks? | All live data access: the agent and the Skeptic's verification queries both go through Zetaris, including two live REST APIs and a semantic layer | `zetaris.query` events; Zetaris UI |
-| S2 | Which Meterless Engine, doing what, with which test? | H-MEM: machine baselines, advice and outcomes across restarts (`memory.test.ts`). Scout Intent: routing and approval gating (`routing.test.ts`, `risk.test.ts`) | Test output |
+| S2 | Which Meterless Engine, doing what, with which test? | H-MEM: machine baselines, advice and outcomes across restarts (`memory.test.ts`). Plus intent routing and approval gating modelled on Scout Intent (`routing.test.ts`, `risk.test.ts`) | Test output |
 | S3 | Is Nightshift really the provider? | Every LLM call goes through one client pointed at the Nightshift Runtime URL | `adapters/llm.ts`; log `model` fields |
 | S4 | Where does Nemotron do real work? | Hypothesis choice, template selection, the Skeptic's causal judgment and double-count detection, Malay and English reporting; models pinned per lane | Log per step |
 | S5 | What was unique about your use? | The Skeptic re-derives every money claim from Zetaris before the owner sees it | Trace scene |
-| S6 | How did you use Cursor? | Project rules, Composer for scaffolding and tests, Grok for refactors | `.cursor/rules`, screenshots |
+| S6 | Which AI coding tool did you use? | Claude Code (Cursor only if used); any tool is allowed | README |
 
 ### Hard questions (any judge)
 
@@ -176,8 +176,8 @@ Gates failed (from §3): ______
 | Innovation | 15 | 14 | Payment-log disaggregation; solar re-deciding ToU; Skeptic catching double counts; self-verifying advice | Judges unfamiliar with NILM may not see the novelty unless the deck explains it in one line |
 | Demo | 15 | 14 | Twist, memory across restart, Skeptic rejection, verified outcome, sample mode on camera | Running over 4 minutes; too many scenes |
 | Product & UX | 10 | 9 | Mobile-first cards, Malay, evidence one tap away, approvals, briefings | Dense Evidence screen on small phones |
-| Sponsor Tech | 10 | 10 | Every sponsor load-bearing and logged | Scout Intent fallback used instead of the engine (−1) |
-| **Total** | 100 | **94** | | |
+| Sponsor Tech | 10 | 9 | Every sponsor load-bearing and logged | Scout Intent fallback used instead of the engine (−1, decided 24 Oct) |
+| **Total** | 100 | **93** | | |
 
 ## 8. Red flags a panelist should report immediately
 
@@ -185,4 +185,4 @@ From the mentor playbook: "only one of us can run it"; logs missing; "the output
 
 ## Sources
 
-Real-event rubrics and demo advice used to shape this pack: [Devfolio judging guide](https://guide.devfolio.co/docs/guide/participating-in-hackathons/judging-1), [Colosseum: perfecting your submission](https://blog.colosseum.com/perfecting-your-hackathon-submission/), [AngelHack demo tips](https://angelhack.com/blog/10-tips-to-help-you-rock-your-next-hackathon-demo/), [LexisNexis hackathon scoring criteria](https://hackathon.lexisnexis.com/fall2019/scoringcriteria.html). The official criteria and gates come from this repo's `Rules & Requirements` and `Demo and Submission Resources` folders.
+Real-event rubrics and demo advice used to shape this pack: [Devfolio judging guide](https://guide.devfolio.co/docs/guide/participating-in-hackathons/judging-1), [Colosseum: perfecting your submission](https://blog.colosseum.com/perfecting-your-hackathon-submission/), [AngelHack demo tips](https://angelhack.com/blog/10-tips-to-help-you-rock-your-next-hackathon-demo/), [LexisNexis hackathon scoring criteria](https://hackathon.lexisnexis.com/fall2019/scoringcriteria.html). The official criteria and gates come from the hackathon resource pack's `Rules & Requirements` and `Demo and Submission Resources` folders.

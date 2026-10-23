@@ -54,7 +54,7 @@ Personas are working assumptions until confirmed by the owner conversations in [
 | # | Goal | Success metric (demo and benchmark) |
 | --- | --- | --- |
 | G1 | Right energy decision | Solar, ToU and joint verdicts match the calculator on 100% of benchmark outlets |
-| G2 | Find wasteful machines | Fault recall ≥ 90%; ≤ 1 false flag across 30 outlets |
+| G2 | Find wasteful machines | Fault recall ≥ 90% on faults ≥ +20%; ≤ 1 false flag across 30 outlets |
 | G3 | Prove advice works | Realised saving within ±15% of planted recovery for ≥ 90% of serviced faults |
 | G4 | Trustworthy answers | 100% of money claims in an output have an approved Skeptic verification step in the log |
 | G5 | Fast to understand | Owner reaches a verdict in ≤ 2 taps from Home; each card readable in ≤ 30 seconds |

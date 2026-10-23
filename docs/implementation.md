@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Version | 1.0, matching [proposal v4](proposal.md), [PRD](prd.md) and [architecture](architecture.md) |
-| Audience | The builders, working in Cursor |
+| Audience | The builders (Claude Code; Cursor optional) |
 | Rule of thumb | Make the smallest version of each step work end to end before improving any of them |
 
 ---
@@ -60,7 +60,6 @@ smartflux/
 ├── data/sample/                   # cached CSVs (committed), data/README.md
 ├── data/hmem/                     # memory store (gitignored)
 ├── input_examples/  output_examples/  logs/ (gitignored)
-├── .cursor/rules/                 # project rules (evidence of Cursor use)
 ├── Dockerfile  docker-compose.yml  .env.example
 ├── PRE_EXISTING.md  README.md
 ```
@@ -88,7 +87,7 @@ Each step ends with something that runs. Workstreams A (data), B (agent) and C (
 
 | # | Step | Stream | Done when |
 | --- | --- | --- | --- |
-| 0 | Scaffold: `config.ts`, `log.ts`, `RunState`, `cli.ts`, `.env.example`, `.cursor/rules` | B | `pnpm agent --input x.json` prints a JSONL event and an empty result |
+| 0 | Scaffold: `config.ts`, `log.ts`, `RunState`, `cli.ts`, `.env.example` | B | `pnpm agent --input x.json` prints a JSONL event and an empty result |
 | 1 | Generator: real weather + holidays fetched once, outlets, machines, cycles, meter readings, plants, manifest | A | `data/sample/*.csv` + `manifest.json`; row counts match [data-and-evaluation.md](data-and-evaluation.md) |
 | 2 | `local-sqlite` adapter + first templates (`tou_split`, `interval_series`) | A | Templates return rows from CSVs |
 | 3 | `tou_calc` + test | A | Breakeven 63.6%; [proposal §24.1](proposal.md#241-tou-example-out-01) numbers to the sen |
@@ -188,11 +187,9 @@ Pure functions, one file each, each with a test that reproduces a worked example
 | Clean clone | Fresh clone, empty `.env`, sponsor services stopped | [proposal §22](proposal.md#22-submission-checklist) |
 | UI | Manual pass at 360, 390 and 430 px; keyboard pass on Admin web | Checklist in [design-system.md §9](design-system.md#9-accessibility-checklist) |
 
-## 7. Cursor usage (evidence for judges)
+## 7. AI coding tool usage
 
-- `.cursor/rules/` holds project rules: TypeScript style, "calculators never call I/O", "LLM never computes money", Zetaris `AGENTS.md` SQL rules, logging contract.
-- Use Composer for scaffolding and tests, Grok for longer refactors (the setup guide's recommendation).
-- Keep a running `docs/cursor-log.md` of notable Cursor sessions with screenshots for the deck.
+Any AI coding tool is allowed (Official Rules §145); Cursor is optional and only matters for the Cursor award. We build with Claude Code. If a team member uses Cursor, add `.cursor/rules/` ("calculators never do I/O", "LLM never computes money", Zetaris SQL rules, logging contract) and note it in the README. Never claim a tool that was not used.
 
 ## 8. Definition of done (per feature)
 

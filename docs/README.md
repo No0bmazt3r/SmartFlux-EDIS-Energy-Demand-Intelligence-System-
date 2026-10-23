@@ -11,7 +11,7 @@ SmartFlux EDIS is an agent for Malaysian self-service laundromat owners. It deci
 | 1 | [proposal.md](proposal.md) | The full idea (v4): why, what, maths, demo, rubric mapping, sources | Everyone |
 | 2 | [prd.md](prd.md) | Product requirements: personas, user stories, functional and non-functional requirements, scope | Whole team |
 | 3 | [architecture.md](architecture.md) | System design: C4 context, containers, components, runtime views, deployment, decision records | Builders |
-| 4 | [implementation.md](implementation.md) | How to build it: stack, repo layout, build order, module notes, testing, Cursor usage | Builders |
+| 4 | [implementation.md](implementation.md) | How to build it: stack, repo layout, build order, module notes, testing, AI coding tool usage | Builders |
 | 5 | [data-and-evaluation.md](data-and-evaluation.md) | Data window, sources, generator, planted facts, sample mode, eval and benchmark | Builders, judges |
 | 6 | [design-system.md](design-system.md) | Palette, tokens, typography, components, charts, accessibility, screen blueprints | UI, video, slides |
 | 7 | [judges-validation.md](judges-validation.md) | Mock-panel pack: gates, scoring anchors, judge questions with answers, score sheet | Panelists, team |
@@ -26,7 +26,7 @@ SmartFlux EDIS is an agent for Malaysian self-service laundromat owners. It deci
 | User | Laundromat owner (Owner app, mobile) and franchise operator (Admin web, desktop) |
 | Headline value | Solar sized on the real load, about RM507/month for the example outlet; faults found and **verified** in RM |
 | Agents | Scout → Planner ↔ Investigator ↔ Skeptic → Reporter, with H-MEM memory |
-| Sponsors | Zetaris (all data), Meterless H-MEM + Scout Intent (engines), Meterless Nightshift → NVIDIA Nemotron (all LLM calls), Cursor (built in) |
+| Sponsors | Zetaris (all data), Meterless H-MEM (engine) + intent routing and risk gating, Meterless Nightshift → NVIDIA Nemotron (all LLM calls) |
 | Runs without credentials | `SAMPLE_MODE=true`: the real logic on cached data |
 | Self-assessed score | 94/100 if fully built ([judges-validation.md §7](judges-validation.md#7-team-self-assessment-v4-assuming-full-execution)) |
 

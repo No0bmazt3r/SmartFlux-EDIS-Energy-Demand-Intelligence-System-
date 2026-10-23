@@ -34,7 +34,7 @@ Ten slides. The eight required topics are marked ★.
 | 2 | ★ The solution | One line + the four things SmartFlux does; screenshot of the Energy plan card |
 | 3 | The pivot | v1 dashboard + chatbot → v4 agent; three things that didn't hold up (1 Hz API, MD charges, RM456) |
 | 4 | ★ Agent workflow | Scout → Planner ↔ Investigator ↔ Skeptic → Reporter; H-MEM; the two loops and the block |
-| 5 | ★ Technical stack | Zetaris · H-MEM · Scout Intent · Nightshift · Nemotron lanes · Cursor · TypeScript |
+| 5 | ★ Technical stack | Zetaris · H-MEM · Scout Intent · Nightshift · Nemotron lanes · TypeScript · Claude Code |
 | 6 | ★ How Zetaris and Meterless were used | Federated query (Postgres + 2 live APIs) + USL; H-MEM and Scout Intent features and tests; Nightshift as the only LLM path |
 | 7 | ★ What was unique | Skeptic re-derives money claims from Zetaris; solar flips the ToU verdict; advice verified later |
 | 8 | ★ Product visuals | Owner app: briefing, Energy plan, Evidence; Admin web scoreboard |
@@ -57,11 +57,11 @@ Design: [design-system.md](design-system.md) colours and fonts; one idea per sli
 
 > **Zetaris (data layer).** Every piece of data the agent uses comes through Zetaris. We registered a Postgres datasource (meter readings, machine cycles, machines, tariffs, service log, solar parameters) and two live public APIs as Lightning REST tables: Malaysian public holidays (Nager.Date) and hourly weather and solar radiation (Open-Meteo archive). A Unified Semantic Layer model (`smartflux.energy`) holds the peak/off-peak and holiday rules once, and the agent queries it through named templates. The Skeptic agent also uses Zetaris to verify every money claim before it reaches the owner. If Zetaris is removed, live mode has no data.
 >
-> **Meterless (build and power).** We implemented two Meterless Engines from the IMPLEMENT prompts. **H-MEM** stores each machine's baseline, every recommendation, the owner's approvals and rejections, and measured outcomes; it powers machine health and advice verification across restarts (`memory.test.ts`). **Scout Intent** classifies every request into intents and a risk level, and blocks operational and financial actions until the owner approves (`routing.test.ts`, `risk.test.ts`). **Meterless Nightshift** is the only AI provider: every model call goes through one OpenAI-compatible client pointed at the Nightshift Runtime.
+> **Meterless (build and power).** We implemented the **H-MEM** Meterless Engine from its IMPLEMENT prompt. **H-MEM** stores each machine's baseline, every recommendation, the owner's approvals and rejections, and measured outcomes; it powers machine health and advice verification across restarts (`memory.test.ts`). Intent routing (modelled on Scout Intent; the engine spec was not available) classifies every request into intents and a risk level, and blocks operational and financial actions until the owner approves (`routing.test.ts`, `risk.test.ts`). **Meterless Nightshift** is the only AI provider: every model call goes through one OpenAI-compatible client pointed at the Nightshift Runtime.
 >
 > **NVIDIA.** Nightshift routes to two pinned NVIDIA Nemotron lanes: Nemotron Lightning for Scout, Planner and Investigator (many short tool-calling turns) and Nemotron Super for the Skeptic and Reporter (causal judgment, double-count detection, English and Malay reports). The model is logged on every call.
 >
-> **Cursor.** The project was built in Cursor. Project rules in `.cursor/rules` encode our constraints (the LLM never computes money; calculators never do I/O; Zetaris SQL rules). We used Composer for scaffolding and tests and Grok for longer refactors.
+> **AI coding tool.** Built with Claude Code. (Add a Cursor paragraph only if a team member actually used Cursor and we enter the Cursor award.)
 >
 > **What was unique.** No money claim reaches the owner until the Skeptic has re-derived it from Zetaris, and the Skeptic rejects savings summed across interacting decisions. Solar sizing re-decides the tariff on the remaining grid load. H-MEM lets the agent check whether its own advice worked.
 
@@ -110,4 +110,4 @@ Record the prototype's last pre-window commit hash here: `[hash]`.
 
 ## Sources
 
-Form fields from this repo's `Demo and Submission Resources/submission-form-preview.md`. Demo-video practice: [Devfolio](https://guide.devfolio.co/docs/guide/participating-in-hackathons/judging-1), [Colosseum](https://blog.colosseum.com/perfecting-your-hackathon-submission/), [ReSkill](https://blogs.reskilll.com/hackathon-demo-presentation-tips-pitch-3-minutes-win-2026/).
+Form fields from the hackathon resource pack's submission form preview. Demo-video practice: [Devfolio](https://guide.devfolio.co/docs/guide/participating-in-hackathons/judging-1), [Colosseum](https://blog.colosseum.com/perfecting-your-hackathon-submission/), [ReSkill](https://blogs.reskilll.com/hackathon-demo-presentation-tips-pitch-3-minutes-win-2026/).

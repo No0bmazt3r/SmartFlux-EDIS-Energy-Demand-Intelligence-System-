@@ -64,7 +64,7 @@ Impact is 30 points and breaks ties. Judges' guidance says a team with a real us
 | Willingness to pay | |
 | Quote (with permission) | |
 
-Store notes in `docs/smartflux/research/` without phone numbers or full names.
+Store notes in `docs/research/` without phone numbers or full names.
 
 ## 5. How findings change the product
 

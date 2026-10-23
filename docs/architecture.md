@@ -22,7 +22,7 @@
 
 | Constraint | Source |
 | --- | --- |
-| Zetaris integrated with a real role; at least one Meterless Engine in a working feature; Meterless Nightshift as primary AI provider; built in Cursor | Official rules |
+| Zetaris integrated with a real role; at least one Meterless Engine in a working feature; Meterless Nightshift as primary AI provider; any AI coding tool (Cursor optional) | Official rules |
 | No committed secrets; `.env.example` only | Official rules |
 | Sample mode must run real logic, never replay outputs | Disqualification checklist §7–8 |
 | No local GPU; NVIDIA models reached through Nightshift's hosted endpoints | Technical execution guide §4 |
@@ -279,7 +279,7 @@ Ports: app API 8000, web 5173 (dev) or served by the API in Docker, Zetaris UI 3
 | --- | --- |
 | Zetaris SQL REST path undocumented | Smoke test fetches `/redoc/docs.yaml`; proxy route and JDBC as fallbacks |
 | Template parity between Lightning SQL and SQLite | Parity test on sample data for every template |
-| Scout Intent spec not in repo | Fallback: plain intent routing, H-MEM carries the Build rule |
+| Scout Intent spec not in the resource pack | Fallback in force (24 Oct): plain intent routing and risk gating; H-MEM carries the Build rule |
 | File-backed H-MEM | Fine for a single process; a database would be needed for multi-instance |
 | Scheduler in-process | Fine for the demo; production would use a job runner |
 

@@ -9,7 +9,7 @@
 | Project | SmartFlux EDIS (Energy Demand Intelligence System) |
 | Track | **Track 3: Reasoning Architecture** (primary), with Track 2-style evidence-backed answers |
 | User | Owner or operator of a self-service laundromat in Malaysia (single outlet first, then franchises) |
-| Stack | Zetaris (data) · Meterless Engines H-MEM and Scout Intent (build) · Meterless Nightshift and NVIDIA Nemotron (power) · Cursor (development) |
+| Stack | Zetaris (data) · Meterless Engine H-MEM plus intent routing and risk gating (build) · Meterless Nightshift and NVIDIA Nemotron (power) · any AI coding tool (development) |
 | Build window | 22 Oct 2026, 00:00 UTC to 27 Oct 2026, 23:45 UTC. **Internal submit target: 27 Oct, 12:00 UTC** |
 | Status | **Final idea, v4 (24 Oct 2026).** A UI prototype exists (pre-existing, will be declared); the agent core is built new in the window |
 | Surfaces | **Owner app** (mobile-first PWA) for the laundromat owner, and **Admin web** (desktop) for the SmartFlux operator |
@@ -47,7 +47,7 @@ v2 scored about 78/100 on paper and about 63/100 risk-adjusted against the judgi
 | 6 | **Skeptic re-queries Zetaris itself** to verify every cited number before approving a claim | Strong-submission example: *"the Evaluator uses Zetaris directly to check claims"*. Stops the Skeptic being a rubber stamp | [§11.2](#112-agents-and-authority) |
 | 7 | **SQL constrained to query templates** over the USL model, with a guarded free-SQL escape hatch | LLM-written Lightning SQL fails often; templates make runs predictable | [§11.4](#114-tools-and-query-templates) |
 | 8 | **JSONL logs in `logs/` and stdout** with `agent_name`, `target_agent`, `confidence`, `retry_count`, `status` | Mentor playbook §12, weak example 7 | [§12](#12-logs-and-traces) |
-| 9 | **Five input examples and their real outputs**, a CLI, `POST /run`, Docker | Technical guide §1–3; readiness checklist | [§14](#14-entry-points-docker-and-examples) |
+| 9 | **Eight input examples and their real outputs**, a CLI, `POST /run`, Docker | Technical guide §1–3; readiness checklist | [§14](#14-entry-points-docker-and-examples) |
 | 10 | **Retry and fallback** for Zetaris, Nightshift and the public APIs, each logged | Weak example 11 | [§13.3](#133-failure-handling) |
 | 11 | **Trace scene added to the demo**; Nightshift settings moved to one slide | Strong demo structure gives 40 s to the collaboration trace | [§20](#20-demo-script) |
 | 12 | **User validation**: at least one real owner conversation before recording, quoted in the deck | Mentor playbook: *"a team with a real user beats a team with better engineering and no user"* | [§5.3](#53-user-validation) |
@@ -322,15 +322,15 @@ The novel parts judges should remember:
 
 | Requirement | Source | How SmartFlux meets it | Evidence for judges |
 | --- | --- | --- | --- |
-| **Zetaris integrated with a real role** | Rules, Data rule | Every live data access goes through `run_sql` against Zetaris: a Postgres datasource, two REST-API tables (holidays, weather) federated in one query, and a USL model the templates query | Zetaris UI screenshot; `zetaris.call` events in logs; federated query in README |
+| **Zetaris integrated with a real role** | Rules, Data rule | Every live data access goes through `run_sql` against Zetaris: a Postgres datasource, two REST-API tables (holidays, weather) federated in one query, and a USL model the templates query | Zetaris UI screenshot; `zetaris.query` events in logs; federated query in README |
 | **At least one Meterless Engine in a working feature, with a passing test** | Rules, Build rule | **H-MEM** powers machine health (baselines across sessions). **Scout Intent** powers routing and action gating | `memory.test.ts`, `routing.test.ts`, `risk.test.ts` output in README; code paths named |
-| **Meterless Nightshift as primary AI provider** | Rules, Power rule | Every LLM call uses one OpenAI-compatible client pointed at the Nightshift Runtime URL | `llm.call` events with Nightshift run IDs |
-| **NVIDIA Nemotron (for the DGX Spark award)** | Rules §15 | Fast lane Nemotron Lightning for Scout, Planner, Investigator; Deep lane Nemotron Super for Skeptic and Reporter; routes pinned | Model name on every `llm.call` event |
-| **Cursor as the development environment** | Rules | Built in Cursor with Composer and Grok; `.cursor/rules` committed | Rules file, screenshots, deck slide |
+| **Meterless Nightshift as primary AI provider** | Rules, Power rule | Every LLM call uses one OpenAI-compatible client pointed at the Nightshift Runtime URL | `model` field on every LLM-backed log event |
+| **NVIDIA Nemotron (for the DGX Spark award)** | Rules §15 | Fast lane Nemotron Lightning for Scout, Planner, Investigator; Deep lane Nemotron Super for Skeptic and Reporter; routes pinned | Model name on every LLM-backed log event |
+| **AI coding tool (any; Cursor optional)** | Rules §145 | Built with Claude Code; Cursor only if a team member uses it (needed only for the Cursor award) | README "Built with" line |
 | **Working agent, not a chatbot** | Brief | Five roles with distinct authority, two feedback loops, tool use, approvals | Logs, demo |
 | **Programmatic entry point** | Technical guide §2 | `POST /run` on `0.0.0.0:8000` and `pnpm agent --input` | README usage section |
 | **Logs** | Technical guide §1 | JSONL to `logs/` and stdout | `logs/` after any run |
-| **Sample inputs and outputs** | Technical guide §1 | 5 inputs in `input_examples/`, real saved outputs in `output_examples/` | Repo |
+| **Sample inputs and outputs** | Technical guide §1 | 8 inputs in `input_examples/`, real saved outputs in `output_examples/` | Repo |
 | **Sample mode runs real logic** | Disqualification checklist §7 | `SAMPLE_MODE=true`: local SQLite over cached CSVs + rules-based reasoner + same calculators | Clean-clone test output |
 | **No hardcoded outputs** | Disqualification checklist §8 | No code reads `output_examples/`; outputs differ across inputs and datasets | Seed 2 run in README |
 | **No committed secrets** | Rules | `.env` gitignored, `.env.example` placeholders; NVIDIA key only in Nightshift | Secret scan before submit |
@@ -403,8 +403,8 @@ flowchart TB
 ```mermaid
 flowchart LR
     subgraph BUILD["BUILD: while you code"]
-        C["Cursor<br/>Composer / Grok"]
-        E["Meterless Engines<br/>H-MEM + Scout Intent<br/>(code in the app)"]
+        C["AI coding tool<br/>(Claude Code)"]
+        E["Meterless Engine H-MEM<br/>+ intent routing<br/>(code in the app)"]
     end
     subgraph POWER["POWER: while the product runs"]
         N["Meterless Nightshift<br/>primary AI provider"]
@@ -470,7 +470,7 @@ sequenceDiagram
 
 The owner's data lives in places that never meet: TNB meter exports, the payment system's cycle log, the tariff schedule, the holiday calendar and the weather. Zetaris puts all of them behind one SQL endpoint, so the agent asks one system and never maintains a connector per source. Two public REST APIs become SQL tables the same way the PokéAPI starter recipe does, and a **Unified Semantic Layer (USL)** gives the agent one business view (`interval_usage`, `dryer_cycle_day`) instead of raw source tables. If Zetaris is removed, live mode has no data: it is load-bearing.
 
-> Source of truth for setup and syntax: Zetaris's [getting-started repository](https://github.com/zetaris/getting-started/tree/44668b267ad7ee0fae25ce7588e9620121d47cae), summarised in [`zetaris/zetaris-sponsor-overview.md`](../../zetaris/zetaris-sponsor-overview.md).
+> Source of truth for setup and syntax: Zetaris's [getting-started repository](https://github.com/zetaris/getting-started/tree/44668b267ad7ee0fae25ce7588e9620121d47cae), summarised in the hackathon resource pack's Zetaris sponsor overview (not redistributed in this repo).
 
 ### 10.2 Sources
 
@@ -481,7 +481,7 @@ The owner's data lives in places that never meet: TNB meter exports, the payment
 | `meter_readings` | Postgres table | myTNB / smart meter export, 30-min intervals | Synthetic, 7 Sep – 18 Oct 2026, 2,016 rows per outlet |
 | `service_log` | Postgres table | Owner or technician records | Synthetic; D4 serviced Tue 6 Oct |
 | `solar_params` | Postgres table | Installer quotes, Solar ATAP rules | System cost per kWp, derate, roof limit per outlet, scheme cap; every value shown on the card as an assumption |
-| `machine_cycles` | Postgres table | Cashless payment system logs | Synthetic, about 15,000 cycles in total |
+| `machine_cycles` | Postgres table | Cashless payment system logs | Synthetic, about 22,000 cycles in total (seed 1) |
 | `tariffs` | Postgres table | TNB published schedule | Rates from the brief, checked against TNB before recording |
 | `emission_factors` | Postgres table | Energy Commission grid factor | One value, cited (replaces 0.4 vs 0.694) |
 | `holidays` | **REST table** `holidays_rest.my_2026` | `date.nager.at/api/v3/PublicHolidays/2026/MY` (no key) | Live public API; Malaysia Day (16 Sep) falls in the window |
@@ -948,12 +948,12 @@ smartflux/
 │   ├── load-data.ts               # NEW  CSV → Postgres
 │   ├── zetaris-setup.ts           # NEW  runs infra/zetaris/*.sql, --dry-run first
 │   ├── smoke.ts                   # NEW  Zetaris + Nightshift checks
-│   └── eval.ts                    # NEW  O1–O5 on seed 1 and seed 2
 ├── data/sample/                   # NEW  cached CSVs for sample mode (+ data/README.md)
+├── eval/                          # NEW  run-eval.ts (O1–O12, both seeds), benchmark.ts
 ├── input_examples/  output_examples/  logs/
 ├── infra/zetaris/                 # NEW  *_create.sql, *_select.sql
 ├── docker-compose.yml  Dockerfile
-├── .cursor/rules/  .env.example  PRE_EXISTING.md  README.md
+├── .env.example  PRE_EXISTING.md  README.md
 ```
 
 Node 22.13+ is required (`node:sqlite` is built in, so sample mode adds no dependency).
@@ -1090,7 +1090,7 @@ If the projection crosses the target, hold new dryer starts until the window clo
 1. Fetches the real hourly humidity, temperature and shortwave radiation (Open-Meteo archive, 7 Sep – 18 Oct 2026, three outlets) and the real 2026 Malaysian holidays (Nager.Date) **once**, and saves them to `data/sample/`.
 2. Generates customer arrivals (busier evenings and weekends, holiday pattern on Malaysia Day), machine cycles and 30-minute meter readings.
 3. Applies the plants below, with dryer energy following the **real** humidity series.
-4. Writes CSVs and a `manifest.json` of planted facts (used only by `eval.ts`, never by the agent).
+4. Writes CSVs and a `manifest.json` of planted facts (used only by `eval/`, never by the agent).
 
 ### 16.2 What gets planted
 
@@ -1109,7 +1109,7 @@ Realistic noise: missing meter intervals, a few duplicate cycle records, rated k
 
 ### 16.3 Anti-overfitting rule
 
-`--seed 2` moves the faulty machine to OUT-02 (a different dryer, from week 2), flips which outlet should stay on flat, and changes the noisy machine. `eval.ts` runs all objectives on both seeds in both modes. No outlet or machine IDs appear in prompts or code paths.
+`--seed 2` moves the faulty machine to OUT-02 (a different dryer, from week 2), flips which outlet should stay on flat, and changes the noisy machine. `eval/run-eval.ts` runs all objectives on both seeds in both modes. No outlet or machine IDs appear in prompts or code paths.
 
 ### 16.4 Benchmark
 
@@ -1133,8 +1133,8 @@ The table goes in the README and on one slide. Misses are listed, not hidden.
 
 | | |
 | --- | --- |
-| Prompt | IMPLEMENT → *Give my agent memory* (meterless.ai/engines.html), run in Cursor |
-| Minimum built | `MemoryStoreService` + `MemoryRetrievalService` from `meterless/meterless-h-mem-agent-engine.md`; file-backed in `data/hmem/`; dreaming and sleep skipped |
+| Prompt | IMPLEMENT → *Give my agent memory* (meterless.ai/engines.html), run in the team's AI coding tool |
+| Minimum built | `MemoryStoreService` + `MemoryRetrievalService` from the resource pack's H-MEM engine spec (`meterless-h-mem-agent-engine.md`); file-backed in `data/hmem/`; dreaming and sleep skipped |
 | Stores | Machine baselines (kWh per cycle, duration, `as_of`), recommendations, approvals and rejections, measured outcomes |
 | Feature it powers | Machine health: "D4 is 33% above the 2.1 kWh baseline learned as of 13 Sep" |
 | Test | `memory.test.ts`: write a baseline, restart, recall it, flag a +33% reading; rejected advice is not re-proposed |
@@ -1158,7 +1158,7 @@ sequenceDiagram
 
 | | |
 | --- | --- |
-| Prompt | IMPLEMENT → *Route tools by intent*. **The spec is not in this repo** (`SCOUT_INTENT_DETECTION_Agent_Engine.md` is missing); fetch it from meterless.ai or the Meterless GitHub tonight |
+| Prompt | IMPLEMENT → *Route tools by intent*. **Decision (24 Oct): the spec is not in the resource pack, so the fallback below is in force.** Ask in Help Meterless; swap in the engine only if a spec arrives by 25 Oct |
 | Intents | `energy_plan` (solar and ToU), `tariff_decision`, `bill_investigation`, `machine_health`, `advice_followup`, `load_shift_plan`, `esg_summary`, `out_of_scope` |
 | Risk levels | `read_only`, `advisory`, `operational`, `financial` |
 | Tests | `routing.test.ts`: 20 labelled requests (English and Malay); `risk.test.ts`: a tariff switch can never auto-execute |
@@ -1192,7 +1192,7 @@ flowchart TD
     N2 --> N3["Nightshift → Setup → Providers → NVIDIA → paste key"]
     N3 --> N4["NIGHT → LANES<br/>Lane 1: Nemotron Lightning · Lane 2: Nemotron Super"]
     N4 --> N5["Console → Runtime URL + token → project .env"]
-    N5 --> N6["Apply POWER → Add Meterless as a provider in Cursor"]
+    N5 --> N6["Apply POWER → Add Meterless as a provider"]
     N6 --> N7["pnpm smoke: /v1/models lists pinned routes;<br/>/v1/chat/completions answers"]
 ```
 
@@ -1266,6 +1266,8 @@ MAX_REJECTIONS_PER_CLAIM=3
 At least two members must be able to run live mode on their own machines with their own credentials (team formation rules: "only one of us can run it" is the top red flag).
 
 ### 18.3 Timeline
+
+> Superseded on 24 Oct: the plan below is kept for history. Live progress is tracked in [TODO.md](../TODO.md).
 
 ```mermaid
 gantt
@@ -1370,7 +1372,7 @@ v2 was scored at about 78 if fully built; v3 at 89. The targets below assume thi
 | **Innovation** | 15 | 12 | 13 | **14** | Payment-log disaggregation; solar re-deciding the tariff; Skeptic catching double-counted savings; an agent that checks whether its own advice worked; proactive weekly briefings | Energy plan card; trace; briefing card |
 | **Demo** | 15 | 11 | 14 | **14** | A twist ("solar flips ToU"), memory across restart, a visible Skeptic rejection, an approval and its verified outcome, sample mode on camera, under 4 minutes | Video |
 | **Product & UX** | 10 | 7 | 8 | **9** | Phone-width Owner app that opens on a Monday briefing; plain-language cards in English or Malay; evidence one tap away; approvals; predicted vs realised savings; one-page Admin web with scoreboard and Scope 2 export | Video; app |
-| **Sponsor Tech** | 10 | 9 | 10 | **10** | Zetaris federates Postgres + 2 live APIs (now also driving solar yield) + USL and is the Skeptic's verification source; 2 Meterless engines with tests; Nightshift is the only LLM path; Nemotron per lane, logged; built in Cursor | Logs; tests; Zetaris screenshots; `.cursor/rules` |
+| **Sponsor Tech** | 10 | 9 | 10 | **10** | Zetaris federates Postgres + 2 live APIs (now also driving solar yield) + USL and is the Skeptic's verification source; H-MEM engine plus intent routing and risk gating, with tests; Nightshift is the only LLM path; Nemotron per lane, logged | Logs; tests; Zetaris screenshots |
 | **Total** | 100 | 78 | 89 | **94 (A)** | | |
 
 ---
@@ -1382,7 +1384,7 @@ v2 was scored at about 78 if fully built; v3 at 89. The targets below assume thi
 - [ ] Demo video (1–4 minutes), following [§20](#20-demo-script), link works logged out
 - [ ] Slide deck: problem and users (with owner quote), solution, agent architecture, stack, how Zetaris and Meterless were used, what was unique (Skeptic verifies against Zetaris), product visuals, results on both datasets, roadmap
 - [ ] Public GitHub repo with README: track, problem, agents table, setup (sample, live, Docker), usage, examples, sponsor tech, failure handling, limitations, pre-existing components
-- [ ] Sponsor technology explanation: Zetaris, H-MEM and Scout Intent (with test results), Nightshift, Nemotron, Cursor
+- [ ] Sponsor technology explanation: Zetaris, H-MEM and Scout Intent (with test results), Nightshift, Nemotron (Cursor only if used)
 - [ ] Pre-existing declaration in the form and `PRE_EXISTING.md`
 - [ ] Track 3 selected on HackOS
 
