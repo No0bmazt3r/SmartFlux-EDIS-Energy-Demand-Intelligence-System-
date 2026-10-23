@@ -117,7 +117,7 @@ Score each criterion within its band. Anchors come from the official criteria an
 | T4 | Does the LLM do the maths? | Never. It picks templates and explains; calculators compute every number | `calc/*.test.ts`; `calc.*` events |
 | T5 | What if Zetaris dies mid-run? | Retry, then the same template runs locally; logged as `fallback`, run marked `mixed` | Failure demo; logs |
 | T6 | How do you know it's accurate? | 30-outlet benchmark: verdict accuracy, fault recall, false flags, verification error | `eval/benchmark.md` |
-| T7 | How do you stop runaway loops? | Caps: 14 tool calls, 3 rejections per claim, 2 re-plans; unresolved items reported | `caps.ts` |
+| T7 | How do you stop runaway loops? | Caps: 30 tool calls (queries + calculator runs), 3 rejections per claim, 2 re-plans; unresolved items reported | `caps.ts` |
 | T8 | Is the regression stable? | Weekly fits with standard errors; collinear machines merged and reported | `regress.test.ts` |
 
 ### Business judge
@@ -137,7 +137,7 @@ Score each criterion within its band. Anchors come from the official criteria an
 
 | # | Question | Answer | Proof |
 | --- | --- | --- | --- |
-| S1 | If I removed Zetaris, what breaks? | All live data access: the agent and the Skeptic's verification queries both go through Zetaris, including two live REST APIs and a semantic layer | `zetaris.query` events; Zetaris UI |
+| S1 | If I removed Zetaris, what breaks? | All live data access: the agent and the Skeptic's verification queries both go through Zetaris, including a live REST API (Open-Meteo) and a semantic layer | `zetaris.query` events; Zetaris UI |
 | S2 | Which Meterless Engine, doing what, with which test? | H-MEM: machine baselines, advice and outcomes across restarts (`memory.test.ts`). Plus intent routing and approval gating modelled on Scout Intent (`routing.test.ts`, `risk.test.ts`) | Test output |
 | S3 | Is Nightshift really the provider? | Every LLM call goes through one client pointed at the Nightshift Runtime URL | `adapters/llm.ts`; log `model` fields |
 | S4 | Where does Nemotron do real work? | Hypothesis choice, template selection, the Skeptic's causal judgment and double-count detection, Malay and English reporting; models pinned per lane | Log per step |

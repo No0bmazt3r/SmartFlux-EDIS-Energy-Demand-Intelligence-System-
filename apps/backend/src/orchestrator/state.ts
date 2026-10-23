@@ -11,28 +11,31 @@ export type Intent =
 
 export type RunRequest = { outlet_id: string; as_of: string; question?: string; lang?: Lang; briefing?: boolean };
 
-export type Hypothesis = { id: string; intent: Intent; text: string; status: "open" | "supported" | "rejected" | "unresolved" };
+// kind picks the Investigator recipe and the Skeptic check; reason says why a hypothesis was ruled out.
+export type HypothesisKind = "tou" | "energy" | "fault" | "humidity" | "traffic" | "holiday" | "bill" | "verify";
+export type Hypothesis = { id: string; intent: Intent; kind: HypothesisKind; text: string; status: "open" | "supported" | "rejected" | "unresolved"; reason?: string };
 export type Evidence = { id: string; kind: "query" | "calc"; name: string; params: Record<string, unknown>; summary: string; output: unknown };
 export type Claim = {
-  id: string; hypothesis_id: string; type: Decision["type"]; text: string;
+  id: string; hypothesis_id: string; kind: HypothesisKind; text: string;
   data: Record<string, any>; evidence: string[];
   status: "proposed" | "approved" | "rejected"; reason?: string;
 };
 export type ProposedAction = { id: string; type: string; target: string; reason: string; risk: Risk; status: "awaiting_approval" | "approved" | "rejected" };
 
 export type Decision = {
-  type: "energy_plan" | "tariff" | "machine_fault" | "verification" | "load_shift" | "esg";
+  type: "briefing" | "energy_plan" | "tariff" | "machine_fault" | "bill_explanation" | "verification" | "load_shift" | "esg";
   verdict: string; rm_per_month?: number; confidence: "high" | "medium" | "low";
   evidence: string[]; ruled_out: string[]; assumptions: string[];
 };
 
 export type RunState = {
   run_id: string; as_of: string; outlet_id: string; question: string; lang: Lang;
-  intents: Intent[]; risk: Risk; refused: boolean;
+  intents: Intent[]; risk: Risk; refused: boolean; briefing: boolean;
   hypotheses: Hypothesis[]; evidence: Evidence[]; claims: Claim[]; actions: ProposedAction[];
   decisions: Decision[]; unresolved: string[];
   counters: { tool_calls: number; replans: number; rejections: Record<string, number> };
   caps: Config["caps"]; mode: Mode; needsReplan: boolean;
+  analysis?: Record<string, any>; // memo of shared Investigator work (e.g. one machine regression for several hypotheses)
 };
 
 export type RunResult = {

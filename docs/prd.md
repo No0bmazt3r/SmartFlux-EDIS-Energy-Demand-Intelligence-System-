@@ -122,7 +122,7 @@ Payments and subscriptions; real authentication (demo login only); multi-tenancy
 | FR-11 | Verify approved actions after they happen | Example 07 returns "verified" with a band |
 | FR-12 | Run a weekly briefing per outlet without a question | Example 08 produces a briefing card; appears in Admin run log |
 | FR-13 | Evaluate every request at an `as_of` date | Data after `as_of` never appears in a log or output |
-| FR-14 | Cap work per run | ≤ 14 tool calls, ≤ 3 rejections per claim, ≤ 2 re-plans; unresolved items listed |
+| FR-14 | Cap work per run | ≤ 30 tool calls (queries + calculator runs), ≤ 3 rejections per claim, ≤ 2 re-plans; unresolved items listed |
 | FR-15 | Answer in the request's language (English or Malay) | Example 04 answers in Malay |
 
 ### 6.2 Owner app

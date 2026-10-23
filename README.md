@@ -7,7 +7,7 @@ An agent that tells a Malaysian laundromat owner whether to install solar, switc
 **Open Agent Hackathon 2026 · Track 3: Reasoning Architecture**
 Built with Zetaris · Meterless H-MEM · Meterless Nightshift · NVIDIA Nemotron · Claude Code
 
-> **Status: in development.** Sample mode runs the ToU decision end to end today (`pnpm agent --input input_examples/01-tou-switch.json`). The rest of the commands below are the planned interface. See [TODO.md](TODO.md) for progress.
+> **Status: in development.** Sample mode runs all eight examples end to end today (`pnpm agent --input input_examples/06-energy-plan.json`); live mode, the API, the apps and Docker are next. See [TODO.md](TODO.md) for progress.
 
 ---
 
@@ -69,7 +69,7 @@ Live mode needs Zetaris (Docker) and Meterless Nightshift running. See [docs/pro
 
 | Sponsor | Role |
 | --- | --- |
-| **Zetaris** | The only live data path: a Postgres datasource and two live REST tables (Nager.Date holidays, Open-Meteo weather), with a semantic layer the query templates read. The Skeptic verifies claims through it |
+| **Zetaris** | The only live data path: a Postgres datasource and a live REST table (Open-Meteo weather and radiation), with a semantic layer the query templates read. The Skeptic verifies claims through it |
 | **Meterless H-MEM** | Remembers machine baselines, advice, approvals and outcomes across restarts |
 | **Intent routing** (modelled on Meterless Scout Intent; the engine spec wasn't available) | Routes requests by intent and gates operational and financial actions behind owner approval |
 | **Meterless Nightshift → NVIDIA Nemotron** | The only LLM provider: Nemotron Lightning (fast lane) and Nemotron Super (deep lane), logged on every call |
@@ -91,7 +91,7 @@ Live mode needs Zetaris (Docker) and Meterless Nightshift running. See [docs/pro
 
 ## Data and limitations
 
-- All business data (meters, cycles, machines) is **synthetic** and labelled as such. Weather comes from [Open-Meteo](https://open-meteo.com/) (CC BY 4.0) and holidays from [Nager.Date](https://date.nager.at/) (MIT). Both are real.
+- All business data (meters, cycles, machines) is **synthetic** and labelled as such. Weather comes from [Open-Meteo](https://open-meteo.com/) (CC BY 4.0) and holidays from the public Malaysia holiday calendar. Both are real.
 - Solar figures depend on stored assumptions: cost per kWp, derate, and exports valued at zero.
 - Tariff rates must be confirmed against TNB's official non-domestic schedule.
 - The post-service recovery in the demo is planted, because the demo cannot wait weeks.

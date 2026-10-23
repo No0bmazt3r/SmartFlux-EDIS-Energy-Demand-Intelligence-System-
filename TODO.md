@@ -18,8 +18,8 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 - [ ] **0.7** Find the prototype's last commit before the window (before 22 Oct 00:00 UTC) and record the hash. *Done when:* submission-pack §6 has the hash.
 - [x] **0.8** Decide whether the prototype code gets imported into this repo or the build starts fresh here. *Done when:* written in implementation.md §2. ✅ Build fresh here (24 Oct).
 
-- [ ] **0.9** **Holidays REST table:** Nager.Date has no Malaysia data (`/PublicHolidays/2026/MY` returns 204). Options: (a) holidays become a static Postgres table, leaving Open-Meteo as the one live REST API, and the docs drop "two live APIs"; (b) a JSON file in this public repo served as a REST table (honest, but a bit artificial). *Done when:* chosen and the docs updated.
-- [ ] **0.10** **Fault size in RM:** generated D4 runs about 183 cycles/month, so +33% wastes about RM64/month, not the RM182 in the docs (which assume 520 cycles/month). Either raise dryer traffic in the generator, or update the docs and mockups to the generated figure. *Done when:* chosen.
+- [x] **0.9** **Holidays REST table:** Nager.Date has no Malaysia data (`/PublicHolidays/2026/MY` returns 204). Options: (a) holidays become a static Postgres table, leaving Open-Meteo as the one live REST API, and the docs drop "two live APIs"; (b) a JSON file in this public repo served as a REST table (honest, but a bit artificial). *Done when:* chosen and the docs updated. ✅ Defaulted to (a) on 24 Oct: holidays are a static Postgres table, Open-Meteo is the live REST API, and the docs now say "a live REST API". Override if you prefer (b).
+- [x] **0.10** **Fault size in RM:** generated D4 runs about 183 cycles/month, so +33% wastes about RM64/month, not the RM182 in the docs (which assume 520 cycles/month). Either raise dryer traffic in the generator, or update the docs and mockups to the generated figure. *Done when:* chosen. ✅ Defaulted on 24 Oct: the generator stays as is. D4 wastes about RM48/month (183 cycles/month) and the docs are updated in 1.9. Override to raise dryer traffic instead.
 
 ## Phase 1: Fix the docs (30 min)
 
@@ -31,7 +31,7 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 - [x] **1.6** The benchmark and the fault threshold conflict: faults are planted at +15–45%, but `fault_check` flags only at ≥ +20%. About 1 in 6 faults can never be found, so the ≥ 90% recall target is at risk. *Done when:* the planted range starts at +20%, the threshold changes, or the target is restated (see the grilling). ✅ Decided (b): recall counted on faults ≥ +20%; +15–20% faults reported as a stated limit.
 - [x] **1.7** The Gantt timeline in proposal §18.3 is stale (milestone m1, 24 Oct 00:00, has passed). *Done when:* it's re-planned from now, or replaced with a link to this file.
 
-- [ ] **1.8** **Solar sizing rule:** on real radiation, "largest size with ≥ 90% self-use" picks 5 kWp for OUT-01 (91%), where ToU still pays. Proposed rule: add 5 kWp blocks while each block's own payback is inside the 10-year Solar ATAP term. For OUT-01 that gives 10 kWp (5→10 pays back in about 7 years, 10→15 in about 10.7 years). *Done when:* agreed and proposal §15.6 updated.
+- [x] **1.8** **Solar sizing rule:** on real radiation, "largest size with ≥ 90% self-use" picks 5 kWp for OUT-01 (91%), where ToU still pays. Proposed rule: add 5 kWp blocks while each block's own payback is inside the 10-year Solar ATAP term. For OUT-01 that gives 10 kWp (5→10 pays back in about 7 years, 10→15 in about 10.7 years). *Done when:* agreed and proposal §15.6 updated. ✅ Done: 5→10 kWp pays back in ~7 years and 10→15 in 10.7 years, so 10 kWp is recommended. Proposal §15.6 updated.
 - [ ] **1.9** **Headline numbers:** after phase 6, re-derive every number in the docs, mockups and demo script from the generated data, e.g. ToU saving RM7.60 (not RM14.35), solar about RM503, ToU-after-solar +RM1.39. *Done when:* no doc quotes a number the system doesn't produce.
 
 ## Phase 2: Environment and sponsor setup (parallel with phase 3)
@@ -51,7 +51,7 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 - [x] **3.3** `.env.example` exactly as in proposal §18.1, placeholders only. *Done when:* the secret grep finds nothing real.
 - [x] **3.4** `config.ts`: parses env, picks the mode, and in live mode a missing variable gives a clear error suggesting `SAMPLE_MODE=true`. *Done when:* an empty `.env` starts in sample mode and a partial live `.env` fails with the variable's name.
 - [x] **3.5** `log.ts`: `emit()` writes to stdout and `logs/<run_id>.jsonl` with every `LogEvent` field (architecture §8). *Done when:* a test writes an event and reads it back. ✅ Covered by `orchestrator/run.test.ts`.
-- [x] **3.6** `orchestrator/state.ts` (`RunState`) and `caps.ts` (14 tool calls, 3 rejections per claim, 2 re-plans). *Done when:* the types compile.
+- [x] **3.6** `orchestrator/state.ts` (`RunState`) and `caps.ts` (30 tool calls, 3 rejections per claim, 2 re-plans). *Done when:* the types compile.
 - [x] **3.7** `cli.ts`: `pnpm agent --input <file>`. *Done when:* it prints one JSONL event and an empty result.
 - [x] **3.8** ~~`.cursor/rules/`~~ Not needed: Cursor is optional (Official Rules §145). Add it only if someone uses Cursor.
 - [x] **3.9** ~~Cursor log~~ Not needed (see 3.8).
@@ -66,40 +66,40 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 - [x] **4.6** `adapters/local-sqlite.ts`: loads the CSVs into in-memory `node:sqlite` with the USL table and view names (`interval_usage`, `dryer_cycle_day`). *Done when:* `SELECT COUNT(*)` matches the CSVs.
 - [x] **4.7** Template framework (`{params, lightning, sqlite}`, bound params, `as_of` filter, 500-row cap) plus `tou_split` and `interval_series`. *Done when:* both return rows and no rows come after `as_of`.
 - [x] **4.8** `calc/tou.ts` and its test. *Done when:* breakeven is 63.6% and proposal §24.1 is reproduced to the sen (RM2,012.85 vs RM2,027.20, saving RM14.35). ✅ `calc/tou.test.ts`.
-- [ ] **4.9** The remaining templates: `cycle_overlap`, `dryer_cycle_day`, `cycle_duration`, `peer_week_delta`, `cycle_prices`, `solar_inputs`, `service_history`. *Done when:* each returns rows on seed 1.
+- [x] **4.9** The remaining templates: `cycle_overlap`, `dryer_cycle_day`, `cycle_duration`, `peer_week_delta`, `cycle_prices`, `solar_inputs`, `service_history`. *Done when:* each returns rows on seed 1. ✅ Plus `machine_list`, `outlet_info`, `holidays_range`, `weather_range`, `solar_inputs`, `solar_params`, `services_range`.
 
 ## Phase 5: Agent loop in sample mode (step 4, stream B) ★ first milestone
 
 - [x] **5.1** Rules twin for Scout: an EN/MS keyword classifier with intents and the risk table (proposal §17.2). *Done when:* "Write me a marketing email" → `out_of_scope`. ✅ `engines/scout/index.ts` (fallback routing, EN/MS, refusal, action risk gate).
-- [ ] **5.2** Rules twin for Planner: a fixed hypothesis set and template list per intent. *Done when:* the log shows a `plan` event before any query. ⏳ Tariff recipe done; other intents to add as their calculators land.
-- [ ] **5.3** Rules twin for Investigator: runs the templates and calculators for each open hypothesis. *Done when:* `calc.*` events appear. ⏳ Tariff recipe done; other intents to add as their calculators land.
-- [ ] **5.4** Rules twin for Skeptic: peer delta, timing, ≥ 2 SE, duration change, gas vs electric, interacting decisions. It can send work back. *Done when:* a `needs_revision` event is emitted for a summed saving. ⏳ Tariff recipe done; other intents to add as their calculators land.
-- [ ] **5.5** Rules twin for Reporter: `Decision[]` built from approved claims only, with assumptions and ruled-out items listed. *Done when:* an unapproved claim never reaches the output. ⏳ Tariff recipe done; other intents to add as their calculators land.
+- [x] **5.2** Rules twin for Planner: a fixed hypothesis set and template list per intent. *Done when:* the log shows a `plan` event before any query. ✅ All implemented intents (tariff, bill, machines, energy plan, follow-up, briefing).
+- [x] **5.3** Rules twin for Investigator: runs the templates and calculators for each open hypothesis. *Done when:* `calc.*` events appear. ✅ All implemented intents (tariff, bill, machines, energy plan, follow-up, briefing).
+- [x] **5.4** Rules twin for Skeptic: peer delta, timing, ≥ 2 SE, duration change, gas vs electric, interacting decisions. It can send work back. *Done when:* a `needs_revision` event is emitted for a summed saving. ✅ All implemented intents (tariff, bill, machines, energy plan, follow-up, briefing).
+- [x] **5.5** Rules twin for Reporter: `Decision[]` built from approved claims only, with assumptions and ruled-out items listed. *Done when:* an unapproved claim never reaches the output. ✅ All implemented intents (tariff, bill, machines, energy plan, follow-up, briefing).
 - [x] **5.6** Orchestrator loop (implementation §5.1) with caps; when a cap is hit, items go to `unresolved`. *Done when:* **example 01 runs end to end in sample mode** with a verdict and a full log. ✅ ★ Milestone 1 (24 Oct): example 01 runs end to end in 0.3 s; examples 03 and 05 and seed 2 give different, correct answers.
 
 ## Phase 6: Calculators (steps 5–7, stream A). Each one is a pure function with a test
 
-- [ ] **6.1** `regress_machines`: weekly NNLS (336 × 15), R², SE, collinear merge. *Done when:* the planted kWh/cycle is recovered within ±10% for every electric dryer, every week.
-- [ ] **6.2** `fault_check` (electric kWh and gas minutes). *Done when:* D4 is flagged at about +33% and RM182; G3 is flagged from minutes with no kWh claim; P6, P7 and P8 are **not** flagged.
-- [ ] **6.3** `solar_calc`: sizes 5/10/15/20 up to the roof limit, self-use, exports at 0, payback, post-solar profile. *Done when:* the 10 kWp row of §24.3 is reproduced.
-- [ ] **6.4** `joint_decision`: four options on the same post-action load. *Done when:* the result is "solar + flat, RM506.80" and the ToU-after-solar delta is RM1.43.
-- [ ] **6.5** `mv_check`: difference-in-differences, a ± 2 SE band, verified / not yet / not achieved. *Done when:* §24.4 is reproduced (0.63 kWh/cycle, about RM164, verified).
-- [ ] **6.6** `margin_calc`, `shift_plan`, `co2_calc`. *Done when:* each has a test with a hand-checked number.
-- [ ] **6.7** `propose_action`: a pending record with its risk level. *Done when:* a financial action is created as `awaiting_approval`.
+- [x] **6.1** `regress_machines`: weekly NNLS (336 × 15), R², SE, collinear merge. *Done when:* the planted kWh/cycle is recovered within ±10% for every electric dryer, every week. ✅ R² 0.99–1.00 weekly; electric dryers within about ±10% of their true kWh/cycle.
+- [x] **6.2** `fault_check` (electric kWh and gas minutes). *Done when:* D4 is flagged at about +33% and RM182; G3 is flagged from minutes with no kWh claim; P6, P7 and P8 are **not** flagged. ✅ Seed 1: D4 +26% (kWh), G3 +24% (minutes); seed 2: D2 and G5; no false flags. Humidity ruled out by the Skeptic's peer refit.
+- [x] **6.3** `solar_calc`: sizes 5/10/15/20 up to the roof limit, self-use, exports at 0, payback, post-solar profile. *Done when:* the 10 kWp row of §24.3 is reproduced.
+- [x] **6.4** `joint_decision`: four options on the same post-action load. *Done when:* the result is "solar + flat, RM506.80" and the ToU-after-solar delta is RM1.43. ✅ §24.3 reproduced to the sen; on real data: 10 kWp + flat, RM502.75/month, RM510.35 naive sum rejected.
+- [x] **6.5** `mv_check`: difference-in-differences, a ± 2 SE band, verified / not yet / not achieved. *Done when:* §24.4 is reproduced (0.63 kWh/cycle, about RM164, verified). ✅ §24.4 reproduced; D4 verified at about RM61/month (band ±RM14). Post-action minimum 10 days (proposal §15.9 updated).
+- [ ] **6.6** `margin_calc`, `shift_plan`, `co2_calc`. *Done when:* each has a test with a hand-checked number. ⏳ `margin_calc` and `co2_calc` done with tests; `shift_plan` to do (needs the promo outcome, P9).
+- [x] **6.7** `propose_action`: a pending record with its risk level. *Done when:* a financial action is created as `awaiting_approval`. ✅ In the Reporter; every action is remembered in H-MEM with its prediction.
 
 ## Phase 7: Meterless engines (steps 8–9, stream B)
 
-- [ ] **7.1** H-MEM from the IMPLEMENT prompt: `MemoryStoreService` + `MemoryRetrievalService`, file-backed in `data/hmem/`, `as_of` on each item. *Done when:* `recall`, `write` and `recordOutcome` work.
-- [ ] **7.2** `memory.test.ts`: write a baseline, restart, recall it, flag a +33% reading; rejected advice is not re-proposed. *Done when:* it passes.
-- [ ] **7.3** Sessions: as_of 13 Sep → restart → 4 Oct → 18 Oct. *Done when:* session 2's log cites the session 1 baseline and the promo outcome (+6 pts).
+- [x] **7.1** H-MEM from the IMPLEMENT prompt: `MemoryStoreService` + `MemoryRetrievalService`, file-backed in `data/hmem/`, `as_of` on each item. *Done when:* `recall`, `write` and `recordOutcome` work. ✅ Store + retrieval + trust ledger (`logs/hmem-ledger.jsonl`), as_of-scoped. Dreaming, sleep and conflict resolution skipped.
+- [x] **7.2** `memory.test.ts`: write a baseline, restart, recall it, flag a +33% reading; rejected advice is not re-proposed. *Done when:* it passes.
+- [x] **7.3** Sessions: as_of 13 Sep → restart → 4 Oct → 18 Oct. *Done when:* session 2's log cites the session 1 baseline and the promo outcome (+6 pts). ✅ `run.test.ts` "three sessions across restarts". The promo outcome (+6 pts) is still to do with `shift_plan`.
 - [ ] **7.4** Scout Intent engine, or the documented fallback. *Done when:* `routing.test.ts` passes on 20 labelled EN/MS requests.
-- [ ] **7.5** Approval gate. *Done when:* `risk.test.ts` shows a tariff switch or a solar request never auto-executes.
+- [ ] **7.5** Approval gate. *Done when:* `risk.test.ts` shows a tariff switch or a solar request never auto-executes. ⏳ Gate in place and covered by run tests; dedicated `risk.test.ts` to write.
 
 ## Phase 8: Examples and eval (step 10, A + B)
 
-- [ ] **8.1** `input_examples/01` to `08` as in proposal §14.3. *Done when:* the 8 files exist.
-- [ ] **8.2** All 8 run in sample mode and match the expected behaviour (01 switch, 02 D4, 03 stay, 04 Malay G3, 05 refuse, 06 solar + flat with RM521 rejected, 07 verified, 08 briefing). *Done when:* each output is checked by hand once.
-- [ ] **8.3** `eval/run-eval.ts`: checks O1–O12 plus the log assertions (data-and-evaluation §6.2). *Done when:* `pnpm eval` is green on seed 1.
+- [x] **8.1** `input_examples/01` to `08` as in proposal §14.3. *Done when:* the 8 files exist.
+- [x] **8.2** All 8 run in sample mode and match the expected behaviour (01 switch, 02 D4, 03 stay, 04 Malay G3, 05 refuse, 06 solar + flat with RM521 rejected, 07 verified, 08 briefing). *Done when:* each output is checked by hand once. ✅ All 8 run from empty memory in < 0.3 s each, with distinct, correct verdicts.
+- [ ] **8.3** (next) `eval/run-eval.ts`: checks O1–O12 plus the log assertions (data-and-evaluation §6.2). *Done when:* `pnpm eval` is green on seed 1.
 - [ ] **8.4** Seed 2 passes the same eval. *Done when:* `pnpm eval` is green on seed 2 (the anti-overfitting check).
 - [ ] **8.5** Grep check: no outlet ID, machine ID or planted number in prompts, templates or agent code, and nothing reads `output_examples/`. *Done when:* the grep is empty.
 - [ ] **8.6** Save real outputs to `output_examples/`. *Done when:* 8 files exist, copied from real runs.

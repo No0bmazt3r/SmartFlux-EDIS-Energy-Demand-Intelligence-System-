@@ -35,7 +35,7 @@ Ten slides. The eight required topics are marked ★.
 | 3 | The pivot | v1 dashboard + chatbot → v4 agent; three things that didn't hold up (1 Hz API, MD charges, RM456) |
 | 4 | ★ Agent workflow | Scout → Planner ↔ Investigator ↔ Skeptic → Reporter; H-MEM; the two loops and the block |
 | 5 | ★ Technical stack | Zetaris · H-MEM · Scout Intent · Nightshift · Nemotron lanes · TypeScript · Claude Code |
-| 6 | ★ How Zetaris and Meterless were used | Federated query (Postgres + 2 live APIs) + USL; H-MEM and Scout Intent features and tests; Nightshift as the only LLM path |
+| 6 | ★ How Zetaris and Meterless were used | Federated query (Postgres + live Open-Meteo API) + USL; H-MEM and Scout Intent features and tests; Nightshift as the only LLM path |
 | 7 | ★ What was unique | Skeptic re-derives money claims from Zetaris; solar flips the ToU verdict; advice verified later |
 | 8 | ★ Product visuals | Owner app: briefing, Energy plan, Evidence; Admin web scoreboard |
 | 9 | Results | Benchmark table (30 outlets); seed 1 and seed 2 checks; limitations |
@@ -55,7 +55,7 @@ Design: [design-system.md](design-system.md) colours and fonts; one idea per sli
 
 ## 4. Sponsor technology explanation
 
-> **Zetaris (data layer).** Every piece of data the agent uses comes through Zetaris. We registered a Postgres datasource (meter readings, machine cycles, machines, tariffs, service log, solar parameters) and two live public APIs as Lightning REST tables: Malaysian public holidays (Nager.Date) and hourly weather and solar radiation (Open-Meteo archive). A Unified Semantic Layer model (`smartflux.energy`) holds the peak/off-peak and holiday rules once, and the agent queries it through named templates. The Skeptic agent also uses Zetaris to verify every money claim before it reaches the owner. If Zetaris is removed, live mode has no data.
+> **Zetaris (data layer).** Every piece of data the agent uses comes through Zetaris. We registered a Postgres datasource (meter readings, machine cycles, machines, tariffs, service log, solar parameters, public holidays) and a live public API as a Lightning REST table: hourly weather and solar radiation (Open-Meteo archive), which drives the solar yield and the Skeptic's humidity check. A Unified Semantic Layer model (`smartflux.energy`) holds the peak/off-peak and holiday rules once, and the agent queries it through named templates. The Skeptic agent also uses Zetaris to verify every money claim before it reaches the owner. If Zetaris is removed, live mode has no data.
 >
 > **Meterless (build and power).** We implemented the **H-MEM** Meterless Engine from its IMPLEMENT prompt. **H-MEM** stores each machine's baseline, every recommendation, the owner's approvals and rejections, and measured outcomes; it powers machine health and advice verification across restarts (`memory.test.ts`). Intent routing (modelled on Scout Intent; the engine spec was not available) classifies every request into intents and a risk level, and blocks operational and financial actions until the owner approves (`routing.test.ts`, `risk.test.ts`). **Meterless Nightshift** is the only AI provider: every model call goes through one OpenAI-compatible client pointed at the Nightshift Runtime.
 >
@@ -80,7 +80,7 @@ Fill in after building: [exact Nemotron route names], [test output lines], [whet
 9. Logs: where they are, one excerpt showing `needs_revision`
 10. Evaluation: `pnpm test`, `pnpm eval`, benchmark table
 11. Failure handling table
-12. Data and licences: synthetic business data, real weather and holidays (Open-Meteo CC BY 4.0, Nager.Date MIT)
+12. Data and licences: synthetic business data, real weather and holidays (Open-Meteo CC BY 4.0; public holiday dates)
 13. Limitations ([data-and-evaluation.md §8](data-and-evaluation.md#8-limitations-to-state-publicly))
 14. Pre-existing components
 15. Team

@@ -137,9 +137,11 @@ export async function generate(seed: number, out: string) {
 
   const rows = { outlets: [] as any[], machines: [] as any[], cycles: [] as any[], meter: [] as any[], service: [] as any[], solar: [] as any[] };
   const plants: any[] = [];
+  const truth: any[] = []; // true machine energy, for eval only
 
   for (const o of outlets) {
-    rows.outlets.push({ outlet_id: o.id, name: o.name, state: o.state, lat: o.lat, lon: o.lon, tariff_code: "LV-COM", voltage: "LV" });
+    // ponytail: LPG cost per gas-dryer minute is an assumption (≈0.8 kg/h burner at ≈RM4/kg); shown on every gas card.
+    rows.outlets.push({ outlet_id: o.id, name: o.name, state: o.state, lat: o.lat, lon: o.lon, tariff_code: "LV-COM", voltage: "LV", lpg_rm_per_dryer_minute: 0.05 });
     rows.solar.push({ outlet_id: o.id, roof_kwp_max: o.roofKwp, cost_rm_per_kwp: 3500, derate: 0.8 });
 
     // Planted humidity effect: electric dryers draw more in humid hours, with an extra bump in the real most-humid week.
@@ -155,6 +157,8 @@ export async function generate(seed: number, out: string) {
     ];
     for (const f of o.faults) machines.find((m) => m.name === f.machine)!.factor = 1; // baseline exactly 2.1 kWh/cycle for the faulty dryer
     for (const m of machines) {
+      const trueKwh = m.type === "washer" ? (WASH_PROGRAMS.reduce((s, w) => s + w.kwh, 0) / 3) * m.factor : (o.heat === "gas" ? DRY.gasKwh : DRY.kwh) * m.factor;
+      truth.push({ machine_id: `${o.id}-${m.name}`, type: m.type, heat_source: m.type === "dryer" ? o.heat : "electric", kwh_per_cycle_before_humidity: Number(trueKwh.toFixed(4)) });
       rows.machines.push({
         machine_id: `${o.id}-${m.name}`, outlet_id: o.id, name: m.name, type: m.type,
         heat_source: m.type === "dryer" ? o.heat : "electric",
@@ -275,7 +279,7 @@ export async function generate(seed: number, out: string) {
   ]);
   write("holidays.csv", holidays);
   write("weather.csv", weather);
-  writeFileSync(join(out, "manifest.json"), JSON.stringify({ seed, window: { start: START, days: DAYS }, plants }, null, 2) + "\n");
+  writeFileSync(join(out, "manifest.json"), JSON.stringify({ seed, window: { start: START, days: DAYS }, plants, machines: truth }, null, 2) + "\n");
   return { cycles: rows.cycles.length, meter: rows.meter.length };
 }
 

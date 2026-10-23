@@ -322,7 +322,7 @@ The novel parts judges should remember:
 
 | Requirement | Source | How SmartFlux meets it | Evidence for judges |
 | --- | --- | --- | --- |
-| **Zetaris integrated with a real role** | Rules, Data rule | Every live data access goes through `run_sql` against Zetaris: a Postgres datasource, two REST-API tables (holidays, weather) federated in one query, and a USL model the templates query | Zetaris UI screenshot; `zetaris.query` events in logs; federated query in README |
+| **Zetaris integrated with a real role** | Rules, Data rule | Every live data access goes through `run_sql` against Zetaris: a Postgres datasource and a live REST-API table (Open-Meteo weather) federated in one query, and a USL model the templates query | Zetaris UI screenshot; `zetaris.query` events in logs; federated query in README |
 | **At least one Meterless Engine in a working feature, with a passing test** | Rules, Build rule | **H-MEM** powers machine health (baselines across sessions). **Scout Intent** powers routing and action gating | `memory.test.ts`, `routing.test.ts`, `risk.test.ts` output in README; code paths named |
 | **Meterless Nightshift as primary AI provider** | Rules, Power rule | Every LLM call uses one OpenAI-compatible client pointed at the Nightshift Runtime URL | `model` field on every LLM-backed log event |
 | **NVIDIA Nemotron (for the DGX Spark award)** | Rules §15 | Fast lane Nemotron Lightning for Scout, Planner, Investigator; Deep lane Nemotron Super for Skeptic and Reporter; routes pinned | Model name on every LLM-backed log event |
@@ -484,7 +484,7 @@ The owner's data lives in places that never meet: TNB meter exports, the payment
 | `machine_cycles` | Postgres table | Cashless payment system logs | Synthetic, about 10,000 cycles in total (seed 1) |
 | `tariffs` | Postgres table | TNB published schedule | Rates from the brief, checked against TNB before recording |
 | `emission_factors` | Postgres table | Energy Commission grid factor | One value, cited (replaces 0.4 vs 0.694) |
-| `holidays` | **REST table** `holidays_rest.my_2026` | `date.nager.at/api/v3/PublicHolidays/2026/MY` (no key) | Live public API; Malaysia Day (16 Sep) falls in the window |
+| `holidays` | Postgres table (static; Nager.Date has no Malaysia data, so dates come from the public Malaysia holiday calendar, fetched once) | Public holiday calendar | Static table; Malaysia Day (16 Sep) falls in the window |
 | `weather` | **REST table** per outlet in `weather_rest` | Open-Meteo **archive** API, fixed dates, hourly humidity, temperature and **shortwave radiation** (no key) | Live public API, unnested with a schemastore view; radiation drives the solar yield |
 
 > Zetaris cannot read files on your laptop. The synthetic CSVs are loaded into a separate Postgres container, registered with `CREATE DATASOURCE` and `REGISTER DATASOURCE TABLES`. The Postgres host must be reachable **from the Zetaris containers** (same Docker network, or `host.docker.internal`).
@@ -595,14 +595,7 @@ CREATE DATASOURCE smartflux_pg DESCRIBE BY "SmartFlux synthetic data" OPTIONS (
 
 REGISTER DATASOURCE TABLES FROM smartflux_pg
 
-CREATE LIGHTNING DATABASE holidays_rest DESCRIBE BY "Malaysia public holidays (Nager.Date)"
-
-CREATE LIGHTNING REST TABLE my_2026 FROM holidays_rest REQUEST (
-  endpoint "https://date.nager.at/api/v3/PublicHolidays/2026/MY",
-  method "get",
-  response_type "json",
-  http_encoding "URLENCODED"
-) HEADER () BODY ()
+-- holidays: a Postgres table (Nager.Date returns no data for Malaysia; checked 24 Oct)
 
 CREATE LIGHTNING DATABASE weather_rest DESCRIBE BY "Open-Meteo archive, hourly, 7 Sep - 18 Oct 2026"
 
@@ -728,7 +721,7 @@ flowchart TD
     style APP fill:#f8d7da,stroke:#a33
 ```
 
-Caps: at most 3 Skeptic rejections per claim, 2 Planner re-plans and 14 tool calls per run. When a cap is hit, the Reporter states what was verified and lists the rest as **unresolved**, never as findings. A typical run takes under 2 minutes live and under 5 seconds in sample mode.
+Caps: at most 3 Skeptic rejections per claim, 2 Planner re-plans and 30 tool calls (queries plus calculator runs) per run. When a cap is hit, the Reporter states what was verified and lists the rest as **unresolved**, never as findings. A typical run takes under 2 minutes live and under 5 seconds in sample mode.
 
 ### 11.2 Agents and authority
 
@@ -860,7 +853,7 @@ The cached CSVs (meter, cycles, machines, tariffs, plus the weather and holiday 
 | --- | --- | --- |
 | Zetaris timeout (30 s) or 5xx | Retry once with a narrower date range, then switch that query to local SQLite | `retrying`, then `fallback` |
 | Zetaris returns 0 rows | Investigator widens the window once; Planner drops the hypothesis if still empty | `needs_revision` |
-| Public API (Nager, Open-Meteo) down | Zetaris REST table errors → local cached rows | `fallback` |
+| Public API (Open-Meteo) down | Zetaris REST table errors → local cached rows | `fallback` |
 | Nightshift timeout (60 s), 429 or 5xx | Retry with backoff (2 tries), then rules reasoner for that role | `retrying`, then `fallback` |
 | Model returns invalid tool call or JSON | One repair prompt, then rules reasoner for that step | `needs_revision`, then `fallback` |
 | Loop cap reached | Reporter lists unresolved hypotheses | `partial_success` |
@@ -1032,7 +1025,7 @@ payback_years  = S × cost_rm_per_kwp / (12 × monthly saving_RM)
 grid_load_t    = load_t − self_used_t         (the post-solar profile)
 ```
 
-Exports are valued at zero by default because their credit depends on scheme terms the owner should confirm; the card shows the export share so an oversized system is visible. The recommended size is the largest one with self-consumption ≥ 90%.
+Exports are valued at zero by default because their credit depends on scheme terms the owner should confirm; the card shows the export share so an oversized system is visible. The recommended size grows in 5 kWp blocks while each block's own payback (its extra cost over its extra saving) stays inside the 10-year Solar ATAP offset term (decided 24 Oct: on real radiation the old "≥ 90% self-consumption" rule picked 5 kWp, where the ToU flip disappears).
 
 **The joint decision.** `tou_calc` runs twice: on the grid-only load and on `grid_load_t`. Solar removes kWh mostly before 14:00 and partly inside the weekday 14:00–22:00 peak, so the post-solar peak share usually **rises**, and ToU can stop paying. `joint_decision` compares all four options (flat, ToU, solar + flat, solar + ToU) on the same post-action load and recommends one. Summing "ToU saving" and "solar saving" from separate runs is a double count, and the Skeptic rejects it ([§24.3](#243-solar--tou-joint-example-out-01)).
 
@@ -1067,7 +1060,7 @@ realised_RM_per_month  = realised_kWh_per_cycle × cycles_per_month × blended_r
 band        = ± 2 × combined standard error
 ```
 
-Verdict: **verified** if the lower band is above zero and the realised saving is ≥ 70% of the predicted one; **not yet** if fewer than 2 post-action weeks exist; **not achieved** otherwise, with the next thing to check. The result is written to H-MEM, shown as predicted vs realised on the Machines screen and the Admin advice scoreboard, and used by the Planner to weigh similar advice next time.
+Verdict: **verified** if the lower band is above zero and the realised saving is ≥ 70% of the predicted one; **not yet** if fewer than 10 days of data exist after the action (decided 24 Oct, so a Tuesday service can be verified by the second Sunday); **not achieved** otherwise, with the next thing to check. The result is written to H-MEM, shown as predicted vs realised on the Machines screen and the Admin advice scoreboard, and used by the Planner to weigh similar advice next time.
 
 ### 15.10 Optional MD module (medium-voltage sites only)
 
@@ -1087,7 +1080,7 @@ If the projection crosses the target, hold new dryer starts until the window clo
 
 `scripts/generate-data.ts --seed <n>`, run during the build window and committed. It:
 
-1. Fetches the real hourly humidity, temperature and shortwave radiation (Open-Meteo archive, 7 Sep – 18 Oct 2026, three outlets) and the real 2026 Malaysian holidays (Nager.Date) **once**, and saves them to `data/sample/`.
+1. Fetches the real hourly humidity, temperature and shortwave radiation (Open-Meteo archive, 7 Sep – 18 Oct 2026, three outlets) and the real Malaysian public holidays (public holiday calendar; Nager.Date has no MY data) **once**, and saves them to `data/sample/`.
 2. Generates customer arrivals (busier evenings and weekends, holiday pattern on Malaysia Day), machine cycles and 30-minute meter readings.
 3. Applies the plants below, with dryer energy following the **real** humidity series.
 4. Writes CSVs and a `manifest.json` of planted facts (used only by `eval/`, never by the agent).
@@ -1248,7 +1241,7 @@ METERLESS_RUNTIME_TOKEN=your-nightshift-runtime-token
 MODEL_FAST=pinned-nemotron-route-from-v1-models
 MODEL_DEEP=pinned-nemotron-route-from-v1-models
 
-MAX_TOOL_CALLS=14
+MAX_TOOL_CALLS=30
 MAX_REJECTIONS_PER_CLAIM=3
 # NVIDIA API key is NOT here: it lives in Nightshift → Setup → Providers.
 ```
@@ -1372,7 +1365,7 @@ v2 was scored at about 78 if fully built; v3 at 89. The targets below assume thi
 | **Innovation** | 15 | 12 | 13 | **14** | Payment-log disaggregation; solar re-deciding the tariff; Skeptic catching double-counted savings; an agent that checks whether its own advice worked; proactive weekly briefings | Energy plan card; trace; briefing card |
 | **Demo** | 15 | 11 | 14 | **14** | A twist ("solar flips ToU"), memory across restart, a visible Skeptic rejection, an approval and its verified outcome, sample mode on camera, under 4 minutes | Video |
 | **Product & UX** | 10 | 7 | 8 | **9** | Phone-width Owner app that opens on a Monday briefing; plain-language cards in English or Malay; evidence one tap away; approvals; predicted vs realised savings; one-page Admin web with scoreboard and Scope 2 export | Video; app |
-| **Sponsor Tech** | 10 | 9 | 10 | **10** | Zetaris federates Postgres + 2 live APIs (now also driving solar yield) + USL and is the Skeptic's verification source; H-MEM engine plus intent routing and risk gating, with tests; Nightshift is the only LLM path; Nemotron per lane, logged | Logs; tests; Zetaris screenshots |
+| **Sponsor Tech** | 10 | 9 | 10 | **10** | Zetaris federates Postgres + the live Open-Meteo API (driving solar yield and the humidity check) + USL and is the Skeptic's verification source; H-MEM engine plus intent routing and risk gating, with tests; Nightshift is the only LLM path; Nemotron per lane, logged | Logs; tests; Zetaris screenshots |
 | **Total** | 100 | 78 | 89 | **94 (A)** | | |
 
 ---

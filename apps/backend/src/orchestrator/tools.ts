@@ -1,10 +1,11 @@
 // The tools agents call. Each call counts toward the cap, is logged, and is kept as evidence.
 import type { SampleDb } from "../adapters/local-sqlite.ts";
+import type { Hmem } from "../engines/hmem/index.ts";
 import type { Emit } from "../log.ts";
 import { querySqlite } from "../templates/index.ts";
 import type { RunState } from "./state.ts";
 
-export type Ctx = { db: SampleDb; emit: Emit };
+export type Ctx = { db: SampleDb; emit: Emit; hmem: Hmem };
 
 export function query(state: RunState, ctx: Ctx, agent: string, name: string, params: Record<string, string | number>, target = agent) {
   state.counters.tool_calls++;

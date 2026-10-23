@@ -61,5 +61,259 @@
       "roof_kwp_max": 0,
       "expected": "solar not possible"
     }
+  ],
+  "machines": [
+    {
+      "machine_id": "OUT-01-W1",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3486
+    },
+    {
+      "machine_id": "OUT-01-W2",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3062
+    },
+    {
+      "machine_id": "OUT-01-W3",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3419
+    },
+    {
+      "machine_id": "OUT-01-W4",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3727
+    },
+    {
+      "machine_id": "OUT-01-W5",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3718
+    },
+    {
+      "machine_id": "OUT-01-W6",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3251
+    },
+    {
+      "machine_id": "OUT-01-W7",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3477
+    },
+    {
+      "machine_id": "OUT-01-W8",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.355
+    },
+    {
+      "machine_id": "OUT-01-D1",
+      "type": "dryer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 2.0844
+    },
+    {
+      "machine_id": "OUT-01-D2",
+      "type": "dryer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 2.2039
+    },
+    {
+      "machine_id": "OUT-01-D3",
+      "type": "dryer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 2.0906
+    },
+    {
+      "machine_id": "OUT-01-D4",
+      "type": "dryer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 2.1
+    },
+    {
+      "machine_id": "OUT-01-D5",
+      "type": "dryer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 2.0242
+    },
+    {
+      "machine_id": "OUT-01-D6",
+      "type": "dryer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 2.0798
+    },
+    {
+      "machine_id": "OUT-02-W1",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3388
+    },
+    {
+      "machine_id": "OUT-02-W2",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3432
+    },
+    {
+      "machine_id": "OUT-02-W3",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3267
+    },
+    {
+      "machine_id": "OUT-02-W4",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3693
+    },
+    {
+      "machine_id": "OUT-02-W5",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3539
+    },
+    {
+      "machine_id": "OUT-02-W6",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3465
+    },
+    {
+      "machine_id": "OUT-02-W7",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3279
+    },
+    {
+      "machine_id": "OUT-02-W8",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3284
+    },
+    {
+      "machine_id": "OUT-02-G1",
+      "type": "dryer",
+      "heat_source": "gas",
+      "kwh_per_cycle_before_humidity": 0.3664
+    },
+    {
+      "machine_id": "OUT-02-G2",
+      "type": "dryer",
+      "heat_source": "gas",
+      "kwh_per_cycle_before_humidity": 0.36
+    },
+    {
+      "machine_id": "OUT-02-G3",
+      "type": "dryer",
+      "heat_source": "gas",
+      "kwh_per_cycle_before_humidity": 0.35
+    },
+    {
+      "machine_id": "OUT-02-G4",
+      "type": "dryer",
+      "heat_source": "gas",
+      "kwh_per_cycle_before_humidity": 0.3464
+    },
+    {
+      "machine_id": "OUT-02-G5",
+      "type": "dryer",
+      "heat_source": "gas",
+      "kwh_per_cycle_before_humidity": 0.3467
+    },
+    {
+      "machine_id": "OUT-02-G6",
+      "type": "dryer",
+      "heat_source": "gas",
+      "kwh_per_cycle_before_humidity": 0.3336
+    },
+    {
+      "machine_id": "OUT-03-W1",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3556
+    },
+    {
+      "machine_id": "OUT-03-W2",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3376
+    },
+    {
+      "machine_id": "OUT-03-W3",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3665
+    },
+    {
+      "machine_id": "OUT-03-W4",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3285
+    },
+    {
+      "machine_id": "OUT-03-W5",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3426
+    },
+    {
+      "machine_id": "OUT-03-W6",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3591
+    },
+    {
+      "machine_id": "OUT-03-W7",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3482
+    },
+    {
+      "machine_id": "OUT-03-W8",
+      "type": "washer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 0.3288
+    },
+    {
+      "machine_id": "OUT-03-D1",
+      "type": "dryer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 2.1152
+    },
+    {
+      "machine_id": "OUT-03-D2",
+      "type": "dryer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 2.1011
+    },
+    {
+      "machine_id": "OUT-03-D3",
+      "type": "dryer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 2.1305
+    },
+    {
+      "machine_id": "OUT-03-D4",
+      "type": "dryer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 2.0019
+    },
+    {
+      "machine_id": "OUT-03-D5",
+      "type": "dryer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 2.1954
+    },
+    {
+      "machine_id": "OUT-03-D6",
+      "type": "dryer",
+      "heat_source": "electric",
+      "kwh_per_cycle_before_humidity": 2.1016
+    }
   ]
 }

@@ -42,7 +42,7 @@ flowchart LR
     NS["Meterless Nightshift<br/>(→ NVIDIA Nemotron)"]
     PAY["Payment / telemetry system<br/>(cycle logs, CSV today)"]
     TNB["myTNB meter export<br/>(CSV today)"]
-    NAG["Nager.Date<br/>public holidays"]
+    NAG["Malaysia holiday calendar<br/>(static table, fetched once)"]
     OM["Open-Meteo archive<br/>humidity, temperature, radiation"]
 
     owner --> SF
@@ -52,7 +52,8 @@ flowchart LR
     SF -- "chat/completions" --> NS
     PAY -. "loaded into Postgres" .-> Z
     TNB -. "loaded into Postgres" .-> Z
-    Z -- "REST tables" --> NAG & OM
+    Z -- "REST table" --> OM
+    NAG -. "loaded into Postgres" .-> Z
 ```
 
 For the hackathon, payment and meter data are synthetic and loaded into Postgres by script; in production they arrive by CSV upload or provider integration.

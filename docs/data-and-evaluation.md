@@ -34,7 +34,7 @@ The most humid week is whichever the real Open-Meteo data says it is; the genera
 | `tariffs` | TNB schedule | Flat, peak, off-peak all-in rates; peak window | 3 |
 | `emission_factors` | Energy Commission | Grid factor (+ LPG factor for Scope 1) | 2 |
 | `solar_params` | Installer quotes, scheme rules | Roof limit, cost per kWp, derate per outlet | 3 |
-| `holidays` | Nager.Date (live REST table) | Malaysia 2026 | ≈ 15 |
+| `holidays` | Public Malaysia holiday calendar, fetched once (Nager.Date has no MY data) | Holidays inside the window (Malaysia Day) | 1 |
 | `weather` | Open-Meteo archive (live REST table) | Hourly humidity, temperature, shortwave radiation, per outlet | 3 × 1,008 |
 
 Coordinates: Ipoh 4.5975, 101.0901 · Shah Alam 3.0733, 101.5185 · Johor Bahru 1.4927, 103.7414.
@@ -45,7 +45,7 @@ Column definitions: [proposal §10.3](proposal.md#103-data-model).
 
 `scripts/generate-data.ts --seed <n> [--outlets <k>]`
 
-1. **Fetch once:** Open-Meteo archive (7 Sep – 18 Oct, three outlets, `relative_humidity_2m, temperature_2m, shortwave_radiation`) and Nager.Date holidays → `data/sample/weather_*.csv`, `holidays.csv`. Never fetched again at run time.
+1. **Fetch once:** Open-Meteo archive (7 Sep – 18 Oct, three outlets, `relative_humidity_2m, temperature_2m, shortwave_radiation`) and Malaysian holidays from the public holiday calendar → `data/raw/weather.csv`, `holidays.csv`. Never fetched again at run time.
 2. **Customers:** arrivals per hour from a weekday/weekend profile (busier 17:00–23:00 and weekends; a distinct holiday profile); OUT-03 skews to weekday daytime (business district → about 70% peak share).
 3. **Cycles:** each arrival picks a washer, then a dryer about 70% of the time; programme and price from a small table (RM5–8 wash, RM5–7 dry); duration with ±8% noise.
 4. **Energy:** per cycle kWh = machine's true kWh/cycle × humidity factor (dryers: 1 + 0.004 × (RH − 70) for electric) × noise; spread across the half-hours the cycle overlaps; base load 0.6–1.2 kW; gas dryers draw only motor/fan electricity (≈ 0.35 kWh/cycle).
@@ -73,7 +73,7 @@ Column definitions: [proposal §10.3](proposal.md#103-data-model).
 
 ## 5. Sample mode data
 
-`data/sample/` holds the seed-1 CSVs and the cached weather and holiday rows. On start in sample mode, `local-sqlite` loads them into an in-memory `node:sqlite` database with the same table and view names as the USL model (`interval_usage`, `dryer_cycle_day`), so every template has a SQLite twin. `data/README.md` documents the source, licence (Open-Meteo CC BY 4.0, Nager.Date MIT), row counts, how to regenerate, and that all business data is synthetic.
+`data/sample/` holds the seed-1 CSVs and the cached weather and holiday rows. On start in sample mode, `local-sqlite` loads them into an in-memory `node:sqlite` database with the same table and view names as the USL model (`interval_usage`, `dryer_cycle_day`), so every template has a SQLite twin. `data/README.md` documents the source, licences (Open-Meteo CC BY 4.0; holiday dates are public facts), row counts, how to regenerate, and that all business data is synthetic.
 
 ## 6. Evaluation
 

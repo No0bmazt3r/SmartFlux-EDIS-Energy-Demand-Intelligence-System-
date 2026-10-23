@@ -1,16 +1,31 @@
 // Named query templates: the agent's main data tool. Each has a Lightning SQL (Zetaris) and a SQLite version.
 // Every template must filter on :as_of_end so data after as_of is never visible (FR-13).
 import type { SampleDb } from "../adapters/local-sqlite.ts";
+import cycle_duration from "./cycle_duration.ts";
+import cycle_overlap from "./cycle_overlap.ts";
 import interval_series from "./interval_series.ts";
+import holidays_range from "./holidays_range.ts";
+import machine_list from "./machine_list.ts";
+import outlet_info from "./outlet_info.ts";
+import service_history from "./service_history.ts";
+import services_range from "./services_range.ts";
+import solar_inputs from "./solar_inputs.ts";
+import solar_params from "./solar_params.ts";
 import tariff_rates from "./tariff_rates.ts";
 import tou_split from "./tou_split.ts";
+import weather_range from "./weather_range.ts";
 
-export type Template = { params: string[]; lightning: string; sqlite: string };
-export const TEMPLATES: Record<string, Template> = { tou_split, interval_series, tariff_rates };
+// maxRows caps what a template returns; calculators that need every interval set a higher cap.
+// static: a registry table with no time dimension, exempt from the as_of filter.
+export type Template = { params: string[]; lightning: string; sqlite: string; maxRows?: number; static?: boolean };
+export const TEMPLATES: Record<string, Template> = {
+  tou_split, interval_series, tariff_rates, cycle_overlap, machine_list, cycle_duration, service_history, weather_range,
+  outlet_info, holidays_range, solar_inputs, solar_params, services_range,
+};
 export const MAX_ROWS = 500;
 
 for (const [name, t] of Object.entries(TEMPLATES))
-  if (!t.sqlite.includes(":as_of_end") || !t.lightning.includes(":as_of_end")) throw new Error(`Template ${name} must filter on :as_of_end`);
+  if (!t.static && (!t.sqlite.includes(":as_of_end") || !t.lightning.includes(":as_of_end"))) throw new Error(`Template ${name} must filter on :as_of_end`);
 
 export const asOfEnd = (asOf: string) => {
   const d = new Date(`${asOf}T00:00:00Z`);
@@ -24,6 +39,8 @@ export function querySqlite(db: SampleDb, name: string, params: Record<string, s
   const missing = t.params.filter((p) => params[p] === undefined);
   if (missing.length) throw new Error(`Template ${name} missing params: ${missing.join(", ")}`);
   const bound = Object.fromEntries(t.params.map((p) => [p, params[p]]));
-  const rows = db.prepare(t.sqlite).all({ ...bound, as_of_end: asOfEnd(asOf) }) as Record<string, any>[];
-  return rows.slice(0, MAX_ROWS);
+  const rows = db.prepare(t.sqlite).all(t.static ? bound : { ...bound, as_of_end: asOfEnd(asOf) }) as Record<string, any>[];
+  const cap = t.maxRows ?? MAX_ROWS;
+  if (rows.length > cap) throw new Error(`Template ${name} returned ${rows.length} rows, over its cap of ${cap}; narrow the range`);
+  return rows;
 }

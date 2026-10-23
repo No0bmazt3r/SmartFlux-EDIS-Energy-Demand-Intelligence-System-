@@ -6,7 +6,9 @@ import { planner } from "../agents/rules/planner.ts";
 import { reporter } from "../agents/rules/reporter.ts";
 import { skeptic } from "../agents/rules/skeptic.ts";
 import type { Config } from "../config.ts";
+import { openHmem } from "../engines/hmem/index.ts";
 import { classify } from "../engines/scout/index.ts";
+import { recallContext } from "./memory.ts";
 import { createLogger } from "../log.ts";
 import { capsHit } from "./caps.ts";
 import type { RunRequest, RunResult, RunState } from "./state.ts";
@@ -16,23 +18,27 @@ export async function run(req: RunRequest, cfg: Config, opts: { echo?: boolean }
   const runId = `r-${randomUUID().slice(0, 8)}`;
   const mode = "sample";
   const { emit, path } = createLogger(runId, mode, cfg.logDir, opts.echo ?? true);
-  const ctx = { db: openSampleDb(cfg.dataDir), emit };
+  const ctx = { db: openSampleDb(cfg.dataDir), emit, hmem: openHmem(cfg.hmemDir, cfg.logDir) };
 
   const question = req.question ?? "";
-  const scout = classify(question, req.lang);
+  // A weekly briefing has no question: the agent checks advice awaiting verification, machine health and the tariff.
+  const scout = req.briefing && !question
+    ? { intents: ["advice_followup", "machine_health", "tariff_decision"] as RunState["intents"], risk: "read_only" as const, lang: req.lang ?? "en" as const }
+    : classify(question, req.lang);
   const state: RunState = {
     run_id: runId, as_of: req.as_of, outlet_id: req.outlet_id, question, lang: scout.lang,
-    intents: scout.intents, risk: scout.risk, refused: scout.intents.includes("out_of_scope"),
+    intents: scout.intents, risk: scout.risk, refused: scout.intents.includes("out_of_scope"), briefing: !!req.briefing,
     hypotheses: [], evidence: [], claims: [], actions: [], decisions: [], unresolved: [],
     counters: { tool_calls: 0, replans: 0, rejections: {} }, caps: cfg.caps, mode: cfg.mode, needsReplan: false,
   };
   emit({
-    agent_name: "Scout", action: "classify", input_summary: question,
+    agent_name: "Scout", action: "classify", input_summary: question || "(weekly briefing, no question)",
     output_summary: `intents=[${state.intents.join(",")}] risk=${state.risk} lang=${state.lang}`,
     target_agent: state.refused ? "Reporter" : "Planner",
   });
 
   if (!state.refused) {
+    recallContext(state, ctx);
     for (; state.counters.replans <= cfg.caps.replans; state.counters.replans++) {
       planner(state, ctx);
       while (!capsHit(state)) {
