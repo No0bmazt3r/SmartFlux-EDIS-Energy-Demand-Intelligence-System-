@@ -6,10 +6,10 @@ import type { RunState } from "../../orchestrator/state.ts";
 import { fmt, addDays, ts, type Range } from "../../orchestrator/windows.ts";
 
 // Regress one date range and return each machine's reading: kWh per cycle (electric) or median minutes (gas).
-export function fitWindow(state: RunState, ctx: Ctx, agent: string, r: Range, machines: { machine_id: string; heat_source: string }[], label: string) {
+export async function fitWindow(state: RunState, ctx: Ctx, agent: string, r: Range, machines: { machine_id: string; heat_source: string }[], label: string) {
   const params = { outlet: state.outlet_id, from: ts(r.from), to: ts(r.to) };
-  const iv = query(state, ctx, agent, "interval_series", params);
-  const cy = query(state, ctx, agent, "cycle_overlap", params);
+  const iv = await query(state, ctx, agent, "interval_series", params);
+  const cy = await query(state, ctx, agent, "cycle_overlap", params);
   const fit = calc(state, ctx, agent, "regress_machines", `${label} ${fmt(r.from)}–${fmt(addDays(r.to, -1))}`,
     () => regressMachines(iv.rows as any, cy.rows as any, machines.map((m) => m.machine_id)), (f) => `R² ${f.r2.toFixed(3)}`);
   const reading = (id: string): Reading | undefined => {

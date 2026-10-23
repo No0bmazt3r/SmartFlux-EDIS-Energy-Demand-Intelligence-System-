@@ -33,14 +33,22 @@ export const asOfEnd = (asOf: string) => {
   return `${d.toISOString().slice(0, 10)} 00:00:00`;
 };
 
-export function querySqlite(db: SampleDb, name: string, params: Record<string, string | number>, asOf: string) {
+// Checks a template call and returns the template with exactly its parameters (plus :as_of_end).
+export function prepare(name: string, params: Record<string, string | number>, asOf: string) {
   const t = TEMPLATES[name];
   if (!t) throw new Error(`Unknown template ${name}`);
   const missing = t.params.filter((p) => params[p] === undefined);
   if (missing.length) throw new Error(`Template ${name} missing params: ${missing.join(", ")}`);
-  const bound = Object.fromEntries(t.params.map((p) => [p, params[p]]));
-  const rows = db.prepare(t.sqlite).all(t.static ? bound : { ...bound, as_of_end: asOfEnd(asOf) }) as Record<string, any>[];
-  const cap = t.maxRows ?? MAX_ROWS;
+  const bound: Record<string, string | number> = Object.fromEntries(t.params.map((p) => [p, params[p]]));
+  return { t, bound: t.static ? bound : { ...bound, as_of_end: asOfEnd(asOf) }, cap: t.maxRows ?? MAX_ROWS };
+}
+
+export function checkCap(name: string, rows: unknown[], cap: number) {
   if (rows.length > cap) throw new Error(`Template ${name} returned ${rows.length} rows, over its cap of ${cap}; narrow the range`);
-  return rows;
+  return rows as Record<string, any>[];
+}
+
+export function querySqlite(db: SampleDb, name: string, params: Record<string, string | number>, asOf: string) {
+  const { t, bound, cap } = prepare(name, params, asOf);
+  return checkCap(name, db.prepare(t.sqlite).all(bound), cap);
 }

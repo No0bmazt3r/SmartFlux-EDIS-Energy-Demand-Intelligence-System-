@@ -729,7 +729,7 @@ Caps: at most 3 Skeptic rejections per claim, 2 Planner re-plans and 30 tool cal
 | --- | --- | --- | --- | --- |
 | **Scout** | Fast | Intent(s) and risk level | Yes: refuses out-of-scope requests | Meterless Scout Intent engine with a labelled routing test |
 | **Planner** | Fast | Hypotheses and which templates to run; re-plans when the Skeptic finds nothing survives | Yes: drops hypotheses | Reads H-MEM; its plan changes when memory or Skeptic feedback changes |
-| **Investigator** | Fast | Runs templates and calculators, collects evidence rows | Retries a failed or empty query with a narrower window | Tool use only; never states a number it did not compute |
+| **Investigator** | none (deterministic tool runner, decided 24 Oct) | Runs templates and calculators, collects evidence rows | Retries a failed or empty query with a narrower window | Tool use only; never states a number it did not compute |
 | **Skeptic** | Deep | Approves or rejects each claim | **Yes: the Reporter only receives approved claims** | Runs its own verification queries against Zetaris before approving; checks peers, timing and alternative causes; **rejects savings that are summed across interacting decisions** (solar and ToU, shifting and ToU) and sends them back to be recomputed jointly; rejects electric-kWh claims about gas burners |
 | **Reporter** | Deep | Decision cards in English or Malay; proposed actions with risk level | No | Writes only from approved claims and calculator outputs |
 

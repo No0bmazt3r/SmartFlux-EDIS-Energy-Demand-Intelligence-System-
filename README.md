@@ -7,7 +7,7 @@ An agent that tells a Malaysian laundromat owner whether to install solar, switc
 **Open Agent Hackathon 2026 · Track 3: Reasoning Architecture**
 Built with Zetaris · Meterless H-MEM · Meterless Nightshift · NVIDIA Nemotron · Claude Code
 
-> **Status: in development.** Sample mode runs all eight examples end to end today (`pnpm agent --input input_examples/06-energy-plan.json`); live mode, the API, the apps and Docker are next. See [TODO.md](TODO.md) for progress.
+> **Status: in development.** Sample mode runs all eight examples end to end. The Zetaris and Nightshift adapters are built and tested against fakes of their APIs; the first run against the real services is pending (`pnpm smoke`). The API, the apps and Docker are next. See [TODO.md](TODO.md).
 
 ---
 
@@ -30,7 +30,7 @@ Every RM figure is computed by tested code, never by the LLM, and is re-checked 
 | --- | --- | --- |
 | Scout | Fast | Classifies intent and risk; refuses out-of-scope requests |
 | Planner | Fast | Forms hypotheses from the request and memory; re-plans when nothing survives |
-| Investigator | Fast | Runs query templates and calculators; never states a number it did not compute |
+| Investigator | none (tool runner) | Runs query templates through Zetaris and the calculators; never states a number it did not compute |
 | **Skeptic** | Deep | Re-queries the data to verify each claim; **can send work back and block the Reporter**; rejects double-counted savings |
 | Reporter | Deep | Writes decision cards in English or Malay from approved claims only |
 
@@ -46,33 +46,40 @@ flowchart LR
     K -. "verify" .-> Z
 ```
 
-## Quick start (partly built)
+## Quick start
 
 Requires Node 22.13+ and pnpm.
 
 ```bash
-# Sample mode: no credentials, no sponsor services, real agent logic on cached data
-cp .env.example .env        # leave SAMPLE_MODE=true
+# Sample mode: no credentials, no sponsor services, the real agent logic on cached data
 pnpm install
-pnpm agent --input input_examples/06-energy-plan.json
-pnpm dev                    # API on :8000, web app on :5173
-
-# Or Docker
-docker compose up --build
-curl -X POST http://localhost:8000/run -H "Content-Type: application/json" \
-  -d @input_examples/02-bill-why.json
+pnpm agent --input input_examples/06-energy-plan.json     # prints every agent step (JSONL), then the result
+pnpm agent --approve <action_id>                          # record the owner's decision in H-MEM
+pnpm test                                                 # calculators, H-MEM, agents, live-path fakes
 ```
 
-Live mode needs Zetaris (Docker) and Meterless Nightshift running. See [docs/proposal.md §10](docs/proposal.md#10-data-layer-zetaris) and [§17.3](docs/proposal.md#173-nightshift-and-nemotron).
+### Live mode (Zetaris + Nightshift)
+
+```bash
+cp .env.example .env                       # fill in Zetaris, Postgres and Nightshift settings, SAMPLE_MODE=false
+docker compose up -d smartflux-pg          # synthetic source data, loaded from data/sample on first start
+pnpm zetaris:setup --dry-run               # review: datasource, Open-Meteo REST table, semantic layer
+pnpm zetaris:setup                         # create them (add --weather pg if the REST unnest fails)
+pnpm smoke                                 # Zetaris checks + template parity, Nightshift lanes
+pnpm agent --input input_examples/02-bill-why.json
+```
+
+Each side can go live on its own (`DATA_MODE=zetaris` or `LLM_MODE=nightshift`). If a live service fails mid-run, that step retries, then uses its local twin (SQLite or the rules reasoner), and the run is marked `mixed`.
 
 ## Sponsor technology
 
-| Sponsor | Role |
-| --- | --- |
-| **Zetaris** | The only live data path: a Postgres datasource and a live REST table (Open-Meteo weather and radiation), with a semantic layer the query templates read. The Skeptic verifies claims through it |
-| **Meterless H-MEM** | Remembers machine baselines, advice, approvals and outcomes across restarts |
-| **Intent routing** (modelled on Meterless Scout Intent; the engine spec wasn't available) | Routes requests by intent and gates operational and financial actions behind owner approval |
-| **Meterless Nightshift → NVIDIA Nemotron** | The only LLM provider: Nemotron Lightning (fast lane) and Nemotron Super (deep lane), logged on every call |
+| Sponsor | Where | What it does |
+| --- | --- | --- |
+| **Zetaris** | `apps/backend/src/adapters/zetaris.ts`, `infra/zetaris/` | The only live data path. A Postgres datasource (meter readings, machine cycles, tariffs, service log, solar parameters, holidays) and a live REST table (Open-Meteo weather and radiation) sit behind a semantic layer (`smartflux.energy`) that holds the peak/off-peak/holiday rule once. Every query template, including the Skeptic's verification queries, runs here. The adapter is read-only (SELECT/SHOW/DESCRIBE), sends one statement per call, and binds parameters through a whitelist. |
+| **Meterless H-MEM** | `apps/backend/src/engines/hmem/` | Tiered memory with ranked, `as_of`-scoped recall and a JSONL trust ledger (`logs/hmem-ledger.jsonl`). It holds each machine's baseline, every piece of advice, the owner's approvals and rejections, and measured outcomes, so later sessions verify earlier advice. The recall is injected into the Planner's prompt. Tested in `memory.test.ts`. |
+| **Meterless Nightshift** | `apps/backend/src/adapters/llm.ts` | The only AI provider: one injected generator (the Meterless engine rule), OpenAI-format, with the `meterless-app` and `meterless-scope` headers. |
+| **NVIDIA Nemotron** | via Nightshift lanes | The fast lane runs Scout (intent) and Planner (hypotheses from memory). The deep lane runs Skeptic (causal judgment on causal claims) and Reporter (English and Malay wording). The model is logged on every LLM-backed event. The LLM never computes money, and a rewrite that changes a number is rejected. |
+| Intent routing | `apps/backend/src/engines/scout/` | Modelled on Meterless Scout Intent (the engine spec wasn't available): routing plus the approval gate for operational and financial actions. |
 
 ## Docs
 

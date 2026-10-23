@@ -22,13 +22,13 @@ function claim(state: RunState, h: Hypothesis, text: string, data: Record<string
 }
 
 // The outlet's machine registry, record and tariff, fetched once per run and shared by every recipe.
-function outletBasics(state: RunState, ctx: Ctx) {
-  if (state.analysis?.basics) return state.analysis.basics as { machines: ReturnType<typeof query>; info: ReturnType<typeof query>; tariffs: ReturnType<typeof query> };
+async function outletBasics(state: RunState, ctx: Ctx) {
+  if (state.analysis?.basics) return state.analysis.basics as Record<"machines" | "info" | "tariffs", Awaited<ReturnType<typeof query>>>;
   const outlet = state.outlet_id;
   const basics = {
-    machines: query(state, ctx, AGENT, "machine_list", { outlet }),
-    info: query(state, ctx, AGENT, "outlet_info", { outlet }),
-    tariffs: query(state, ctx, AGENT, "tariff_rates", { outlet }),
+    machines: await query(state, ctx, AGENT, "machine_list", { outlet }),
+    info: await query(state, ctx, AGENT, "outlet_info", { outlet }),
+    tariffs: await query(state, ctx, AGENT, "tariff_rates", { outlet }),
   };
   state.analysis = { ...state.analysis, basics };
   return basics;
@@ -40,9 +40,9 @@ function ruleOut(state: RunState, ctx: Ctx, h: Hypothesis, reason: string) {
   ctx.emit({ agent_name: AGENT, action: "rule_out", input_summary: h.text, output_summary: reason, target_agent: "Planner" });
 }
 
-function investigateTou(state: RunState, ctx: Ctx, h: Hypothesis) {
-  const split = query(state, ctx, AGENT, "tou_split", { outlet: state.outlet_id, from: ts(WINDOW.start), to: asOfEnd(state.as_of) });
-  const tariffs = query(state, ctx, AGENT, "tariff_rates", { outlet: state.outlet_id });
+async function investigateTou(state: RunState, ctx: Ctx, h: Hypothesis) {
+  const split = await query(state, ctx, AGENT, "tou_split", { outlet: state.outlet_id, from: ts(WINDOW.start), to: asOfEnd(state.as_of) });
+  const tariffs = await query(state, ctx, AGENT, "tariff_rates", { outlet: state.outlet_id });
   const tou = calc(state, ctx, AGENT, "tou_calc", `${split.rows.length} week/period rows, ${tariffs.rows.length} tariff rows`,
     () => touCalc(weeksFromRows(split.rows as any), ratesFromRows(tariffs.rows as any)),
     (r) => `peak ${pct(r.peak_share)}% vs breakeven ${pct(r.breakeven)}%, worst week ${r.worst_week.week} ${pct(r.worst_week.peak_share)}%, verdict ${r.verdict}, ToU-flat RM${(-r.saving_per_month).toFixed(2)}/month`,
@@ -51,12 +51,12 @@ function investigateTou(state: RunState, ctx: Ctx, h: Hypothesis) {
 }
 
 // Solar options and the grid-only tariff verdict, on the outlet's load and real radiation up to as_of.
-function energyInputs(state: RunState, ctx: Ctx) {
+async function energyInputs(state: RunState, ctx: Ctx) {
   if (state.analysis?.energy) return state.analysis.energy;
   const outlet = state.outlet_id;
-  const inputs = query(state, ctx, AGENT, "solar_inputs", { outlet, from: ts(WINDOW.start), to: asOfEnd(state.as_of) });
-  const params = query(state, ctx, AGENT, "solar_params", { outlet });
-  const tariffs = query(state, ctx, AGENT, "tariff_rates", { outlet });
+  const inputs = await query(state, ctx, AGENT, "solar_inputs", { outlet, from: ts(WINDOW.start), to: asOfEnd(state.as_of) });
+  const params = await query(state, ctx, AGENT, "solar_params", { outlet });
+  const tariffs = await query(state, ctx, AGENT, "tariff_rates", { outlet });
   const rates = ratesFromRows(tariffs.rows as any);
   const solar = calc(state, ctx, AGENT, "solar_calc", `${inputs.rows.length} half-hours with radiation, roof ≤ ${params.rows[0].roof_kwp_max} kWp`,
     () => solarCalc(inputs.rows as any, params.rows[0] as any, rates.flat),
@@ -69,8 +69,8 @@ function energyInputs(state: RunState, ctx: Ctx) {
 
 // First pass composes the two decisions independently (ToU on today's load + solar on the flat tariff).
 // If the Skeptic sends that back because the decisions interact, the revision decides them jointly.
-function investigateEnergy(state: RunState, ctx: Ctx, h: Hypothesis) {
-  const e = energyInputs(state, ctx);
+async function investigateEnergy(state: RunState, ctx: Ctx, h: Hypothesis) {
+  const e = await energyInputs(state, ctx);
   const rec = e.solar.options.find((o: any) => o.kwp === e.solar.recommended_kwp);
   if (!rec) return claim(state, h, `Solar not possible or not worth it; tariff verdict ${e.grid.verdict}`, { composition: "grid_only", solar: e.solar, grid: e.grid }, e.evidence);
   const revising = state.claims.some((c) => c.hypothesis_id === h.id && c.status === "rejected");
@@ -90,7 +90,7 @@ function investigateEnergy(state: RunState, ctx: Ctx, h: Hypothesis) {
 // One machine analysis shared by every machine and bill hypothesis. Baselines come from H-MEM when it has
 // them; otherwise they are learned from the first full week (and the Reporter stores them). The current
 // period is the 14 days to as_of. Then median cycle minutes and fault_check across all dryers.
-function machineAnalysis(state: RunState, ctx: Ctx) {
+async function machineAnalysis(state: RunState, ctx: Ctx) {
   if (state.analysis?.machines) return state.analysis.machines;
   const w = compareWindows(state.as_of);
   const learnOnly = !w && state.as_of >= addDays(WINDOW.start, 6);
@@ -99,7 +99,7 @@ function machineAnalysis(state: RunState, ctx: Ctx) {
   const range = (r: Range) => ({ outlet, from: ts(r.from), to: ts(r.to) });
   const label = (r: Range) => `${fmt(r.from)}–${fmt(addDays(r.to, -1))}`;
   const fitSummary = (r: ReturnType<typeof regressMachines>) => `R² ${r.r2.toFixed(3)}, ${r.machines.length} machines, base ${(r.base_kwh_per_interval * 2).toFixed(2)} kW`;
-  const { machines, info, tariffs } = outletBasics(state, ctx);
+  const { machines, info, tariffs } = await outletBasics(state, ctx);
   const ids = machines.rows.map((m) => m.machine_id as string);
   const dryers = machines.rows.filter((m) => m.type === "dryer");
   const startedIn = (rows: any[], id: string, r: Range) => rows.filter((c) => c.machine_id === id && c.started_at >= ts(r.from) && c.started_at < ts(r.to));
@@ -116,8 +116,8 @@ function machineAnalysis(state: RunState, ctx: Ctx) {
     outletBase = mem!.outlet!.data as any;
   } else {
     baseline = w?.baseline ?? { from: WINDOW.start, to: addDays(WINDOW.start, 7) };
-    const ivB = query(state, ctx, AGENT, "interval_series", range(baseline));
-    const cyB = query(state, ctx, AGENT, "cycle_overlap", range(baseline));
+    const ivB = await query(state, ctx, AGENT, "interval_series", range(baseline));
+    const cyB = await query(state, ctx, AGENT, "cycle_overlap", range(baseline));
     const fitB = calc(state, ctx, AGENT, "regress_machines", `baseline ${label(baseline)}`, () => regressMachines(ivB.rows as any, cyB.rows as any, ids), fitSummary);
     base = new Map(dryers.map((m) => {
       const e = fitB.out.machines.find((x) => x.machine_id === m.machine_id);
@@ -148,8 +148,8 @@ function machineAnalysis(state: RunState, ctx: Ctx) {
     return state.analysis.machines;
   }
   const current = w!.current;
-  const ivC = query(state, ctx, AGENT, "interval_series", range(current));
-  const cyC = query(state, ctx, AGENT, "cycle_overlap", range(current));
+  const ivC = await query(state, ctx, AGENT, "interval_series", range(current));
+  const cyC = await query(state, ctx, AGENT, "cycle_overlap", range(current));
   const fitC = calc(state, ctx, AGENT, "regress_machines", `current ${label(current)}`, () => regressMachines(ivC.rows as any, cyC.rows as any, ids), fitSummary);
   evidence.push(ivC.id, cyC.id, fitC.id);
   const readings: (MachineReadings & Record<string, any>)[] = [];
@@ -178,8 +178,8 @@ function machineAnalysis(state: RunState, ctx: Ctx) {
   return state.analysis.machines;
 }
 
-function needWindows(state: RunState, ctx: Ctx, h: Hypothesis) {
-  const a = machineAnalysis(state, ctx);
+async function needWindows(state: RunState, ctx: Ctx, h: Hypothesis) {
+  const a = await machineAnalysis(state, ctx);
   if (a?.learn_only && h.kind === "fault") {
     claim(state, h, `Normal levels learned for ${a.readings.length} dryers`, { learned: true, readings: a.readings, names: a.names, windows: a.windows }, a.evidence.regression);
     return undefined;
@@ -191,16 +191,16 @@ function needWindows(state: RunState, ctx: Ctx, h: Hypothesis) {
   return a;
 }
 
-function investigateBill(state: RunState, ctx: Ctx, h: Hypothesis) {
-  const a = needWindows(state, ctx, h);
+async function investigateBill(state: RunState, ctx: Ctx, h: Hypothesis) {
+  const a = await needWindows(state, ctx, h);
   if (!a) return;
   const { baseline, current } = a.kwh_per_day;
   claim(state, h, `Energy use ${current >= baseline ? "rose" : "fell"} ${Math.abs((current / baseline - 1) * 100).toFixed(1)}% per day`,
     { kwh_per_day: a.kwh_per_day, delta_pct: (current / baseline - 1) * 100, windows: a.windows }, a.evidence.regression.slice(0, 3));
 }
 
-function investigateFault(state: RunState, ctx: Ctx, h: Hypothesis) {
-  const a = needWindows(state, ctx, h);
+async function investigateFault(state: RunState, ctx: Ctx, h: Hypothesis) {
+  const a = await needWindows(state, ctx, h);
   if (!a) return;
   const flagged = a.faults.filter((f: any) => f.flagged);
   for (const f of flagged) {
@@ -213,17 +213,17 @@ function investigateFault(state: RunState, ctx: Ctx, h: Hypothesis) {
     claim(state, h, "No dryer is outside its normal range", { none: true, faults: a.faults, names: a.names, windows: a.windows }, [a.evidence.faults]);
 }
 
-function investigateHumidity(state: RunState, ctx: Ctx, h: Hypothesis) {
-  const a = needWindows(state, ctx, h);
+async function investigateHumidity(state: RunState, ctx: Ctx, h: Hypothesis) {
+  const a = await needWindows(state, ctx, h);
   if (!a) return;
   const electric = a.faults.filter((f: any) => f.heat_source === "electric");
   if (!electric.length) return ruleOut(state, ctx, h, "Gas dryers: the meter doesn't see burner energy, so humidity can't explain an electricity rise");
   const w = a.windows;
-  const rh = (r: Range) => {
-    const q = query(state, ctx, AGENT, "weather_range", { outlet: state.outlet_id, from: ts(r.from), to: ts(r.to) });
+  const rh = async (r: Range) => {
+    const q = await query(state, ctx, AGENT, "weather_range", { outlet: state.outlet_id, from: ts(r.from), to: ts(r.to) });
     return { mean: q.rows.reduce((s, x) => s + Number(x.relative_humidity), 0) / (q.rows.length || 1), id: q.id };
   };
-  const rhB = rh(w.baseline), rhC = rh(w.current);
+  const rhB = await rh(w.baseline), rhC = await rh(w.current);
   const dryerDelta = electric.reduce((s: number, f: any) => s + f.delta_pct, 0) / electric.length;
   if (rhC.mean - rhB.mean < 1) return ruleOut(state, ctx, h, `Humidity was not higher (${rhB.mean.toFixed(0)}% → ${rhC.mean.toFixed(0)}%)`);
   if (dryerDelta < 2) return ruleOut(state, ctx, h, `Dryers' energy per cycle didn't rise on average (${dryerDelta.toFixed(1)}%)`);
@@ -231,8 +231,8 @@ function investigateHumidity(state: RunState, ctx: Ctx, h: Hypothesis) {
     { rh: { baseline: rhB.mean, current: rhC.mean }, dryer_delta_pct: dryerDelta, windows: w }, [rhB.id, rhC.id, a.evidence.faults]);
 }
 
-function investigateTraffic(state: RunState, ctx: Ctx, h: Hypothesis) {
-  const a = needWindows(state, ctx, h);
+async function investigateTraffic(state: RunState, ctx: Ctx, h: Hypothesis) {
+  const a = await needWindows(state, ctx, h);
   if (!a) return;
   const { baseline, current } = a.cycles_per_day;
   const delta = (current / baseline - 1) * 100;
@@ -241,13 +241,13 @@ function investigateTraffic(state: RunState, ctx: Ctx, h: Hypothesis) {
     { cycles_per_day: a.cycles_per_day, delta_pct: delta, kwh_per_day: (current - baseline) * a.avg_kwh_per_cycle, windows: a.windows }, a.evidence.regression.slice(0, 4));
 }
 
-function investigateHoliday(state: RunState, ctx: Ctx, h: Hypothesis) {
+async function investigateHoliday(state: RunState, ctx: Ctx, h: Hypothesis) {
   const w = compareWindows(state.as_of);
-  if (!w) return needWindows(state, ctx, h);
-  const inPeriod = query(state, ctx, AGENT, "holidays_range", { from: w.current.from, to: w.current.to });
+  if (!w) return await needWindows(state, ctx, h);
+  const inPeriod = await query(state, ctx, AGENT, "holidays_range", { from: w.current.from, to: w.current.to });
   if (inPeriod.rows.length)
     return claim(state, h, `Public holiday in the period: ${inPeriod.rows.map((x) => `${x.name} (${fmt(x.date)})`).join(", ")}`, { holidays: inPeriod.rows, windows: w }, [inPeriod.id]);
-  const before = query(state, ctx, AGENT, "holidays_range", { from: w.baseline.from, to: w.current.from });
+  const before = await query(state, ctx, AGENT, "holidays_range", { from: w.baseline.from, to: w.current.from });
   ruleOut(state, ctx, h, before.rows.length
     ? `${before.rows.map((x) => `${x.name} (${fmt(x.date)})`).join(", ")} fell before the period compared, so it can't explain it`
     : "No public holiday in the period");
@@ -256,21 +256,22 @@ function investigateHoliday(state: RunState, ctx: Ctx, h: Hypothesis) {
 // Did approved advice work? Servicing actions are checked with mv_check: the machine before vs after its
 // service date, minus the same change in its peers. Predictions come from H-MEM; without an approval in
 // memory, services in the service log are checked against a prediction re-derived from the baseline.
-function investigateVerify(state: RunState, ctx: Ctx, h: Hypothesis) {
+async function investigateVerify(state: RunState, ctx: Ctx, h: Hypothesis) {
   const outlet = state.outlet_id;
   const approved = recallApproved(state, ctx, AGENT).filter((m) => m.data.type === "schedule_service");
-  const { machines, info, tariffs } = outletBasics(state, ctx);
+  const { machines, info, tariffs } = await outletBasics(state, ctx);
   const rate = ratesFromRows(tariffs.rows as any).flat, lpg = Number(info.rows[0].lpg_rm_per_dryer_minute);
   type Target = { machine_id: string; action_id?: string; predicted?: number; serviced_on?: string };
   let targets: Target[];
   if (approved.length) {
-    targets = approved.map((m) => {
-      const s = query(state, ctx, AGENT, "service_history", { machine: m.data.target });
+    targets = [];
+    for (const m of approved) {
+      const s = await query(state, ctx, AGENT, "service_history", { machine: m.data.target });
       const after = s.rows.filter((x) => x.serviced_on >= m.as_of);
-      return { machine_id: m.data.target, action_id: m.data.action_id, predicted: m.data.predicted_rm_per_month, serviced_on: after.at(-1)?.serviced_on };
-    });
+      targets.push({ machine_id: m.data.target, action_id: m.data.action_id, predicted: m.data.predicted_rm_per_month, serviced_on: after.at(-1)?.serviced_on });
+    }
   } else {
-    const s = query(state, ctx, AGENT, "services_range", { outlet, from: WINDOW.start, to: addDays(state.as_of, 1) });
+    const s = await query(state, ctx, AGENT, "services_range", { outlet, from: WINDOW.start, to: addDays(state.as_of, 1) });
     const known = approvedTargets(state, ctx); // already tracked through an approval (its outcome is in memory)
     targets = s.rows.filter((x) => !known.has(x.machine_id)).map((x) => ({ machine_id: x.machine_id, serviced_on: x.serviced_on }));
   }
@@ -287,15 +288,15 @@ function investigateVerify(state: RunState, ctx: Ctx, h: Hypothesis) {
     const pre: Range = { from: addDays(tg.serviced_on, -14), to: tg.serviced_on };
     const post: Range = { from: addDays(tg.serviced_on, 1), to: addDays(state.as_of, 1) };
     const peers = dryers.filter((d) => d.machine_id !== m.machine_id && d.heat_source === m.heat_source);
-    const before = fitWindow(state, ctx, AGENT, pre, machines.rows as any, "before service");
-    const after = fitWindow(state, ctx, AGENT, post, machines.rows as any, "after service");
+    const before = await fitWindow(state, ctx, AGENT, pre, machines.rows as any, "before service");
+    const after = await fitWindow(state, ctx, AGENT, post, machines.rows as any, "after service");
     const unit = m.heat_source === "gas" ? lpg : rate;
     const cyclesPerMonth = (after.cyclesStarted(m.machine_id) / days(post)) * (365.25 / 12);
     let predicted = tg.predicted;
     if (!predicted) {
       const mem = recallBaselines(state, ctx, AGENT).machines.get(m.machine_id);
       const baseline = (m.heat_source === "gas" ? mem?.data.minutes : mem?.data.kwh)
-        ?? fitWindow(state, ctx, AGENT, { from: WINDOW.start, to: addDays(WINDOW.start, 7) }, machines.rows as any, "baseline").reading(m.machine_id);
+        ?? (await fitWindow(state, ctx, AGENT, { from: WINDOW.start, to: addDays(WINDOW.start, 7) }, machines.rows as any, "baseline")).reading(m.machine_id);
       predicted = Math.max(0, (before.reading(m.machine_id)!.value - baseline!.value) * cyclesPerMonth * unit);
     }
     const readings = {
@@ -310,14 +311,14 @@ function investigateVerify(state: RunState, ctx: Ctx, h: Hypothesis) {
   }
 }
 
-const RECIPES: Record<HypothesisKind, (s: RunState, c: Ctx, h: Hypothesis) => void> = {
+const RECIPES: Record<HypothesisKind, (s: RunState, c: Ctx, h: Hypothesis) => Promise<unknown>> = {
   tou: investigateTou, energy: investigateEnergy, bill: investigateBill, fault: investigateFault, humidity: investigateHumidity, traffic: investigateTraffic, holiday: investigateHoliday, verify: investigateVerify,
 };
 
-export function investigator(state: RunState, ctx: Ctx) {
+export async function investigator(state: RunState, ctx: Ctx) {
   for (const h of state.hypotheses.filter((h) => h.status === "open")) {
     if (state.claims.some((c) => c.hypothesis_id === h.id && c.status !== "rejected")) continue;
     if (capsHit(state)) return;
-    RECIPES[h.kind](state, ctx, h);
+    await RECIPES[h.kind](state, ctx, h);
   }
 }

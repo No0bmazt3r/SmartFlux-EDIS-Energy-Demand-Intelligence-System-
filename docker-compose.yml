@@ -1,0 +1,21 @@
+# SmartFlux source database for Zetaris. Zetaris itself runs from its own vendor compose file
+# (zetaris-platform.zip); it reaches this database at host.docker.internal:${PGPORT}.
+services:
+  smartflux-pg:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${PGDATABASE:-smartflux}
+      POSTGRES_USER: ${PGUSER:-smartflux}
+      POSTGRES_PASSWORD: ${PGPASSWORD:?set PGPASSWORD in .env}
+    ports:
+      - "${PGPORT:-5432}:5432"
+    volumes:
+      - ./data/sample:/data:ro
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
+      - smartflux-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-smartflux} -d ${PGDATABASE:-smartflux}"]
+      interval: 5s
+      retries: 10
+volumes:
+  smartflux-pg:

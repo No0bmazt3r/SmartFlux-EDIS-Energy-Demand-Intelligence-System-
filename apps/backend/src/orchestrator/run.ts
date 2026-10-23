@@ -1,6 +1,11 @@
 // The state machine: Scout → Planner ↔ Investigator ↔ Skeptic → Reporter, with caps (implementation §5.1).
+// Live mode: data through Zetaris, reasoning through Nemotron on Nightshift. Any live step that fails falls
+// back to its local twin (SQLite, rules) and the run is marked "mixed" from that event on.
 import { randomUUID } from "node:crypto";
 import { openSampleDb } from "../adapters/local-sqlite.ts";
+import { createNightshift } from "../adapters/llm.ts";
+import { createZetaris } from "../adapters/zetaris.ts";
+import { llmReporter, llmScout } from "../agents/llm/index.ts";
 import { investigator } from "../agents/rules/investigator.ts";
 import { planner } from "../agents/rules/planner.ts";
 import { reporter } from "../agents/rules/reporter.ts";
@@ -8,42 +13,50 @@ import { skeptic } from "../agents/rules/skeptic.ts";
 import type { Config } from "../config.ts";
 import { openHmem } from "../engines/hmem/index.ts";
 import { classify } from "../engines/scout/index.ts";
-import { recallContext } from "./memory.ts";
 import { createLogger } from "../log.ts";
 import { capsHit } from "./caps.ts";
+import { recallContext } from "./memory.ts";
 import type { RunRequest, RunResult, RunState } from "./state.ts";
+import { tryLlm, type Ctx } from "./tools.ts";
 
 export async function run(req: RunRequest, cfg: Config, opts: { echo?: boolean } = {}): Promise<RunResult & { message?: string }> {
-  if (cfg.mode.data !== "local") throw new Error("Live mode is not built yet. Run with SAMPLE_MODE=true.");
   const runId = `r-${randomUUID().slice(0, 8)}`;
-  const mode = "sample";
-  const { emit, path } = createLogger(runId, mode, cfg.logDir, opts.echo ?? true);
-  const ctx = { db: openSampleDb(cfg.dataDir), emit, hmem: openHmem(cfg.hmemDir, cfg.logDir) };
+  const live = cfg.mode.data === "zetaris" || cfg.mode.llm === "nightshift";
+  const degraded = new Set<string>();
+  const { emit, path } = createLogger(runId, () => (!live ? "sample" : degraded.size ? "mixed" : "live"), cfg.logDir, opts.echo ?? true);
+  const ctx: Ctx = {
+    db: openSampleDb(cfg.dataDir), emit, hmem: openHmem(cfg.hmemDir, cfg.logDir), degraded,
+    zetaris: cfg.zetaris && createZetaris(cfg.zetaris), llm: cfg.llm && createNightshift(cfg.llm),
+  };
 
   const question = req.question ?? "";
   // A weekly briefing has no question: the agent checks advice awaiting verification, machine health and the tariff.
-  const scout = req.briefing && !question
-    ? { intents: ["advice_followup", "machine_health", "tariff_decision"] as RunState["intents"], risk: "read_only" as const, lang: req.lang ?? "en" as const }
-    : classify(question, req.lang);
+  let scout: { intents: RunState["intents"]; lang: RunState["lang"]; model?: string; ms?: number } | undefined =
+    req.briefing && !question ? { intents: ["advice_followup", "machine_health", "tariff_decision"], lang: req.lang ?? "en" } : undefined;
+  if (!scout && ctx.llm) {
+    scout = await tryLlm(ctx, "Scout", "classify", () => llmScout(ctx.llm!, question));
+    if (scout && req.lang) scout.lang = req.lang;
+  }
+  scout ??= classify(question, req.lang);
   const state: RunState = {
     run_id: runId, as_of: req.as_of, outlet_id: req.outlet_id, question, lang: scout.lang,
-    intents: scout.intents, risk: scout.risk, refused: scout.intents.includes("out_of_scope"), briefing: !!req.briefing,
-    hypotheses: [], evidence: [], claims: [], actions: [], decisions: [], unresolved: [],
+    intents: scout.intents, risk: "read_only", refused: scout.intents.includes("out_of_scope"), briefing: !!req.briefing,
+    hypotheses: [], evidence: [], claims: [], actions: [], decisions: [], unresolved: [], memory: [],
     counters: { tool_calls: 0, replans: 0, rejections: {} }, caps: cfg.caps, mode: cfg.mode, needsReplan: false,
   };
   emit({
     agent_name: "Scout", action: "classify", input_summary: question || "(weekly briefing, no question)",
     output_summary: `intents=[${state.intents.join(",")}] risk=${state.risk} lang=${state.lang}`,
-    target_agent: state.refused ? "Reporter" : "Planner",
+    target_agent: state.refused ? "Reporter" : "Planner", model: scout.model, ms: scout.ms,
   });
 
   if (!state.refused) {
-    recallContext(state, ctx);
+    state.memory = recallContext(state, ctx).map((m) => `${m.content} (as of ${m.as_of})`);
     for (; state.counters.replans <= cfg.caps.replans; state.counters.replans++) {
-      planner(state, ctx);
+      await planner(state, ctx);
       while (!capsHit(state)) {
-        investigator(state, ctx);
-        if (skeptic(state, ctx) === "approved") break;
+        await investigator(state, ctx);
+        if ((await skeptic(state, ctx)) === "approved") break;
       }
       if (!state.needsReplan) break;
     }
@@ -54,9 +67,20 @@ export async function run(req: RunRequest, cfg: Config, opts: { echo?: boolean }
     }
   }
   const message = reporter(state, ctx);
+  if (ctx.llm && state.decisions.length) {
+    const r = await tryLlm(ctx, "Reporter", "word", () => llmReporter(ctx.llm!, state.decisions, state.lang));
+    if (r) {
+      state.decisions = r.decisions;
+      emit({ agent_name: "Reporter", action: "word", input_summary: `${r.decisions.length} cards, lang=${state.lang}`,
+        output_summary: r.rejected ? `${r.rejected} rewrites kept the template text (a number changed)` : "cards reworded; every number unchanged", model: r.model, ms: r.ms });
+    }
+  }
 
+  const modeLabel = !live ? "sample (rules reasoner, no LLM)"
+    : `${degraded.size ? "mixed" : "live"} (data: ${cfg.mode.data === "zetaris" && !degraded.has("data") ? "Zetaris" : cfg.mode.data === "zetaris" ? "Zetaris with local fallback" : "local sample"}; ` +
+      `reasoning: ${cfg.mode.llm === "nightshift" ? (degraded.has("llm") ? "Nemotron via Nightshift with rules fallback" : "Nemotron via Nightshift") : "rules"})`;
   return {
-    run_id: runId, mode: "sample (rules reasoner, no LLM)", outlet_id: state.outlet_id, as_of: state.as_of,
+    run_id: runId, mode: modeLabel, outlet_id: state.outlet_id, as_of: state.as_of,
     decisions: state.decisions, actions: state.actions, unresolved: state.unresolved, log: path,
     ...(message ? { message } : {}),
   };

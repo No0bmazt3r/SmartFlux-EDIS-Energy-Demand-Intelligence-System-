@@ -140,7 +140,7 @@ Score each criterion within its band. Anchors come from the official criteria an
 | S1 | If I removed Zetaris, what breaks? | All live data access: the agent and the Skeptic's verification queries both go through Zetaris, including a live REST API (Open-Meteo) and a semantic layer | `zetaris.query` events; Zetaris UI |
 | S2 | Which Meterless Engine, doing what, with which test? | H-MEM: machine baselines, advice and outcomes across restarts (`memory.test.ts`). Plus intent routing and approval gating modelled on Scout Intent (`routing.test.ts`, `risk.test.ts`) | Test output |
 | S3 | Is Nightshift really the provider? | Every LLM call goes through one client pointed at the Nightshift Runtime URL | `adapters/llm.ts`; log `model` fields |
-| S4 | Where does Nemotron do real work? | Hypothesis choice, template selection, the Skeptic's causal judgment and double-count detection, Malay and English reporting; models pinned per lane | Log per step |
+| S4 | Where does Nemotron do real work? | Intent classification, hypothesis choice from H-MEM context, the Skeptic's causal judgment (humidity, traffic, holiday), Malay and English wording; models pinned per lane. Numbers and double-count detection stay in tested code by design | Log per step |
 | S5 | What was unique about your use? | The Skeptic re-derives every money claim from Zetaris before the owner sees it | Trace scene |
 | S6 | Which AI coding tool did you use? | Claude Code (Cursor only if used); any tool is allowed | README |
 

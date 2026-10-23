@@ -8,19 +8,21 @@ import { fitWindow } from "./shared.ts";
 import { ratesFromRows, touCalc, weeksFromRows, type TouResult } from "../../calc/tou.ts";
 import { asOfEnd } from "../../templates/index.ts";
 import { rejectionCapHit } from "../../orchestrator/caps.ts";
-import { calc, query, type Ctx } from "../../orchestrator/tools.ts";
+import { calc, query, tryLlm, type Ctx } from "../../orchestrator/tools.ts";
+import { llmSkeptic } from "../llm/index.ts";
 import { WINDOW, type Claim, type HypothesisKind, type RunState } from "../../orchestrator/state.ts";
 import { days, ts, type Range } from "../../orchestrator/windows.ts";
 
+const CAUSAL: HypothesisKind[] = ["humidity", "traffic", "holiday"];
 type Verdict = { ok: true; note?: string } | { ok: false; ruleOut?: boolean; reason: string };
 const AGENT = "Skeptic";
 const pct = (x: number) => (x * 100).toFixed(1);
 const close = (a: number, b: number, tol = 0.005) => Math.abs(a - b) <= tol * Math.max(1, Math.abs(a), Math.abs(b));
 
-function verifyTou(state: RunState, ctx: Ctx, claim: Claim): Verdict {
+async function verifyTou(state: RunState, ctx: Ctx, claim: Claim): Promise<Verdict> {
   const claimed = claim.data as TouResult;
-  const split = query(state, ctx, AGENT, "tou_split", { outlet: state.outlet_id, from: ts(WINDOW.start), to: asOfEnd(state.as_of) });
-  const tariffs = query(state, ctx, AGENT, "tariff_rates", { outlet: state.outlet_id });
+  const split = await query(state, ctx, AGENT, "tou_split", { outlet: state.outlet_id, from: ts(WINDOW.start), to: asOfEnd(state.as_of) });
+  const tariffs = await query(state, ctx, AGENT, "tariff_rates", { outlet: state.outlet_id });
   const { out: re } = calc(state, ctx, AGENT, "tou_calc", "verification recompute",
     () => touCalc(weeksFromRows(split.rows as any), ratesFromRows(tariffs.rows as any)),
     (r) => `verdict ${r.verdict}, ToU-flat RM${(-r.saving_per_month).toFixed(2)}/month`);
@@ -34,12 +36,12 @@ function verifyTou(state: RunState, ctx: Ctx, claim: Claim): Verdict {
 
 // Re-derives solar and the tariff on the post-solar load with its own queries. A plan that adds a ToU saving
 // computed on today's load to a solar saving is a double count whenever solar moves the peak share.
-function verifyEnergy(state: RunState, ctx: Ctx, claim: Claim): Verdict {
+async function verifyEnergy(state: RunState, ctx: Ctx, claim: Claim): Promise<Verdict> {
   const d = claim.data;
   const outlet = state.outlet_id;
-  const inputs = query(state, ctx, AGENT, "solar_inputs", { outlet, from: ts(WINDOW.start), to: asOfEnd(state.as_of) });
-  const params = query(state, ctx, AGENT, "solar_params", { outlet });
-  const tariffs = query(state, ctx, AGENT, "tariff_rates", { outlet });
+  const inputs = await query(state, ctx, AGENT, "solar_inputs", { outlet, from: ts(WINDOW.start), to: asOfEnd(state.as_of) });
+  const params = await query(state, ctx, AGENT, "solar_params", { outlet });
+  const tariffs = await query(state, ctx, AGENT, "tariff_rates", { outlet });
   const rates = ratesFromRows(tariffs.rows as any);
   const { out: solar } = calc(state, ctx, AGENT, "solar_calc", "verification recompute", () => solarCalc(inputs.rows as any, params.rows[0] as any, rates.flat),
     (r) => `recommend ${r.recommended_kwp ?? "none"} kWp`);
@@ -63,13 +65,13 @@ function verifyEnergy(state: RunState, ctx: Ctx, claim: Claim): Verdict {
 }
 
 // Re-checks the service date and the after-service level with its own queries.
-function verifyVerify(state: RunState, ctx: Ctx, claim: Claim): Verdict {
+async function verifyVerify(state: RunState, ctx: Ctx, claim: Claim): Promise<Verdict> {
   const d = claim.data;
-  const s = query(state, ctx, AGENT, "service_history", { machine: d.machine_id });
+  const s = await query(state, ctx, AGENT, "service_history", { machine: d.machine_id });
   if (!d.serviced_on) return s.rows.length && s.rows.at(-1)!.serviced_on >= (d.advised_as_of ?? "") && d.action_id ? { ok: false, reason: "a service is recorded; verify it" } : { ok: true, note: "no service recorded yet" };
   if (!s.rows.some((x) => x.serviced_on === d.serviced_on)) return { ok: false, reason: `no service on ${d.serviced_on} in the service log` };
-  const machines = query(state, ctx, AGENT, "machine_list", { outlet: state.outlet_id });
-  const after = fitWindow(state, ctx, AGENT, d.windows.post, machines.rows as any, "after service, verification");
+  const machines = await query(state, ctx, AGENT, "machine_list", { outlet: state.outlet_id });
+  const after = await fitWindow(state, ctx, AGENT, d.windows.post, machines.rows as any, "after service, verification");
   const post = after.reading(d.machine_id)!;
   if (!close(post.value, d.readings.machine.post.value, 0.03))
     return { ok: false, reason: `after-service level does not reproduce (${post.value.toFixed(2)} vs ${d.readings.machine.post.value.toFixed(2)})` };
@@ -77,29 +79,29 @@ function verifyVerify(state: RunState, ctx: Ctx, claim: Claim): Verdict {
 }
 
 // Energy per day re-derived through a different path (period totals instead of the interval series).
-function verifyBill(state: RunState, ctx: Ctx, claim: Claim): Verdict {
-  const perDay = (r: Range) => {
-    const q = query(state, ctx, AGENT, "tou_split", { outlet: state.outlet_id, from: ts(r.from), to: ts(r.to) });
+async function verifyBill(state: RunState, ctx: Ctx, claim: Claim): Promise<Verdict> {
+  const perDay = async (r: Range) => {
+    const q = await query(state, ctx, AGENT, "tou_split", { outlet: state.outlet_id, from: ts(r.from), to: ts(r.to) });
     const kwh = q.rows.reduce((s, x) => s + Number(x.kwh), 0), n = q.rows.reduce((s, x) => s + Number(x.intervals), 0);
     return kwh / (n / 48);
   };
-  const b = perDay(claim.data.windows.baseline), c = perDay(claim.data.windows.current);
+  const b = await perDay(claim.data.windows.baseline), c = await perDay(claim.data.windows.current);
   if (!close(b, claim.data.kwh_per_day.baseline, 0.01) || !close(c, claim.data.kwh_per_day.current, 0.01))
     return { ok: false, reason: `kWh per day does not reproduce (${b.toFixed(1)} → ${c.toFixed(1)})` };
   return { ok: true };
 }
 
-function verifyFault(state: RunState, ctx: Ctx, claim: Claim): Verdict {
+async function verifyFault(state: RunState, ctx: Ctx, claim: Claim): Promise<Verdict> {
   const d = claim.data;
   if (d.none) return { ok: true, note: "no flags to verify" };
   if (d.learned) return { ok: true, note: "baselines learned; nothing to compare yet" };
   if (d.heat_source === "gas" && d.metric !== "minutes_per_cycle")
     return { ok: false, reason: "electric-kWh claim about a gas burner: the meter can't see it; use cycle minutes" };
-  const dur = (r: Range) => {
-    const q = query(state, ctx, AGENT, "cycle_duration", { machine: d.machine_id, from: ts(r.from), to: ts(r.to) });
+  const dur = async (r: Range) => {
+    const q = await query(state, ctx, AGENT, "cycle_duration", { machine: d.machine_id, from: ts(r.from), to: ts(r.to) });
     return durationReading(q.rows as any);
   };
-  const durB = dur(d.windows.baseline), durC = dur(d.windows.current);
+  const durB = await dur(d.windows.baseline), durC = await dur(d.windows.current);
   const cyclesPerMonth = (durC.cycles / days(d.windows.current)) * (365.25 / 12);
   if (!close(cyclesPerMonth, d.cycles_per_month, 0.05))
     return { ok: false, reason: `cycle count does not reproduce (${cyclesPerMonth.toFixed(0)} vs ${d.cycles_per_month.toFixed(0)} per month)` };
@@ -113,11 +115,11 @@ function verifyFault(state: RunState, ctx: Ctx, claim: Claim): Verdict {
 }
 
 // Peer check: refit the current window itself and see whether dryers other than the flagged ones rose.
-function verifyHumidity(state: RunState, ctx: Ctx, claim: Claim): Verdict {
+async function verifyHumidity(state: RunState, ctx: Ctx, claim: Claim): Promise<Verdict> {
   const a = state.analysis!.machines;
   const w: Range = claim.data.windows.current;
-  const iv = query(state, ctx, AGENT, "interval_series", { outlet: state.outlet_id, from: ts(w.from), to: ts(w.to) });
-  const cy = query(state, ctx, AGENT, "cycle_overlap", { outlet: state.outlet_id, from: ts(w.from), to: ts(w.to) });
+  const iv = await query(state, ctx, AGENT, "interval_series", { outlet: state.outlet_id, from: ts(w.from), to: ts(w.to) });
+  const cy = await query(state, ctx, AGENT, "cycle_overlap", { outlet: state.outlet_id, from: ts(w.from), to: ts(w.to) });
   const flagged = new Set(a.faults.filter((f: any) => f.flagged).map((f: any) => f.machine_id));
   const peers = a.readings.filter((r: any) => r.heat_source === "electric" && !flagged.has(r.machine_id));
   const { out: fit } = calc(state, ctx, AGENT, "regress_machines", "peer check, current window",
@@ -132,32 +134,44 @@ function verifyHumidity(state: RunState, ctx: Ctx, claim: Claim): Verdict {
   return { ok: true, note: `peers +${peerDelta.toFixed(1)}%` };
 }
 
-function verifyTraffic(state: RunState, ctx: Ctx, claim: Claim): Verdict {
+async function verifyTraffic(state: RunState, ctx: Ctx, claim: Claim): Promise<Verdict> {
   const w: Range = claim.data.windows.current;
-  const q = query(state, ctx, AGENT, "cycle_overlap", { outlet: state.outlet_id, from: ts(w.from), to: ts(w.to) });
+  const q = await query(state, ctx, AGENT, "cycle_overlap", { outlet: state.outlet_id, from: ts(w.from), to: ts(w.to) });
   const perDay = q.rows.filter((c) => c.started_at >= ts(w.from)).length / days(w);
   return close(perDay, claim.data.cycles_per_day.current, 0.02) ? { ok: true } : { ok: false, reason: `cycles per day do not reproduce (${perDay.toFixed(1)})` };
 }
 
-function verifyHoliday(state: RunState, ctx: Ctx, claim: Claim): Verdict {
+async function verifyHoliday(state: RunState, ctx: Ctx, claim: Claim): Promise<Verdict> {
   const w: Range = claim.data.windows.current;
-  const q = query(state, ctx, AGENT, "holidays_range", { from: w.from, to: w.to });
+  const q = await query(state, ctx, AGENT, "holidays_range", { from: w.from, to: w.to });
   return q.rows.length ? { ok: true } : { ok: false, ruleOut: true, reason: "no holiday found in the period" };
 }
 
-const VERIFIERS: Record<HypothesisKind, (s: RunState, c: Ctx, claim: Claim) => Verdict> = {
+const VERIFIERS: Record<HypothesisKind, (s: RunState, c: Ctx, claim: Claim) => Promise<Verdict>> = {
   tou: verifyTou, energy: verifyEnergy, bill: verifyBill, fault: verifyFault, humidity: verifyHumidity, traffic: verifyTraffic, holiday: verifyHoliday, verify: verifyVerify,
 };
 
-export function skeptic(state: RunState, ctx: Ctx): "approved" | "revise" {
+export async function skeptic(state: RunState, ctx: Ctx): Promise<"approved" | "revise"> {
   let revise = false;
   for (const claim of state.claims.filter((c) => c.status === "proposed")) {
-    const v = VERIFIERS[claim.kind](state, ctx, claim);
+    let v = await VERIFIERS[claim.kind](state, ctx, claim);
     const h = state.hypotheses.find((x) => x.id === claim.hypothesis_id)!;
+    // Causal claims also get Nemotron's judgment (deep lane). It can rule out a claim whose numbers passed,
+    // but it can never rescue one that failed the deterministic re-derivation.
+    let model: string | undefined, judgment = "";
+    if (ctx.llm && CAUSAL.includes(claim.kind)) {
+      const { windows: _w, ...facts } = claim.data;
+      const j = await tryLlm(ctx, AGENT, "judge", () => llmSkeptic(ctx.llm!, { kind: claim.kind, claim: claim.text, facts, finding: v.ok ? `passed${v.note ? `: ${v.note}` : ""}` : `failed: ${v.reason}` }));
+      if (j) {
+        model = j.model;
+        judgment = ` · Nemotron: ${j.verdict}, ${j.reason}`;
+        if (v.ok && j.verdict === "rule_out") v = { ok: false, ruleOut: true, reason: `${j.reason} (Skeptic's causal judgment)` };
+      }
+    }
     if (v.ok) {
       claim.status = "approved";
       if (h.status === "open") h.status = "supported";
-      ctx.emit({ agent_name: AGENT, action: "approve", input_summary: `claim ${claim.id}: ${claim.text}`, output_summary: `re-derived from the data; approved${v.note ? ` (${v.note})` : ""}`, target_agent: "Reporter", confidence: 0.9 });
+      ctx.emit({ agent_name: AGENT, action: "approve", input_summary: `claim ${claim.id}: ${claim.text}`, output_summary: `re-derived from the data; approved${v.note ? ` (${v.note})` : ""}${judgment}`, target_agent: "Reporter", confidence: 0.9, model });
       continue;
     }
     claim.status = "rejected";
@@ -171,8 +185,8 @@ export function skeptic(state: RunState, ctx: Ctx): "approved" | "revise" {
       state.unresolved.push(`${h.text}: ${v.reason}`);
     } else revise = true;
     ctx.emit({ agent_name: AGENT, action: "verify", input_summary: `claim ${claim.id}: ${claim.text}`,
-      output_summary: `Rejected${v.ruleOut ? " (ruled out)" : ""}: ${v.reason}`, target_agent: v.ruleOut ? "Planner" : "Investigator",
-      status: "needs_revision", retry_count: state.counters.rejections[h.id] });
+      output_summary: `Rejected${v.ruleOut ? " (ruled out)" : ""}: ${v.reason}${judgment}`, target_agent: v.ruleOut ? "Planner" : "Investigator",
+      status: "needs_revision", retry_count: state.counters.rejections[h.id], model });
   }
   return revise ? "revise" : "approved";
 }

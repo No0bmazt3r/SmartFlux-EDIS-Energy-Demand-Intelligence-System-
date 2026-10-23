@@ -32,7 +32,7 @@ export type RunState = {
   run_id: string; as_of: string; outlet_id: string; question: string; lang: Lang;
   intents: Intent[]; risk: Risk; refused: boolean; briefing: boolean;
   hypotheses: Hypothesis[]; evidence: Evidence[]; claims: Claim[]; actions: ProposedAction[];
-  decisions: Decision[]; unresolved: string[];
+  decisions: Decision[]; unresolved: string[]; memory: string[]; // H-MEM context reinjected into the Planner
   counters: { tool_calls: number; replans: number; rejections: Record<string, number> };
   caps: Config["caps"]; mode: Mode; needsReplan: boolean;
   analysis?: Record<string, any>; // memo of shared Investigator work (e.g. one machine regression for several hypotheses)

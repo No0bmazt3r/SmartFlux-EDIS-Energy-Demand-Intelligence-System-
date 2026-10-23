@@ -1,0 +1,21 @@
+{
+  "name": "SmartFlux EDIS",
+  "track": "Track 3: Reasoning Architecture",
+  "agents": [
+    { "name": "Scout", "role": "Classifies intent and language; refuses out-of-scope requests; gates operational and financial actions", "model_lane": "fast (Nemotron via Nightshift)" },
+    { "name": "Planner", "role": "Chooses hypotheses to test, using what H-MEM remembers about the outlet", "model_lane": "fast (Nemotron via Nightshift)" },
+    { "name": "Investigator", "role": "Runs query templates through Zetaris and the deterministic calculators; never states a number it did not compute", "model_lane": "none (tool runner)" },
+    { "name": "Skeptic", "role": "Re-derives every claim with its own Zetaris queries; can send work back, rule hypotheses out and block the Reporter; rejects double-counted savings", "model_lane": "deep (Nemotron via Nightshift) for causal judgment" },
+    { "name": "Reporter", "role": "Writes decision cards in English or Malay from approved claims only; numbers are checked against the calculators", "model_lane": "deep (Nemotron via Nightshift)" }
+  ],
+  "sponsor_technology": {
+    "zetaris": "Only live data path: Postgres datasource + Open-Meteo REST table + Unified Semantic Layer (smartflux.energy); apps/backend/src/adapters/zetaris.ts, infra/zetaris/",
+    "meterless_engines": ["H-MEM (apps/backend/src/engines/hmem): baselines, advice, approvals and outcomes across restarts; ledger in logs/hmem-ledger.jsonl"],
+    "meterless_nightshift": "Only AI provider: one injected generator, apps/backend/src/adapters/llm.ts",
+    "nvidia": "Nemotron, two pinned lanes through Nightshift; model logged on every LLM-backed event",
+    "intent_routing": "Modelled on Meterless Scout Intent (engine spec unavailable): apps/backend/src/engines/scout"
+  },
+  "data_sources": ["synthetic laundromat meter and payment data (data/sample)", "https://open-meteo.com/ (archive API, CC BY 4.0)", "Malaysian public holidays (public calendar)"],
+  "entry_points": ["pnpm agent --input input_examples/<file>.json", "POST /run on 0.0.0.0:8000 (planned)"],
+  "output_type": "text"
+}

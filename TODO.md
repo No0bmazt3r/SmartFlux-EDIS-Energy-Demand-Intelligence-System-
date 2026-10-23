@@ -38,8 +38,8 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 
 - [ ] **2.1** Node 22.13+ and pnpm are installed on every builder's machine. *Done when:* `node -e "require('node:sqlite')"` runs with no error.
 - [ ] **2.2** Zetaris: sign up, download, `docker login`, `./preflight.sh`, edit `.env`, `compose up`. *Done when:* `./verify.sh` shows 9/9 and `SELECT 1` works in the UI. Needs 8 GB RAM; if the laptop has less, use the AWS fallback.
-- [ ] **2.3** Fetch the Zetaris OpenAPI spec from `/redoc/docs.yaml` and pin the exact SQL run path and body. *Done when:* `adapters/zetaris.ts` has the confirmed path (open question 3).
-- [ ] **2.4** Nightshift: install it, add the NVIDIA key in Providers, set up two lanes (Lightning, Super), copy the Runtime URL and token. *Done when:* `curl $METERLESS_BASE_URL/models` from WSL lists the Nemotron routes.
+- [ ] **2.3** Fetch the Zetaris OpenAPI spec from `/redoc/docs.yaml` and pin the exact SQL run path and body. *Done when:* `adapters/zetaris.ts` has the confirmed path (open question 3). ⏳ Path and body taken from Zetaris's own client code (getting-started @44668b2: `POST /sql-editor/sqls/run`, `{queryId, sql, source, limit}`; proxy fallback `/api/proxy/sql-editor/sqls/run-query`). Built into `adapters/zetaris.ts`; still to confirm against a live instance with `pnpm smoke`.
+- [ ] **2.4** Nightshift: install it, add the NVIDIA key in Providers, set up two lanes (Lightning, Super), copy the Runtime URL and token. *Done when:* `curl $METERLESS_BASE_URL/models` from WSL lists the Nemotron routes. ⏳ 24 Oct: nothing answers on :8088 from WSL (127.0.0.1, Windows host IP, host.docker.internal). Install or start Nightshift, then `pnpm smoke --nightshift`.
 - [ ] **2.5** WSL → Nightshift networking (mirrored networking or the Windows host IP), plus Docker → `host.docker.internal`. *Done when:* both reach `/v1/models`.
 - [ ] **2.6** Record the exact Nemotron route names. *Done when:* `MODEL_FAST` and `MODEL_DEEP` are in `.env.example` comments (open question 4).
 - [ ] **2.7** A second team member can run live mode with their own credentials. *Done when:* their smoke test passes (avoids the "only one of us can run it" red flag).
@@ -106,15 +106,15 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 
 ## Phase 9: Live mode (steps 11–13)
 
-- [ ] **9.1** Postgres 16 in Docker, `scripts/load-data.ts`. *Done when:* the tables are loaded and the row counts match.
-- [ ] **9.2** `infra/zetaris/*_create.sql` + `scripts/zetaris-setup.ts --dry-run`, covering the datasource, REST tables (holidays, weather ×3), the weather unnest view and the USL `smartflux.energy`. *Done when:* the federated query (proposal §10.5) and a USL query return rows.
-- [ ] **9.3** If the Open-Meteo unnest fails, load the cached weather into Postgres and keep holidays as a REST table. *Done when:* either path works.
-- [ ] **9.4** `adapters/zetaris.ts`: read-only guard (SELECT, SHOW, DESCRIBE; USL namespace only), 30 s timeout, 1 retry, typed errors, no credentials in logs. *Done when:* the guard test rejects `DROP` and `INSERT`.
-- [ ] **9.5** Template parity test: Lightning vs SQLite give identical rows on the sample data. *Done when:* it passes for all 9 templates.
-- [ ] **9.6** `scripts/smoke.ts`: Zetaris (`SELECT 1`, `SHOW LIGHTNING DATABASES`, federated, USL) plus Nightshift (`/v1/models`, one chat). *Done when:* `pnpm smoke` passes every check.
-- [ ] **9.7** `adapters/llm.ts`: one OpenAI client on `METERLESS_BASE_URL`, pinned lanes, 60 s timeout, logs the model and run id. *Done when:* every LLM event has `model`.
-- [ ] **9.8** Role prompts (implementation §5.2) and LLM-backed roles with tool calling, plus one repair prompt on bad JSON. *Done when:* **example 02 runs live** with Nemotron on every LLM event and a Skeptic `needs_revision`.
-- [ ] **9.9** Fallbacks: Zetaris retry → local SQLite; LLM fails twice → the rules twin. *Done when:* killing Zetaris mid-run still completes in `mixed` mode with `fallback` events.
+- [ ] **9.1** Postgres 16 in Docker, `scripts/load-data.ts`. *Done when:* the tables are loaded and the row counts match. ⏳ Built: `docker compose up -d smartflux-pg` loads data/sample through `infra/postgres/01_load.sql` (columns checked against the CSVs). Needs Docker to run.
+- [ ] **9.2** `infra/zetaris/*_create.sql` + `scripts/zetaris-setup.ts --dry-run`, covering the datasource, REST tables (holidays, weather ×3), the weather unnest view and the USL `smartflux.energy`. *Done when:* the federated query (proposal §10.5) and a USL query return rows. ⏳ Built: `infra/zetaris/01–03_create.sql` + `pnpm zetaris:setup` (dry-run, masked password, --skip-exists). Needs a Zetaris instance.
+- [x] **9.3** If the Open-Meteo unnest fails, load the cached weather into Postgres and keep holidays as a REST table. *Done when:* either path works. ✅ `pnpm zetaris:setup --weather pg` builds the same USL weather table from Postgres.
+- [x] **9.4** `adapters/zetaris.ts`: read-only guard (SELECT, SHOW, DESCRIBE; USL namespace only), 30 s timeout, 1 retry, typed errors, no credentials in logs. *Done when:* the guard test rejects `DROP` and `INSERT`. ✅ `live.test.ts`: DROP and multi-statement rejected, injection blocked by the parameter whitelist.
+- [ ] **9.5** Template parity test: Lightning vs SQLite give identical rows on the sample data. *Done when:* it passes for all 9 templates. ⏳ Built into `pnpm smoke`: every template, Lightning vs SQLite, row for row. Needs the live instance.
+- [ ] **9.6** `scripts/smoke.ts`: Zetaris (`SELECT 1`, `SHOW LIGHTNING DATABASES`, federated, USL) plus Nightshift (`/v1/models`, one chat). *Done when:* `pnpm smoke` passes every check. ⏳ Built (`scripts/smoke.ts`). Needs the services.
+- [x] **9.7** `adapters/llm.ts`: one OpenAI client on `METERLESS_BASE_URL`, pinned lanes, 60 s timeout, logs the model and run id. *Done when:* every LLM event has `model`. ✅ One injected generator; lanes, Meterless headers and the model on every LLM event are tested against a fake Nightshift.
+- [ ] **9.8** Role prompts (implementation §5.2) and LLM-backed roles with tool calling, plus one repair prompt on bad JSON. *Done when:* **example 02 runs live** with Nemotron on every LLM event and a Skeptic `needs_revision`. ⏳ Built: Nemotron Scout, Planner (H-MEM context), Skeptic (causal judgment), Reporter (wording with a number guard), all tested against a fake. Needs a live run.
+- [x] **9.9** Fallbacks: Zetaris retry → local SQLite; LLM fails twice → the rules twin. *Done when:* killing Zetaris mid-run still completes in `mixed` mode with `fallback` events. ✅ Tested: Zetaris down → one retry → SQLite, run marked mixed; Nightshift down → retries → rules twins, mixed.
 - [ ] **9.10** All 8 examples in live mode. *Done when:* the verdicts match sample mode.
 
 ## Phase 10: API and scheduler (step 14)
