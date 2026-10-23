@@ -1,0 +1,4 @@
+outlet_id,roof_kwp_max,cost_rm_per_kwp,derate
+OUT-01,15,3500,0.8
+OUT-02,12,3500,0.8
+OUT-03,10,3500,0.8

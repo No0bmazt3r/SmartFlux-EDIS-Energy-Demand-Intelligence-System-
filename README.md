@@ -7,7 +7,7 @@ An agent that tells a Malaysian laundromat owner whether to install solar, switc
 **Open Agent Hackathon 2026 · Track 3: Reasoning Architecture**
 Built with Zetaris · Meterless H-MEM · Meterless Nightshift · NVIDIA Nemotron · Claude Code
 
-> **Status: in development.** This repo currently holds the design docs only. Commands below describe the planned interface and will work once the code lands. See [TODO.md](TODO.md) for progress.
+> **Status: in development.** Sample mode runs the ToU decision end to end today (`pnpm agent --input input_examples/01-tou-switch.json`). The rest of the commands below are the planned interface. See [TODO.md](TODO.md) for progress.
 
 ---
 
@@ -46,7 +46,7 @@ flowchart LR
     K -. "verify" .-> Z
 ```
 
-## Quick start (planned)
+## Quick start (partly built)
 
 Requires Node 22.13+ and pnpm.
 

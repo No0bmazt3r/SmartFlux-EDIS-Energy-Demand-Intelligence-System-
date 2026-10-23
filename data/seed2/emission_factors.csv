@@ -1,0 +1,3 @@
+factor_id,unit,value,source
+grid_peninsular,kgCO2e_per_kWh,0.758,TO CONFIRM: Energy Commission grid emission factor
+lpg,kgCO2e_per_kg,2.983,TO CONFIRM: IPCC LPG default

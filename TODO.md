@@ -9,24 +9,30 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 
 ## Phase 0: Blockers and decisions (today, 24 Oct)
 
-- [ ] **0.1** Name Builder 1, who owns data, Zetaris, templates and calculators. *Done when:* a name is in proposal §18.2.
+- [x] **0.1** Name Builder 1, who owns data, Zetaris, templates and calculators. *Done when:* a name is in proposal §18.2. ✅ Sharvin (24 Oct).
 - [ ] **0.2** Confirm the team roster and presenters (the submission locks the roster). *Done when:* submission-pack names everyone.
-- [ ] **0.3** Find the Scout Intent engine spec (meterless.ai / Meterless GitHub / sponsor Help). The fallback deadline was 24 Oct 12:00. *Done when:* the spec is saved in the repo, or the "plain intent routing" fallback is chosen and written down.
-- [ ] **0.4** Read the Official Rules for an IP or licence clause and confirm that MIT is allowed. *Done when:* noted here.
-- [ ] **0.5** Confirm every team member agrees to MIT and the copyright line "SmartFlux EDIS contributors" (or swap in the team name). *Done when:* LICENSE is final.
-- [ ] **0.6** Copy the hackathon reference folders ("Rules & Requirements", "Demo and Submission Resources", `zetaris/`, `meterless/`) into the repo or `docs/refs/`, since the docs cite them as "in this repo". Alternatively, drop those claims. *Done when:* no doc links to a missing file.
+- [x] **0.3** Find the Scout Intent engine spec (meterless.ai / Meterless GitHub / sponsor Help). The fallback deadline was 24 Oct 12:00. *Done when:* the spec is saved in the repo, or the "plain intent routing" fallback is chosen and written down. ✅ No spec in the resource pack; fallback chosen (24 Oct). Still ask in Help Meterless; swap in by 25 Oct if a spec arrives.
+- [x] **0.4** Read the Official Rules for an IP or licence clause and confirm that MIT is allowed. *Done when:* noted here. ✅ Official Rules §253: participants keep all rights; only third-party licences apply.
+- [x] **0.5** Confirm every team member agrees to MIT and the copyright line "SmartFlux EDIS contributors" (or swap in the team name). *Done when:* LICENSE is final. ✅ Accepted 24 Oct. Tell the team.
+- [x] **0.6** Copy the hackathon reference folders ("Rules & Requirements", "Demo and Submission Resources", `zetaris/`, `meterless/`) into the repo or `docs/refs/`, since the docs cite them as "in this repo". Alternatively, drop those claims. *Done when:* no doc links to a missing file. ✅ Not copied (public repo); docs reworded to "hackathon resource pack".
 - [ ] **0.7** Find the prototype's last commit before the window (before 22 Oct 00:00 UTC) and record the hash. *Done when:* submission-pack §6 has the hash.
-- [ ] **0.8** Decide whether the prototype code gets imported into this repo or the build starts fresh here. *Done when:* written in implementation.md §2.
+- [x] **0.8** Decide whether the prototype code gets imported into this repo or the build starts fresh here. *Done when:* written in implementation.md §2. ✅ Build fresh here (24 Oct).
+
+- [ ] **0.9** **Holidays REST table:** Nager.Date has no Malaysia data (`/PublicHolidays/2026/MY` returns 204). Options: (a) holidays become a static Postgres table, leaving Open-Meteo as the one live REST API, and the docs drop "two live APIs"; (b) a JSON file in this public repo served as a REST table (honest, but a bit artificial). *Done when:* chosen and the docs updated.
+- [ ] **0.10** **Fault size in RM:** generated D4 runs about 183 cycles/month, so +33% wastes about RM64/month, not the RM182 in the docs (which assume 520 cycles/month). Either raise dryer traffic in the generator, or update the docs and mockups to the generated figure. *Done when:* chosen.
 
 ## Phase 1: Fix the docs (30 min)
 
-- [ ] **1.1** The example count disagrees: proposal §8 says "5 inputs", §14.3 says 8. *Done when:* every doc says 8.
-- [ ] **1.2** The `machine_cycles` row count disagrees: proposal §10.2 says ≈15,000, data-and-evaluation §2 says ≈22,000. *Done when:* one figure everywhere (take it from the generator output).
-- [ ] **1.3** The log action names disagree: `zetaris.query` (logs, judges-validation G3), `zetaris.call` (proposal §8), `llm.call`. *Done when:* one naming scheme is in architecture §8 and every doc uses it.
-- [ ] **1.4** The repo layouts disagree: proposal §14.4 has `scripts/eval.ts`, implementation §2 has `eval/run-eval.ts` and `eval/benchmark.ts`. *Done when:* the proposal points to the implementation layout.
-- [ ] **1.5** The research notes path is wrong: `docs/smartflux/research/` doesn't exist. *Done when:* user-research §4 says `docs/research/`.
-- [ ] **1.6** The benchmark and the fault threshold conflict: faults are planted at +15–45%, but `fault_check` flags only at ≥ +20%. About 1 in 6 faults can never be found, so the ≥ 90% recall target is at risk. *Done when:* the planted range starts at +20%, the threshold changes, or the target is restated (see the grilling).
-- [ ] **1.7** The Gantt timeline in proposal §18.3 is stale (milestone m1, 24 Oct 00:00, has passed). *Done when:* it's re-planned from now, or replaced with a link to this file.
+- [x] **1.1** The example count disagrees: proposal §8 says "5 inputs", §14.3 says 8. *Done when:* every doc says 8.
+- [x] **1.2** The `machine_cycles` row count disagrees: proposal §10.2 says ≈15,000, data-and-evaluation §2 says ≈22,000. *Done when:* one figure everywhere (take it from the generator output). ✅ ≈10,000 cycles (seed 1), from the generator.
+- [x] **1.3** The log action names disagree: `zetaris.query` (logs, judges-validation G3), `zetaris.call` (proposal §8), `llm.call`. *Done when:* one naming scheme is in architecture §8 and every doc uses it.
+- [x] **1.4** The repo layouts disagree: proposal §14.4 has `scripts/eval.ts`, implementation §2 has `eval/run-eval.ts` and `eval/benchmark.ts`. *Done when:* the proposal points to the implementation layout.
+- [x] **1.5** The research notes path is wrong: `docs/smartflux/research/` doesn't exist. *Done when:* user-research §4 says `docs/research/`.
+- [x] **1.6** The benchmark and the fault threshold conflict: faults are planted at +15–45%, but `fault_check` flags only at ≥ +20%. About 1 in 6 faults can never be found, so the ≥ 90% recall target is at risk. *Done when:* the planted range starts at +20%, the threshold changes, or the target is restated (see the grilling). ✅ Decided (b): recall counted on faults ≥ +20%; +15–20% faults reported as a stated limit.
+- [x] **1.7** The Gantt timeline in proposal §18.3 is stale (milestone m1, 24 Oct 00:00, has passed). *Done when:* it's re-planned from now, or replaced with a link to this file.
+
+- [ ] **1.8** **Solar sizing rule:** on real radiation, "largest size with ≥ 90% self-use" picks 5 kWp for OUT-01 (91%), where ToU still pays. Proposed rule: add 5 kWp blocks while each block's own payback is inside the 10-year Solar ATAP term. For OUT-01 that gives 10 kWp (5→10 pays back in about 7 years, 10→15 in about 10.7 years). *Done when:* agreed and proposal §15.6 updated.
+- [ ] **1.9** **Headline numbers:** after phase 6, re-derive every number in the docs, mockups and demo script from the generated data, e.g. ToU saving RM7.60 (not RM14.35), solar about RM503, ToU-after-solar +RM1.39. *Done when:* no doc quotes a number the system doesn't produce.
 
 ## Phase 2: Environment and sponsor setup (parallel with phase 3)
 
@@ -40,36 +46,36 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 
 ## Phase 3: Scaffold (step 0, stream B)
 
-- [ ] **3.1** pnpm workspace: `apps/backend`, `apps/frontend`, root `package.json` with the scripts from implementation §3. *Done when:* `pnpm install` is clean.
-- [ ] **3.2** `.gitignore` covering `.env`, `logs/`, `data/hmem/`, `node_modules/` and `dist/`. *Done when:* none of these would be committed.
-- [ ] **3.3** `.env.example` exactly as in proposal §18.1, placeholders only. *Done when:* the secret grep finds nothing real.
-- [ ] **3.4** `config.ts`: parses env, picks the mode, and in live mode a missing variable gives a clear error suggesting `SAMPLE_MODE=true`. *Done when:* an empty `.env` starts in sample mode and a partial live `.env` fails with the variable's name.
-- [ ] **3.5** `log.ts`: `emit()` writes to stdout and `logs/<run_id>.jsonl` with every `LogEvent` field (architecture §8). *Done when:* a test writes an event and reads it back.
-- [ ] **3.6** `orchestrator/state.ts` (`RunState`) and `caps.ts` (14 tool calls, 3 rejections per claim, 2 re-plans). *Done when:* the types compile.
-- [ ] **3.7** `cli.ts`: `pnpm agent --input <file>`. *Done when:* it prints one JSONL event and an empty result.
-- [ ] **3.8** `.cursor/rules/`: TS style, "calculators never do I/O", "LLM never computes money", Zetaris SQL rules, the logging contract. *Done when:* the files are committed.
-- [ ] **3.9** Start `docs/cursor-log.md` and take screenshots as you go. *Done when:* the first entry is written.
+- [x] **3.1** pnpm workspace: `apps/backend`, `apps/frontend`, root `package.json` with the scripts from implementation §3. *Done when:* `pnpm install` is clean.
+- [x] **3.2** `.gitignore` covering `.env`, `logs/`, `data/hmem/`, `node_modules/` and `dist/`. *Done when:* none of these would be committed.
+- [x] **3.3** `.env.example` exactly as in proposal §18.1, placeholders only. *Done when:* the secret grep finds nothing real.
+- [x] **3.4** `config.ts`: parses env, picks the mode, and in live mode a missing variable gives a clear error suggesting `SAMPLE_MODE=true`. *Done when:* an empty `.env` starts in sample mode and a partial live `.env` fails with the variable's name.
+- [x] **3.5** `log.ts`: `emit()` writes to stdout and `logs/<run_id>.jsonl` with every `LogEvent` field (architecture §8). *Done when:* a test writes an event and reads it back. ✅ Covered by `orchestrator/run.test.ts`.
+- [x] **3.6** `orchestrator/state.ts` (`RunState`) and `caps.ts` (14 tool calls, 3 rejections per claim, 2 re-plans). *Done when:* the types compile.
+- [x] **3.7** `cli.ts`: `pnpm agent --input <file>`. *Done when:* it prints one JSONL event and an empty result.
+- [x] **3.8** ~~`.cursor/rules/`~~ Not needed: Cursor is optional (Official Rules §145). Add it only if someone uses Cursor.
+- [x] **3.9** ~~Cursor log~~ Not needed (see 3.8).
 
 ## Phase 4: Data (steps 1–3, stream A)
 
-- [ ] **4.1** Generator: fetch Open-Meteo archive data (7 Sep – 18 Oct, 3 outlets, humidity, temperature, radiation) and Nager.Date 2026 MY **once** and save them to `data/sample/`. *Done when:* `weather_*.csv` has 1,008 rows per outlet and `holidays.csv` includes 16 Sep.
-- [ ] **4.2** Generator: outlets, machines (8 washers + 6 dryers each, OUT-02 gas), arrivals, cycles, meter readings, base load, noise. *Done when:* row counts match data-and-evaluation §2 (6,048 meter rows).
-- [ ] **4.3** Generator: plants P1–P9 (data-and-evaluation §4) and `manifest.json`. *Done when:* the manifest lists every plant with its expected finding.
-- [ ] **4.4** Generator `--seed 2` variant (fault moves, OUT-03 gas, flipped flat outlet, different noisy machine). *Done when:* seed 2 CSVs are generated.
-- [ ] **4.5** `data/README.md`: sources, licences (Open-Meteo CC BY 4.0, Nager.Date MIT), row counts, how to regenerate, "business data is synthetic". *Done when:* it's written.
-- [ ] **4.6** `adapters/local-sqlite.ts`: loads the CSVs into in-memory `node:sqlite` with the USL table and view names (`interval_usage`, `dryer_cycle_day`). *Done when:* `SELECT COUNT(*)` matches the CSVs.
-- [ ] **4.7** Template framework (`{params, lightning, sqlite}`, bound params, `as_of` filter, 500-row cap) plus `tou_split` and `interval_series`. *Done when:* both return rows and no rows come after `as_of`.
-- [ ] **4.8** `calc/tou.ts` and its test. *Done when:* breakeven is 63.6% and proposal §24.1 is reproduced to the sen (RM2,012.85 vs RM2,027.20, saving RM14.35).
+- [x] **4.1** Generator: fetch Open-Meteo archive data (7 Sep – 18 Oct, 3 outlets, humidity, temperature, radiation) and Nager.Date 2026 MY **once** and save them to `data/sample/`. *Done when:* `weather_*.csv` has 1,008 rows per outlet and `holidays.csv` includes 16 Sep. ✅ Weather from Open-Meteo; holidays from Google's public MY calendar, since Nager.Date has no MY data (see 0.9).
+- [x] **4.2** Generator: outlets, machines (8 washers + 6 dryers each, OUT-02 gas), arrivals, cycles, meter readings, base load, noise. *Done when:* row counts match data-and-evaluation §2 (6,048 meter rows). ✅ OUT-01 58.3% peak share (all weeks < 63.6%), OUT-03 75.1%, about 3,500 kWh/month at OUT-01. Machine queueing (up to 45 min) added.
+- [x] **4.3** Generator: plants P1–P9 (data-and-evaluation §4) and `manifest.json`. *Done when:* the manifest lists every plant with its expected finding.
+- [x] **4.4** Generator `--seed 2` variant (fault moves, OUT-03 gas, flipped flat outlet, different noisy machine). *Done when:* seed 2 CSVs are generated.
+- [x] **4.5** `data/README.md`: sources, licences (Open-Meteo CC BY 4.0, Nager.Date MIT), row counts, how to regenerate, "business data is synthetic". *Done when:* it's written.
+- [x] **4.6** `adapters/local-sqlite.ts`: loads the CSVs into in-memory `node:sqlite` with the USL table and view names (`interval_usage`, `dryer_cycle_day`). *Done when:* `SELECT COUNT(*)` matches the CSVs.
+- [x] **4.7** Template framework (`{params, lightning, sqlite}`, bound params, `as_of` filter, 500-row cap) plus `tou_split` and `interval_series`. *Done when:* both return rows and no rows come after `as_of`.
+- [x] **4.8** `calc/tou.ts` and its test. *Done when:* breakeven is 63.6% and proposal §24.1 is reproduced to the sen (RM2,012.85 vs RM2,027.20, saving RM14.35). ✅ `calc/tou.test.ts`.
 - [ ] **4.9** The remaining templates: `cycle_overlap`, `dryer_cycle_day`, `cycle_duration`, `peer_week_delta`, `cycle_prices`, `solar_inputs`, `service_history`. *Done when:* each returns rows on seed 1.
 
 ## Phase 5: Agent loop in sample mode (step 4, stream B) ★ first milestone
 
-- [ ] **5.1** Rules twin for Scout: an EN/MS keyword classifier with intents and the risk table (proposal §17.2). *Done when:* "Write me a marketing email" → `out_of_scope`.
-- [ ] **5.2** Rules twin for Planner: a fixed hypothesis set and template list per intent. *Done when:* the log shows a `plan` event before any query.
-- [ ] **5.3** Rules twin for Investigator: runs the templates and calculators for each open hypothesis. *Done when:* `calc.*` events appear.
-- [ ] **5.4** Rules twin for Skeptic: peer delta, timing, ≥ 2 SE, duration change, gas vs electric, interacting decisions. It can send work back. *Done when:* a `needs_revision` event is emitted for a summed saving.
-- [ ] **5.5** Rules twin for Reporter: `Decision[]` built from approved claims only, with assumptions and ruled-out items listed. *Done when:* an unapproved claim never reaches the output.
-- [ ] **5.6** Orchestrator loop (implementation §5.1) with caps; when a cap is hit, items go to `unresolved`. *Done when:* **example 01 runs end to end in sample mode** with a verdict and a full log.
+- [x] **5.1** Rules twin for Scout: an EN/MS keyword classifier with intents and the risk table (proposal §17.2). *Done when:* "Write me a marketing email" → `out_of_scope`. ✅ `engines/scout/index.ts` (fallback routing, EN/MS, refusal, action risk gate).
+- [ ] **5.2** Rules twin for Planner: a fixed hypothesis set and template list per intent. *Done when:* the log shows a `plan` event before any query. ⏳ Tariff recipe done; other intents to add as their calculators land.
+- [ ] **5.3** Rules twin for Investigator: runs the templates and calculators for each open hypothesis. *Done when:* `calc.*` events appear. ⏳ Tariff recipe done; other intents to add as their calculators land.
+- [ ] **5.4** Rules twin for Skeptic: peer delta, timing, ≥ 2 SE, duration change, gas vs electric, interacting decisions. It can send work back. *Done when:* a `needs_revision` event is emitted for a summed saving. ⏳ Tariff recipe done; other intents to add as their calculators land.
+- [ ] **5.5** Rules twin for Reporter: `Decision[]` built from approved claims only, with assumptions and ruled-out items listed. *Done when:* an unapproved claim never reaches the output. ⏳ Tariff recipe done; other intents to add as their calculators land.
+- [x] **5.6** Orchestrator loop (implementation §5.1) with caps; when a cap is hit, items go to `unresolved`. *Done when:* **example 01 runs end to end in sample mode** with a verdict and a full log. ✅ ★ Milestone 1 (24 Oct): example 01 runs end to end in 0.3 s; examples 03 and 05 and seed 2 give different, correct answers.
 
 ## Phase 6: Calculators (steps 5–7, stream A). Each one is a pure function with a test
 

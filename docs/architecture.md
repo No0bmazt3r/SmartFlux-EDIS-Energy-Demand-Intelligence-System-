@@ -229,6 +229,10 @@ type LogEvent = {
   model?: string; mode: "live" | "sample" | "mixed"; ms?: number;
 };
 
+// Action names: `<source>.query` for data (`zetaris.query` live, `sqlite.query` sample or fallback),
+// `calc.<name>` for calculators, and the agent's own verb (`classify`, `plan`, `verify`, `approve`, `report`, `refuse`)
+// for agent steps. LLM-backed steps carry `model`; there is no separate `llm.call` event.
+
 type Decision = {
   type: "energy_plan" | "tariff" | "machine_fault" | "verification" | "load_shift" | "esg";
   verdict: string; rm_per_month?: number; confidence: "high" | "medium" | "low";

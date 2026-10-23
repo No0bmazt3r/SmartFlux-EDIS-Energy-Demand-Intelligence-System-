@@ -1,0 +1,4 @@
+outlet_id,name,state,lat,lon,tariff_code,voltage
+OUT-01,Ipoh,Perak,4.5975,101.0901,LV-COM,LV
+OUT-02,Shah Alam,Selangor,3.0733,101.5185,LV-COM,LV
+OUT-03,Johor Bahru,Johor,1.4927,103.7414,LV-COM,LV

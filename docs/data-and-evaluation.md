@@ -28,8 +28,8 @@ The most humid week is whichever the real Open-Meteo data says it is; the genera
 | --- | --- | --- | --- |
 | `outlets` | SmartFlux onboarding | 3 outlets: OUT-01 Ipoh, OUT-02 Shah Alam, OUT-03 Johor Bahru | 3 |
 | `machines` | Payment system registry | 8 washers + 6 dryers each; OUT-02 dryers are gas | 42 |
-| `meter_readings` | myTNB / smart meter export | 30-min kWh | 6,048 |
-| `machine_cycles` | Cashless payment logs | One row per paid cycle | ≈ 22,000 |
+| `meter_readings` | myTNB / smart meter export | 30-min kWh | 6,048 intervals (≈ 6,018 rows after the planted 0.5% gaps) |
+| `machine_cycles` | Cashless payment logs | One row per paid cycle | ≈ 10,000 |
 | `service_log` | Owner / technician | D4 serviced 6 Oct | 1 |
 | `tariffs` | TNB schedule | Flat, peak, off-peak all-in rates; peak window | 3 |
 | `emission_factors` | Energy Commission | Grid factor (+ LPG factor for Scope 1) | 2 |

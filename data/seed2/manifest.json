@@ -1,0 +1,65 @@
+{
+  "seed": 2,
+  "window": {
+    "start": "2026-09-07",
+    "days": 42
+  },
+  "plants": [
+    {
+      "outlet_id": "OUT-01",
+      "machine": "W2",
+      "kind": "noisy_washer",
+      "expected": "not flagged"
+    },
+    {
+      "outlet_id": "OUT-01",
+      "kind": "humid_week",
+      "week": 6,
+      "expected": "not a fault: peers move together"
+    },
+    {
+      "outlet_id": "OUT-01",
+      "kind": "roof",
+      "roof_kwp_max": 15,
+      "expected": "solar options up to roof limit"
+    },
+    {
+      "outlet_id": "OUT-02",
+      "machine": "D2",
+      "heat_source": "electric",
+      "onset_week": 2,
+      "kwh_pct": 0.28,
+      "minutes_pct": 0.14,
+      "serviced_on": "2026-10-07",
+      "expected": "flag from kWh per cycle"
+    },
+    {
+      "outlet_id": "OUT-02",
+      "kind": "humid_week",
+      "week": 6,
+      "expected": "not a fault: peers move together"
+    },
+    {
+      "outlet_id": "OUT-02",
+      "kind": "roof",
+      "roof_kwp_max": 12,
+      "expected": "solar options up to roof limit"
+    },
+    {
+      "outlet_id": "OUT-03",
+      "machine": "G5",
+      "heat_source": "gas",
+      "onset_week": 3,
+      "kwh_pct": 0.02,
+      "minutes_pct": 0.22,
+      "serviced_on": null,
+      "expected": "flag from cycle minutes; no electric-kWh claim"
+    },
+    {
+      "outlet_id": "OUT-03",
+      "kind": "roof",
+      "roof_kwp_max": 10,
+      "expected": "solar options up to roof limit"
+    }
+  ]
+}

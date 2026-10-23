@@ -21,11 +21,11 @@ type OutletCfg = {
 // Seed 2: the fault moves, OUT-03 dryers become gas with a fault, the flat-tariff outlet flips, the noisy machine changes.
 const SCENARIOS: Record<number, OutletCfg[]> = {
   1: [
-    { id: "OUT-01", name: "Ipoh", state: "Perak", lat: 4.5975, lon: 101.0901, heat: "electric", roofKwp: 15, dailyCustomers: 50, profile: "residential", baseKw: 0.9,
+    { id: "OUT-01", name: "Ipoh", state: "Perak", lat: 4.5975, lon: 101.0901, heat: "electric", roofKwp: 15, dailyCustomers: 66, profile: "residential", baseKw: 0.8,
       faults: [{ machine: "D4", onsetWeek: 3, pct: 0.33, durPct: 0.17, serviceDay: "2026-10-06", postKwh: 2.15 }] },
     { id: "OUT-02", name: "Shah Alam", state: "Selangor", lat: 3.0733, lon: 101.5185, heat: "gas", roofKwp: 12, dailyCustomers: 55, profile: "residential", baseKw: 1.1,
       faults: [{ machine: "G3", onsetWeek: 4, pct: 0.02, durPct: 0.2 }], noisyWasher: "W5" },
-    { id: "OUT-03", name: "Johor Bahru", state: "Johor", lat: 1.4927, lon: 103.7414, heat: "electric", roofKwp: 0, dailyCustomers: 45, profile: "business", baseKw: 0.7,
+    { id: "OUT-03", name: "Johor Bahru", state: "Johor", lat: 1.4927, lon: 103.7414, heat: "electric", roofKwp: 0, dailyCustomers: 60, profile: "business", baseKw: 0.5,
       faults: [] },
   ],
   2: [
@@ -41,12 +41,14 @@ const SCENARIOS: Record<number, OutletCfg[]> = {
 // Relative customer arrivals per hour (0–23). Scaled to dailyCustomers.
 const PROFILES = {
   residential: {
-    weekday: [0.4, 0.2, 0.1, 0.1, 0.1, 0.2, 0.6, 1.2, 1.6, 1.8, 1.8, 1.8, 1.8, 1.8, 2.0, 2.4, 3.0, 4.0, 4.6, 4.6, 4.2, 3.4, 2.2, 1.0],
-    weekend: [0.6, 0.3, 0.2, 0.1, 0.1, 0.2, 0.8, 2.0, 3.2, 4.0, 4.2, 4.0, 3.6, 3.4, 3.4, 3.4, 3.6, 3.8, 3.8, 3.6, 3.0, 2.4, 1.8, 1.0],
+    weekendScale: 0.55,
+    weekday: [0.1, 0, 0, 0, 0, 0, 0.1, 0.3, 0.5, 0.6, 0.6, 0.6, 0.8, 2.0, 4.0, 5.0, 5.4, 5.6, 5.6, 5.0, 3.2, 0.8, 0.3, 0.1],
+    weekend: [0.4, 0.2, 0.1, 0, 0, 0.1, 0.6, 1.6, 3.0, 4.0, 4.4, 4.4, 4.2, 4.0, 3.8, 3.6, 3.4, 3.2, 3.0, 2.6, 2.0, 1.6, 1.2, 0.6],
   },
   business: {
-    weekday: [0.1, 0.1, 0.0, 0.0, 0.0, 0.1, 0.3, 0.8, 1.2, 1.4, 1.6, 2.0, 2.6, 3.0, 4.2, 4.6, 4.8, 5.0, 4.8, 4.4, 3.8, 2.6, 0.6, 0.2],
-    weekend: [0.1, 0.1, 0.0, 0.0, 0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.8, 0.8, 0.7, 0.6, 0.4, 0.2, 0.1],
+    weekendScale: 0.1,
+    weekday: [0, 0, 0, 0, 0, 0, 0, 0.1, 0.2, 0.3, 0.4, 0.6, 1.2, 3.4, 5.0, 5.6, 5.8, 5.8, 5.4, 4.2, 2.0, 0.4, 0.1, 0],
+    weekend: [0, 0, 0, 0, 0, 0, 0.2, 0.4, 0.6, 0.8, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.8, 0.8, 0.7, 0.6, 0.4, 0.2, 0.1],
   },
 };
 
@@ -71,7 +73,7 @@ function rng(seed: number) {
 const pad = (n: number) => String(n).padStart(2, "0");
 const dayStr = (d: number) => new Date(Date.UTC(2026, 8, 7 + d)).toISOString().slice(0, 10);
 const tsStr = (min: number) => {
-  const d = Math.floor(min / 1440), m = Math.round(min % 1440);
+  const t = Math.round(min), d = Math.floor(t / 1440), m = t % 1440;
   return `${dayStr(d)} ${pad(Math.floor(m / 60))}:${pad(m % 60)}:00`;
 };
 const weekOf = (day: number) => Math.floor(day / 7) + 1;
@@ -163,9 +165,12 @@ export async function generate(seed: number, out: string) {
 
     const busy = new Map<string, number>(machines.map((m) => [m.name, -1]));
     const minuteKwh = new Float64Array(DAYS * 1440);
-    const pickFree = (type: "washer" | "dryer", at: number) => {
+    // Customers wait up to maxWait minutes for a machine; returns the machine and its start time.
+    const pickFree = (type: "washer" | "dryer", at: number, maxWait: number) => {
       const free = machines.filter((m) => m.type === type && busy.get(m.name)! <= at);
-      return free.length ? free[Math.floor(r() * free.length)] : undefined;
+      if (free.length) return { m: free[Math.floor(r() * free.length)], at };
+      const next = machines.filter((m) => m.type === type).sort((x, y) => busy.get(x.name)! - busy.get(y.name)!)[0];
+      return busy.get(next.name)! - at <= maxWait ? { m: next, at: busy.get(next.name)! } : undefined;
     };
     const addEnergy = (start: number, minutes: number, kwh: number) => {
       const s = Math.floor(start), e = Math.min(DAYS * 1440, Math.ceil(start + minutes));
@@ -216,16 +221,15 @@ export async function generate(seed: number, out: string) {
           if (dow === 6 && h >= 22) mult = 2.2;
           if (dow <= 5 && h >= 18 && h <= 20) mult = 0.93;
         }
-        const n = poisson(r, (o.dailyCustomers * shape[h] * mult) / total);
+        const n = poisson(r, (o.dailyCustomers * (offDay ? prof.weekendScale : 1) * shape[h] * mult) / total);
         for (let k = 0; k < n; k++) {
           const at = day * 1440 + h * 60 + r() * 60;
-          const w = pickFree("washer", at);
+          const w = pickFree("washer", at, 20);
           if (!w) continue;
-          const end = runCycle(w, at);
+          const end = runCycle(w.m, w.at);
           if (r() < 0.7) {
-            const dAt = end + 2 + 6 * r();
-            const d = pickFree("dryer", dAt);
-            if (d && dAt < DAYS * 1440 - DRY.minutes * 1.5) runCycle(d, dAt);
+            const d = pickFree("dryer", end + 2 + 6 * r(), 45);
+            if (d && d.at < DAYS * 1440 - DRY.minutes * 1.5) runCycle(d.m, d.at);
           }
         }
       }

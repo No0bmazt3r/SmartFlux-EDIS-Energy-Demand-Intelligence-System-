@@ -1,0 +1,4 @@
+tariff_code,period,rate_rm_per_kwh,peak_days,peak_start,peak_end,effective_from
+LV-COM,flat,0.5068,Mon-Fri,14:00,22:00,2025-07-01
+LV-COM,peak,0.5217,Mon-Fri,14:00,22:00,2025-07-01
+LV-COM,offpeak,0.4808,Mon-Fri,14:00,22:00,2025-07-01

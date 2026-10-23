@@ -481,7 +481,7 @@ The owner's data lives in places that never meet: TNB meter exports, the payment
 | `meter_readings` | Postgres table | myTNB / smart meter export, 30-min intervals | Synthetic, 7 Sep – 18 Oct 2026, 2,016 rows per outlet |
 | `service_log` | Postgres table | Owner or technician records | Synthetic; D4 serviced Tue 6 Oct |
 | `solar_params` | Postgres table | Installer quotes, Solar ATAP rules | System cost per kWp, derate, roof limit per outlet, scheme cap; every value shown on the card as an assumption |
-| `machine_cycles` | Postgres table | Cashless payment system logs | Synthetic, about 22,000 cycles in total (seed 1) |
+| `machine_cycles` | Postgres table | Cashless payment system logs | Synthetic, about 10,000 cycles in total (seed 1) |
 | `tariffs` | Postgres table | TNB published schedule | Rates from the brief, checked against TNB before recording |
 | `emission_factors` | Postgres table | Energy Commission grid factor | One value, cited (replaces 0.4 vs 0.694) |
 | `holidays` | **REST table** `holidays_rest.my_2026` | `date.nager.at/api/v3/PublicHolidays/2026/MY` (no key) | Live public API; Malaysia Day (16 Sep) falls in the window |
@@ -1257,7 +1257,7 @@ MAX_REJECTIONS_PER_CLAIM=3
 
 | Role | Person | Owns |
 | --- | --- | --- |
-| Builder 1 | **Name tonight (blocking)** | Zetaris install and setup scripts, data generator, templates (both dialects), calculators and tests |
+| Builder 1 | **Sharvin** (named 24 Oct) | Zetaris install and setup scripts, data generator, templates (both dialects), calculators and tests |
 | Builder 2 | Nuruddin | Orchestrator, agents (LLM and rules), Nightshift adapter, H-MEM, Scout Intent, logs |
 | UI / Video / Slides | Dina | Owner app, Admin web, demo video, slide deck |
 | Admin scope + user research | Jatul | Admin web spec, owner interview ([§5.3](#53-user-validation)), README and sponsor tech write-up |
