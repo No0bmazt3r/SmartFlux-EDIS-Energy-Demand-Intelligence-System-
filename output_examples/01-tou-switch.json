@@ -1,0 +1,39 @@
+{
+  "run_id": "r-08a077d5",
+  "mode": "sample (rules reasoner, no LLM)",
+  "outlet_id": "OUT-01",
+  "as_of": "2026-10-18",
+  "decisions": [
+    {
+      "type": "tariff",
+      "verdict": "Switch to the ToU tariff",
+      "rm_per_month": 7.6,
+      "confidence": "high",
+      "evidence": [
+        "Peak share 58.3% vs break-even 63.6%",
+        "Worst week (week 6): 61.5% in peak",
+        "ToU RM1780.89/month vs flat RM1788.49/month"
+      ],
+      "ruled_out": [
+        "Staying on flat: costs RM7.6 more per month"
+      ],
+      "assumptions": [
+        "Rates used: peak RM0.5217, off-peak RM0.4808, flat RM0.5068 per kWh (all-in; confirm against TNB's schedule)",
+        "Solar not considered here; ask \"Solar, ToU or both?\" for the joint decision",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "r-08a077d5-a1",
+      "type": "switch_tariff",
+      "target": "OUT-01",
+      "reason": "ToU saves about RM7.6/month",
+      "risk": "financial",
+      "status": "awaiting_approval"
+    }
+  ],
+  "unresolved": [],
+  "log": "output_examples/logs/01-tou-switch.jsonl"
+}

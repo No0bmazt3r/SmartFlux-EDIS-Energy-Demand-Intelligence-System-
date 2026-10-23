@@ -55,6 +55,12 @@ const TEXT = {
     weekShare: (p: string, d: number) => `Peak share last week ${p} (${d >= 0 ? "+" : "−"}${Math.abs(d).toFixed(1)} pts)`,
     pending: (n: number) => (n ? `${n} action${n > 1 ? "s" : ""} waiting for your approval` : "Nothing waiting for your approval"),
     auto: "Prepared automatically by SmartFlux agents; no question was asked",
+    promo: (d: string, h: number) => `Run an off-peak promo on ${d}s from ${h}:00`,
+    promoEv: (p: number, s: number, idle: number) => [`${p.toFixed(0)} dryer cycles a week start in peak hours`, `A promo could move about ${s.toFixed(1)} of them a week`, `${idle.toFixed(0)}% of dryer time is idle in that slot`],
+    promoNotes: (r: number) => [`Assumes ${(r * 100).toFixed(0)}% of peak dryer customers respond to the promo`, "The saving applies on the ToU tariff; on the flat tariff shifting changes nothing in RM, but it frees peak capacity"],
+    promoResult: { verified: (n: string, x: number) => `The ${n} promo moved use off-peak: +${x.toFixed(1)} pts`, not_yet: (n: string) => `Too early to tell whether the ${n} promo worked`,
+      not_achieved: (n: string) => `The ${n} promo has not moved use off-peak yet` },
+    promoResultEv: (o: number, p: number) => [`Off-peak share at this outlet ${o >= 0 ? "+" : ""}${o.toFixed(1)} pts; at the other outlets ${p >= 0 ? "+" : ""}${p.toFixed(1)} pts`, "Compared against your other outlets, so weather and holidays don't skew it"],
     noFaultEv: (n: number) => `All ${n} dryers are within their normal range`,
     bill: (d: string) => `Energy use ${d} per day vs the baseline week`,
     billEv: (b: number, c: number) => `${b.toFixed(0)} → ${c.toFixed(0)} kWh per day`,
@@ -111,6 +117,12 @@ const TEXT = {
     weekShare: (p: string, d: number) => `Bahagian waktu puncak minggu lepas ${p} (${d >= 0 ? "+" : "−"}${Math.abs(d).toFixed(1)} mata)`,
     pending: (n: number) => (n ? `${n} tindakan menunggu kelulusan anda` : "Tiada yang menunggu kelulusan anda"),
     auto: "Disediakan secara automatik oleh ejen SmartFlux; tiada soalan ditanya",
+    promo: (d: string, h: number) => `Adakan promosi luar puncak pada hari ${({ Sunday: "Ahad", Monday: "Isnin", Tuesday: "Selasa", Wednesday: "Rabu", Thursday: "Khamis", Friday: "Jumaat", Saturday: "Sabtu" } as Record<string, string>)[d] ?? d} dari ${h}:00`,
+    promoEv: (p: number, s: number, idle: number) => [`${p.toFixed(0)} kitaran pengering seminggu bermula dalam waktu puncak`, `Promosi boleh memindahkan kira-kira ${s.toFixed(1)} daripadanya seminggu`, `${idle.toFixed(0)}% masa pengering kosong dalam slot itu`],
+    promoNotes: (r: number) => [`Dianggap ${(r * 100).toFixed(0)}% pelanggan pengering waktu puncak menyahut promosi`, "Penjimatan hanya untuk tarif ToU; dengan tarif rata, ia tidak mengubah RM tetapi membebaskan kapasiti waktu puncak"],
+    promoResult: { verified: (n: string, x: number) => `Promosi ${n} memindahkan penggunaan ke luar puncak: +${x.toFixed(1)} mata`, not_yet: (n: string) => `Terlalu awal untuk tahu sama ada promosi ${n} berkesan`,
+      not_achieved: (n: string) => `Promosi ${n} belum memindahkan penggunaan ke luar puncak` },
+    promoResultEv: (o: number, p: number) => [`Bahagian luar puncak di premis ini ${o >= 0 ? "+" : ""}${o.toFixed(1)} mata; di premis lain ${p >= 0 ? "+" : ""}${p.toFixed(1)} mata`, "Dibandingkan dengan premis lain anda"],
     noFaultEv: (n: number) => `Kesemua ${n} pengering dalam julat biasa`,
     bill: (d: string) => `Penggunaan tenaga ${d} sehari berbanding minggu asas`,
     billEv: (b: number, c: number) => `${b.toFixed(0)} → ${c.toFixed(0)} kWj sehari`,
@@ -229,6 +241,16 @@ export function reporter(state: RunState, ctx: Ctx) {
       state.decisions.push(tariffCard(claim, state.lang));
       const r = claim.data as TouResult;
       if (r.verdict !== "stay") propose("switch_tariff", state.outlet_id, `ToU saves about RM${rm(r.saving_per_month)}/month`, r.saving_per_month);
+    } else if (claim.kind === "shift") {
+      const d = claim.data;
+      state.decisions.push({ type: "load_shift", verdict: t.promo(d.slot.day, d.slot.hour), rm_per_month: rm(d.saving_rm_per_month), confidence: "medium",
+        evidence: t.promoEv(d.peak_dryer_cycles_per_week, d.shiftable_cycles_per_week, d.slot.idle_share * 100), ruled_out: [], assumptions: [...t.promoNotes(d.promo_response), t.synthetic] });
+      propose("run_promo", `${d.slot.day} ${d.slot.hour}:00`, `moves about ${d.shiftable_cycles_per_week.toFixed(1)} dryer cycles a week off-peak`, d.saving_rm_per_month);
+    } else if (claim.kind === "verify" && claim.data.promo) {
+      const d = claim.data, r = d.result;
+      state.decisions.push({ type: "verification", verdict: t.promoResult[r.verdict as keyof typeof t.promoResult](d.name, r.offpeak_share_change_pts), confidence: r.verdict === "verified" ? "high" : "medium",
+        evidence: t.promoResultEv(r.outlet_change_pts, r.peer_change_pts), ruled_out: [], assumptions: [t.synthetic] });
+      rememberOutcome(state, ctx, d.action_id, { name: d.name, promo: true, verdict: r.verdict, offpeak_share_change_pts: r.offpeak_share_change_pts }, `Outcome of ${d.action_id}: promo ${r.verdict}, off-peak share ${r.offpeak_share_change_pts.toFixed(1)} pts vs other outlets`);
     } else if (claim.kind === "verify") {
       const d = claim.data, mv = d.mv as MvResult;
       const gas = d.heat_source === "gas";
@@ -263,7 +285,7 @@ export function reporter(state: RunState, ctx: Ctx) {
     const w = tou?.weeks ?? [];
     const bullets = [
       ...recentOutcomes(state, ctx).filter(() => !state.decisions.some((d) => d.type === "verification"))
-        .map((o) => t.mv[o.data.verdict as keyof typeof t.mv](o.data.name, rm(o.data.realised_rm_per_month))),
+        .map((o) => o.data.promo ? t.promoResult[o.data.verdict as keyof typeof t.promoResult](o.data.name, o.data.offpeak_share_change_pts) : t.mv[o.data.verdict as keyof typeof t.mv](o.data.name, rm(o.data.realised_rm_per_month))),
       ...state.decisions.map((d) => d.verdict + (d.rm_per_month && !d.verdict.includes("RM") ? ` (RM${d.rm_per_month}/month)` : "")),
     ];
     if (w.length >= 2) bullets.push(t.weekShare(pct(w.at(-1)!.peak_share), (w.at(-1)!.peak_share - w.at(-2)!.peak_share) * 100));

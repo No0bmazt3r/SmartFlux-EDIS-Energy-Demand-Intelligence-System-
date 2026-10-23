@@ -13,16 +13,18 @@ const HYPOTHESES: Record<HypothesisKind, string> = {
   traffic: "More customers raised usage",
   holiday: "A public holiday changed the usage pattern",
   verify: "Approved advice delivered the predicted saving",
+  shift: "Some dryer use can move from peak to an off-peak promo slot",
 };
 
 // The hypothesis each intent cannot be answered without; everything else is optional.
-const CORE: HypothesisKind[] = ["tou", "energy", "fault", "bill", "verify"];
+const CORE: HypothesisKind[] = ["tou", "energy", "fault", "bill", "verify", "shift"];
 
 const RECIPES: Partial<Record<Intent, HypothesisKind[]>> = {
   energy_plan: ["energy"],
   tariff_decision: ["tou"],
   machine_health: ["fault"],
   advice_followup: ["verify"],
+  load_shift_plan: ["shift"],
   bill_investigation: ["bill", "fault", "humidity", "traffic", "holiday"],
 };
 

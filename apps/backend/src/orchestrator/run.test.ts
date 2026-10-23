@@ -116,3 +116,18 @@ test("rejected advice is not proposed again", async () => {
   assert.equal(again.actions.length, 0);
   assert.ok(again.decisions[0].assumptions.some((a) => /You declined/.test(a)));
 });
+
+test("promo: advised in session 1, approved, measured in session 2 against the other outlets", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sf-promo-"));
+  const c = { ...cfg, hmemDir: join(dir, "hmem"), logDir: join(dir, "logs") };
+  const s1 = await run({ outlet_id: "OUT-01", as_of: "2026-09-13", question: "When should I run a promo to shift load off-peak?" }, c, { echo: false });
+  assert.equal(s1.decisions[0].type, "load_shift");
+  assert.equal(s1.actions[0].type, "run_promo");
+  assert.equal(s1.actions[0].status, "awaiting_approval");
+  const { decideAction } = await import("./memory.ts");
+  const { openHmem } = await import("../engines/hmem/index.ts");
+  decideAction(openHmem(c.hmemDir, c.logDir), s1.actions[0].id, "approved");
+  const s2 = await run({ outlet_id: "OUT-01", as_of: "2026-10-04", question: "Did the promo help?" }, c, { echo: false });
+  assert.equal(s2.decisions.length, 1, "a follow-up does not propose a new promo");
+  assert.match(s2.decisions[0].verdict, /promo moved use off-peak/);
+});

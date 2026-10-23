@@ -1,0 +1,8 @@
+node_modules
+logs
+data/hmem
+.env
+.git
+output_examples
+eval
+docs

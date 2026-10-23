@@ -3,10 +3,13 @@
 import type { SampleDb } from "../adapters/local-sqlite.ts";
 import cycle_duration from "./cycle_duration.ts";
 import cycle_overlap from "./cycle_overlap.ts";
+import cycle_revenue from "./cycle_revenue.ts";
+import emission_factors from "./emission_factors.ts";
 import interval_series from "./interval_series.ts";
 import holidays_range from "./holidays_range.ts";
 import machine_list from "./machine_list.ts";
 import outlet_info from "./outlet_info.ts";
+import outlet_list from "./outlet_list.ts";
 import service_history from "./service_history.ts";
 import services_range from "./services_range.ts";
 import solar_inputs from "./solar_inputs.ts";
@@ -20,7 +23,7 @@ import weather_range from "./weather_range.ts";
 export type Template = { params: string[]; lightning: string; sqlite: string; maxRows?: number; static?: boolean };
 export const TEMPLATES: Record<string, Template> = {
   tou_split, interval_series, tariff_rates, cycle_overlap, machine_list, cycle_duration, service_history, weather_range,
-  outlet_info, holidays_range, solar_inputs, solar_params, services_range,
+  outlet_info, holidays_range, solar_inputs, solar_params, services_range, cycle_revenue, emission_factors, outlet_list,
 };
 export const MAX_ROWS = 500;
 

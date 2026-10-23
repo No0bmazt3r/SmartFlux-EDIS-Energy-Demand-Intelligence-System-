@@ -19,10 +19,14 @@ export async function fitWindow(state: RunState, ctx: Ctx, agent: string, r: Ran
     return e && { value: e.kwh_per_cycle, se: e.se, cycles: e.cycles };
   };
   const cyclesStarted = (id: string) => cy.rows.filter((c) => c.machine_id === id && c.started_at >= ts(r.from) && c.started_at < ts(r.to)).length;
-  return { reading, cyclesStarted, evidence: [iv.id, cy.id, fit.id] };
+  return { reading, cyclesStarted, cycles: cy.rows, evidence: [iv.id, cy.id, fit.id] };
 }
 
-export function meanReading(rs: (Reading | undefined)[]): Reading {
-  const xs = rs.filter((r): r is Reading => !!r);
-  return { value: xs.reduce((s, r) => s + r.value, 0) / xs.length, se: Math.sqrt(xs.reduce((s, r) => s + r.se ** 2, 0)) / xs.length, cycles: xs.reduce((s, r) => s + r.cycles, 0) };
+// The peer control group's level: the median, so one peer with its own fault can't skew the comparison
+// (a mean let a second faulty dryer inflate the measured saving in the benchmark). SE of a median ≈ 1.25 × SE of a mean.
+export function peerReading(rs: (Reading | undefined)[]): Reading {
+  const xs = rs.filter((r): r is Reading => !!r).sort((a, b) => a.value - b.value);
+  const m = xs.length >> 1;
+  const value = xs.length % 2 ? xs[m].value : (xs[m - 1].value + xs[m].value) / 2;
+  return { value, se: (1.2533 * Math.sqrt(xs.reduce((s, r) => s + r.se ** 2, 0))) / xs.length, cycles: xs.reduce((s, r) => s + r.cycles, 0) };
 }

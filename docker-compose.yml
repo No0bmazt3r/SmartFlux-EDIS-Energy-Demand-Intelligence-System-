@@ -1,6 +1,20 @@
-# SmartFlux source database for Zetaris. Zetaris itself runs from its own vendor compose file
-# (zetaris-platform.zip); it reaches this database at host.docker.internal:${PGPORT}.
+# docker compose up app            the API (sample mode needs nothing else)
+# docker compose up -d smartflux-pg  the source database Zetaris reads (live mode). Zetaris itself runs from its
+#   own vendor compose file (zetaris-platform.zip) and reaches this database at host.docker.internal:${PGPORT}.
 services:
+  # The agent API on :8000. Sample mode unless .env says otherwise.
+  app:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    env_file:
+      - path: .env
+        required: false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - smartflux-hmem:/app/data/hmem
+      - ./logs:/app/logs
   smartflux-pg:
     image: postgres:16
     environment:
@@ -19,3 +33,4 @@ services:
       retries: 10
 volumes:
   smartflux-pg:
+  smartflux-hmem:

@@ -2,8 +2,9 @@
 // turns calculator output into claims. It never states a number it did not compute.
 import { durationReading, faultCheck, type MachineReadings, type Reading } from "../../calc/fault.ts";
 import { mvCheck } from "../../calc/mv.ts";
+import { promoCheck, shiftPlan } from "../../calc/shift.ts";
 import { approvedTargets, recallApproved, recallBaselines } from "../../orchestrator/memory.ts";
-import { fitWindow, meanReading } from "./shared.ts";
+import { fitWindow, peerReading } from "./shared.ts";
 import { jointDecision } from "../../calc/joint.ts";
 import { regressMachines } from "../../calc/regress.ts";
 import { solarCalc } from "../../calc/solar.ts";
@@ -253,12 +254,51 @@ async function investigateHoliday(state: RunState, ctx: Ctx, h: Hypothesis) {
     : "No public holiday in the period");
 }
 
+// Load-shift plan: which off-peak slot has idle dryers, and what moving some peak dryer use there is worth.
+async function investigateShift(state: RunState, ctx: Ctx, h: Hypothesis) {
+  const { machines, tariffs } = await outletBasics(state, ctx);
+  const w: Range = { from: [addDays(state.as_of, -27), WINDOW.start].sort().at(-1)!, to: addDays(state.as_of, 1) };
+  const fit = await fitWindow(state, ctx, AGENT, w, machines.rows as any, "load shape");
+  const hol = await query(state, ctx, AGENT, "holidays_range", { from: w.from, to: w.to });
+  const dryers = machines.rows.filter((m) => m.type === "dryer");
+  const ids = new Set(dryers.map((d) => d.machine_id));
+  const starts = fit.cycles.filter((c) => ids.has(c.machine_id) && c.started_at >= ts(w.from));
+  const kwh = dryers.map((d) => fit.reading(d.machine_id)).filter(Boolean);
+  const electric = dryers.filter((d) => d.heat_source === "electric").map((d) => fit.reading(d.machine_id)?.value ?? 0);
+  const plan = calc(state, ctx, AGENT, "shift_plan", `${starts.length} dryer cycles over ${days(w)} days`, () => shiftPlan({
+    dryerStarts: starts.map((c) => c.started_at), dryerMinutes: starts.map((c) => (Date.parse(c.ended_at.replace(" ", "T") + "Z") - Date.parse(c.started_at.replace(" ", "T") + "Z")) / 60000),
+    dryers: dryers.length, kwhPerCycle: electric.length ? electric.reduce((s, x) => s + x, 0) / electric.length : 0.35,
+    rates: ratesFromRows(tariffs.rows as any), days: days(w), holidays: new Set(hol.rows.map((x) => x.date)),
+  }), (r) => `${r.slot.day} ${r.slot.hour}:00 has ${(r.slot.idle_share * 100).toFixed(0)}% idle dryers; shift ${r.shiftable_cycles_per_week.toFixed(1)} cycles/week = RM${r.saving_rm_per_month.toFixed(2)}/month on ToU`, "Skeptic");
+  if (!kwh.length) return ruleOut(state, ctx, h, "No dryer use to shift");
+  claim(state, h, `Off-peak promo: ${plan.out.slot.day} from ${plan.out.slot.hour}:00`, { ...plan.out, window: w, gas: dryers.every((d) => d.heat_source === "gas") }, [...fit.evidence, hol.id, plan.id]);
+}
+
+// Off-peak share of one outlet over a range, from the same period split the tariff uses.
+async function offpeakShare(state: RunState, ctx: Ctx, outlet: string, r: Range) {
+  const q = await query(state, ctx, AGENT, "tou_split", { outlet, from: ts(r.from), to: ts(r.to) });
+  const off = q.rows.filter((x) => x.period === "offpeak").reduce((s, x) => s + Number(x.kwh), 0), all = q.rows.reduce((s, x) => s + Number(x.kwh), 0);
+  return all ? off / all : 0;
+}
+
 // Did approved advice work? Servicing actions are checked with mv_check: the machine before vs after its
 // service date, minus the same change in its peers. Predictions come from H-MEM; without an approval in
 // memory, services in the service log are checked against a prediction re-derived from the baseline.
 async function investigateVerify(state: RunState, ctx: Ctx, h: Hypothesis) {
   const outlet = state.outlet_id;
-  const approved = recallApproved(state, ctx, AGENT).filter((m) => m.data.type === "schedule_service");
+  const approvedAll = recallApproved(state, ctx, AGENT);
+  const approved = approvedAll.filter((m) => m.data.type === "schedule_service");
+  // Approved promos: off-peak share after the approval vs before, against the other outlets.
+  for (const p of approvedAll.filter((m) => m.data.type === "run_promo")) {
+    const before: Range = { from: WINDOW.start, to: addDays(p.as_of, 1) }, afterR: Range = { from: addDays(p.as_of, 1), to: addDays(state.as_of, 1) };
+    const peers = (await query(state, ctx, AGENT, "outlet_list", {})).rows.map((o) => o.outlet_id).filter((o) => o !== outlet);
+    const mean = async (r: Range) => { let s = 0; for (const o of peers) s += await offpeakShare(state, ctx, o, r); return s / peers.length; };
+    const res = promoCheck({ before: await offpeakShare(state, ctx, outlet, before), after: await offpeakShare(state, ctx, outlet, afterR),
+      peersBefore: await mean(before), peersAfter: await mean(afterR), postDays: days(afterR) });
+    const mv = calc(state, ctx, AGENT, "promo_check", `${p.data.target} since ${fmt(p.as_of)} vs ${peers.length} other outlets`, () => res,
+      (r) => `${r.verdict}: off-peak share ${r.offpeak_share_change_pts >= 0 ? "+" : ""}${r.offpeak_share_change_pts.toFixed(1)} pts vs the other outlets`, "Skeptic");
+    claim(state, h, `Promo ${p.data.target}: ${res.verdict}`, { promo: true, name: p.data.target, action_id: p.data.action_id, approved_as_of: p.as_of, result: res, windows: { before, after: afterR } }, [mv.id]);
+  }
   const { machines, info, tariffs } = await outletBasics(state, ctx);
   const rate = ratesFromRows(tariffs.rows as any).flat, lpg = Number(info.rows[0].lpg_rm_per_dryer_minute);
   type Target = { machine_id: string; action_id?: string; predicted?: number; serviced_on?: string };
@@ -275,7 +315,10 @@ async function investigateVerify(state: RunState, ctx: Ctx, h: Hypothesis) {
     const known = approvedTargets(state, ctx); // already tracked through an approval (its outcome is in memory)
     targets = s.rows.filter((x) => !known.has(x.machine_id)).map((x) => ({ machine_id: x.machine_id, serviced_on: x.serviced_on }));
   }
-  if (!targets.length) return ruleOut(state, ctx, h, "No approved service is waiting to be verified, and no service is recorded in the period");
+  if (!targets.length) {
+    if (state.claims.some((c) => c.hypothesis_id === h.id)) return; // promo claims only
+    return ruleOut(state, ctx, h, "No approved service is waiting to be verified, and no service is recorded in the period");
+  }
   const dryers = machines.rows.filter((m) => m.type === "dryer") as { machine_id: string; heat_source: string; name: string }[];
   for (const tg of targets) {
     const m = dryers.find((d) => d.machine_id === tg.machine_id);
@@ -301,7 +344,7 @@ async function investigateVerify(state: RunState, ctx: Ctx, h: Hypothesis) {
     }
     const readings = {
       machine: { pre: before.reading(m.machine_id)!, post: after.reading(m.machine_id)! },
-      peers: { pre: meanReading(peers.map((p) => before.reading(p.machine_id))), post: meanReading(peers.map((p) => after.reading(p.machine_id))) },
+      peers: { pre: peerReading(peers.map((p) => before.reading(p.machine_id))), post: peerReading(peers.map((p) => after.reading(p.machine_id))) },
     };
     const mv = calc(state, ctx, AGENT, "mv_check", `${m.name} serviced ${fmt(tg.serviced_on)}: before vs after, minus peers`,
       () => mvCheck({ ...readings, predicted_rm_per_month: predicted!, cycles_per_month: cyclesPerMonth, unit_cost_rm: unit, post_days: days(post) }),
@@ -312,7 +355,7 @@ async function investigateVerify(state: RunState, ctx: Ctx, h: Hypothesis) {
 }
 
 const RECIPES: Record<HypothesisKind, (s: RunState, c: Ctx, h: Hypothesis) => Promise<unknown>> = {
-  tou: investigateTou, energy: investigateEnergy, bill: investigateBill, fault: investigateFault, humidity: investigateHumidity, traffic: investigateTraffic, holiday: investigateHoliday, verify: investigateVerify,
+  tou: investigateTou, energy: investigateEnergy, bill: investigateBill, fault: investigateFault, humidity: investigateHumidity, traffic: investigateTraffic, holiday: investigateHoliday, verify: investigateVerify, shift: investigateShift,
 };
 
 export async function investigator(state: RunState, ctx: Ctx) {

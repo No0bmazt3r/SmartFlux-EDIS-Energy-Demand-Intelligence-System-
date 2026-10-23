@@ -14,7 +14,9 @@ import { WINDOW, type Claim, type HypothesisKind, type RunState } from "../../or
 import { days, ts, type Range } from "../../orchestrator/windows.ts";
 
 const CAUSAL: HypothesisKind[] = ["humidity", "traffic", "holiday"];
-type Verdict = { ok: true; note?: string } | { ok: false; ruleOut?: boolean; reason: string };
+// drop: this claim is withheld (put on a watch list) but its hypothesis stays open for other machines.
+type Verdict = { ok: true; note?: string } | { ok: false; ruleOut?: boolean; drop?: boolean; reason: string };
+export const MIN_DURATION_SUPPORT = 0.05;
 const AGENT = "Skeptic";
 const pct = (x: number) => (x * 100).toFixed(1);
 const close = (a: number, b: number, tol = 0.005) => Math.abs(a - b) <= tol * Math.max(1, Math.abs(a), Math.abs(b));
@@ -67,6 +69,11 @@ async function verifyEnergy(state: RunState, ctx: Ctx, claim: Claim): Promise<Ve
 // Re-checks the service date and the after-service level with its own queries.
 async function verifyVerify(state: RunState, ctx: Ctx, claim: Claim): Promise<Verdict> {
   const d = claim.data;
+  if (d.promo) {
+    const q = await query(state, ctx, AGENT, "tou_split", { outlet: state.outlet_id, from: ts(d.windows.after.from), to: ts(d.windows.after.to) });
+    const off = q.rows.filter((x) => x.period === "offpeak").reduce((s, x) => s + Number(x.kwh), 0) / (q.rows.reduce((s, x) => s + Number(x.kwh), 0) || 1);
+    return off > 0 ? { ok: true, note: `off-peak share after the promo re-derived: ${(off * 100).toFixed(1)}%` } : { ok: false, reason: "no usage after the promo date" };
+  }
   const s = await query(state, ctx, AGENT, "service_history", { machine: d.machine_id });
   if (!d.serviced_on) return s.rows.length && s.rows.at(-1)!.serviced_on >= (d.advised_as_of ?? "") && d.action_id ? { ok: false, reason: "a service is recorded; verify it" } : { ok: true, note: "no service recorded yet" };
   if (!s.rows.some((x) => x.serviced_on === d.serviced_on)) return { ok: false, reason: `no service on ${d.serviced_on} in the service log` };
@@ -76,6 +83,13 @@ async function verifyVerify(state: RunState, ctx: Ctx, claim: Claim): Promise<Ve
   if (!close(post.value, d.readings.machine.post.value, 0.03))
     return { ok: false, reason: `after-service level does not reproduce (${post.value.toFixed(2)} vs ${d.readings.machine.post.value.toFixed(2)})` };
   return { ok: true, note: `after-service level re-derived: ${post.value.toFixed(2)}` };
+}
+
+// Re-counts the peak-hour dryer starts the plan is built on, through its own query.
+async function verifyShift(state: RunState, ctx: Ctx, claim: Claim): Promise<Verdict> {
+  const d = claim.data;
+  const q = await query(state, ctx, AGENT, "cycle_overlap", { outlet: state.outlet_id, from: ts(d.window.from), to: ts(d.window.to) });
+  return q.rows.length ? { ok: true, note: `${q.rows.length} cycles re-read; on a flat tariff the shift saves nothing in RM` } : { ok: false, reason: "no cycles in the period" };
 }
 
 // Energy per day re-derived through a different path (period totals instead of the interval series).
@@ -110,6 +124,10 @@ async function verifyFault(state: RunState, ctx: Ctx, claim: Claim): Promise<Ver
     return { ok: false, reason: `cycle minutes do not reproduce (+${(minutesDelta * 100).toFixed(0)}% vs +${d.delta_pct.toFixed(0)}%)` };
   if (d.peer_delta_pct >= d.delta_pct / 2)
     return { ok: false, ruleOut: true, reason: `peers rose ${d.peer_delta_pct.toFixed(0)}% too: not a single-machine fault` };
+  // A failing heater or clogged vent lengthens cycles. More kWh at the same cycle time is more likely an artefact
+  // of splitting one meter across machines, so an electric fault needs longer cycles too (proposal §15.4).
+  if (d.heat_source === "electric" && minutesDelta < MIN_DURATION_SUPPORT)
+    return { ok: false, drop: true, reason: `${d.name}: kWh per cycle +${d.delta_pct.toFixed(0)}% but cycle time ${minutesDelta >= 0 ? "+" : ""}${(minutesDelta * 100).toFixed(0)}%, not a fault pattern; watching it, re-check next week` };
   d.duration_support = minutesDelta >= 0.1;
   return { ok: true, note: d.heat_source === "gas" ? `minutes re-derived: +${(minutesDelta * 100).toFixed(0)}%` : `cycles ${(minutesDelta * 100).toFixed(0)}% longer${d.duration_support ? " (supports the fault)" : " (no duration support: lower confidence)"}` };
 }
@@ -148,7 +166,7 @@ async function verifyHoliday(state: RunState, ctx: Ctx, claim: Claim): Promise<V
 }
 
 const VERIFIERS: Record<HypothesisKind, (s: RunState, c: Ctx, claim: Claim) => Promise<Verdict>> = {
-  tou: verifyTou, energy: verifyEnergy, bill: verifyBill, fault: verifyFault, humidity: verifyHumidity, traffic: verifyTraffic, holiday: verifyHoliday, verify: verifyVerify,
+  tou: verifyTou, energy: verifyEnergy, bill: verifyBill, fault: verifyFault, humidity: verifyHumidity, traffic: verifyTraffic, holiday: verifyHoliday, verify: verifyVerify, shift: verifyShift,
 };
 
 export async function skeptic(state: RunState, ctx: Ctx): Promise<"approved" | "revise"> {
@@ -177,7 +195,9 @@ export async function skeptic(state: RunState, ctx: Ctx): Promise<"approved" | "
     claim.status = "rejected";
     claim.reason = v.reason;
     state.counters.rejections[h.id] = (state.counters.rejections[h.id] ?? 0) + 1;
-    if (v.ruleOut) {
+    if (v.drop) {
+      state.unresolved.push(`Watch: ${v.reason}`);
+    } else if (v.ruleOut) {
       h.status = "rejected";
       h.reason = v.reason;
     } else if (rejectionCapHit(state, h.id)) {
@@ -185,7 +205,7 @@ export async function skeptic(state: RunState, ctx: Ctx): Promise<"approved" | "
       state.unresolved.push(`${h.text}: ${v.reason}`);
     } else revise = true;
     ctx.emit({ agent_name: AGENT, action: "verify", input_summary: `claim ${claim.id}: ${claim.text}`,
-      output_summary: `Rejected${v.ruleOut ? " (ruled out)" : ""}: ${v.reason}${judgment}`, target_agent: v.ruleOut ? "Planner" : "Investigator",
+      output_summary: `Rejected${v.ruleOut ? " (ruled out)" : v.drop ? " (watch, not flagged)" : ""}: ${v.reason}${judgment}`, target_agent: v.ruleOut || v.drop ? "Planner" : "Investigator",
       status: "needs_revision", retry_count: state.counters.rejections[h.id], model });
   }
   return revise ? "revise" : "approved";

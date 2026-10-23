@@ -38,6 +38,29 @@ const SCENARIOS: Record<number, OutletCfg[]> = {
   ],
 };
 
+// Benchmark outlets (seeds 100+): random size, profile, heat source, roof, and 0–2 dryer faults of +15–45%,
+// half of them serviced (docs/data-and-evaluation.md §7). Same three locations, so the weather stays real.
+export function randomScenario(seed: number): OutletCfg[] {
+  const r = rng(seed * 7919);
+  const pick = <T,>(xs: T[]) => xs[Math.floor(r() * xs.length)];
+  return SCENARIOS[1].map((loc) => {
+    const heat: Heat = r() < 0.35 ? "gas" : "electric";
+    const prefix = heat === "gas" ? "G" : "D";
+    const nFaults = pick([0, 1, 1, 2]);
+    const dryers = [1, 2, 3, 4, 5, 6].sort(() => r() - 0.5).slice(0, nFaults);
+    const faults: Fault[] = dryers.map((d) => {
+      const onsetWeek = 2 + Math.floor(r() * 4), size = 0.15 + 0.3 * r();
+      const onsetDay = 7 * (onsetWeek - 1);
+      const serviceDay = r() < 0.5 && onsetDay + 14 <= 30 ? dayStr(onsetDay + 14 + Math.floor(r() * Math.min(7, 31 - onsetDay - 14))) : undefined;
+      return heat === "gas"
+        ? { machine: `${prefix}${d}`, onsetWeek, pct: 0.02, durPct: size, serviceDay }
+        : { machine: `${prefix}${d}`, onsetWeek, pct: size, durPct: size / 2, serviceDay, postKwh: serviceDay ? DRY.kwh : undefined };
+    });
+    return { ...loc, heat, roofKwp: pick([0, 0, 5, 10, 12, 15, 20]), dailyCustomers: 30 + Math.floor(r() * 60),
+      profile: r() < 0.6 ? "residential" : "business", baseKw: 0.5 + 0.7 * r(), faults, noisyWasher: r() < 0.3 ? `W${1 + Math.floor(r() * 8)}` : undefined };
+  });
+}
+
 // Relative customer arrivals per hour (0–23). Scaled to dailyCustomers.
 const PROFILES = {
   residential: {
@@ -123,7 +146,7 @@ function poisson(r: () => number, lambda: number) {
 const gauss = (r: () => number) => Math.sqrt(-2 * Math.log(r() || 1e-12)) * Math.cos(2 * Math.PI * r());
 
 export async function generate(seed: number, out: string) {
-  const outlets = SCENARIOS[seed];
+  const outlets = SCENARIOS[seed] ?? (seed >= 100 ? randomScenario(seed) : undefined);
   if (!outlets) throw new Error(`No scenario for seed ${seed}`);
   const r = rng(seed);
   const { weather, holidays } = await fetchRaw(SCENARIOS[1]);

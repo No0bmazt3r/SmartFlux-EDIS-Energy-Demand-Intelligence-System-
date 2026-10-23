@@ -1,0 +1,29 @@
+{
+  "run_id": "r-4de7d0a3",
+  "mode": "sample (rules reasoner, no LLM)",
+  "outlet_id": "OUT-01",
+  "as_of": "2026-10-18",
+  "decisions": [
+    {
+      "type": "verification",
+      "verdict": "Servicing D4 saved RM64.65/month",
+      "rm_per_month": 64.65,
+      "confidence": "high",
+      "evidence": [
+        "Predicted RM48.03 vs actual RM64.65 (135% of prediction)",
+        "D4: 2.73 → 2.14 kWh per cycle; other dryers 2.08 → 2.17",
+        "Uncertainty band ± RM14.33/month",
+        "Serviced 6 Oct; 12 days of data since",
+        "Compared against your other dryers, so weather and customer numbers don't skew it"
+      ],
+      "ruled_out": [],
+      "assumptions": [
+        "Flat rate used: RM0.5068 per kWh (all-in; confirm against TNB's schedule)",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
+    }
+  ],
+  "actions": [],
+  "unresolved": [],
+  "log": "output_examples/logs/07-did-it-work.jsonl"
+}

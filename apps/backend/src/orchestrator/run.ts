@@ -2,6 +2,8 @@
 // Live mode: data through Zetaris, reasoning through Nemotron on Nightshift. Any live step that fails falls
 // back to its local twin (SQLite, rules) and the run is marked "mixed" from that event on.
 import { randomUUID } from "node:crypto";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { openSampleDb } from "../adapters/local-sqlite.ts";
 import { createNightshift } from "../adapters/llm.ts";
 import { createZetaris } from "../adapters/zetaris.ts";
@@ -18,6 +20,11 @@ import { capsHit } from "./caps.ts";
 import { recallContext } from "./memory.ts";
 import type { RunRequest, RunResult, RunState } from "./state.ts";
 import { tryLlm, type Ctx } from "./tools.ts";
+
+// Keeps scalars and small nested objects (two levels), drops arrays: enough to audit a finding's numbers.
+const compact = (o: Record<string, any>, depth = 0): Record<string, unknown> => Object.fromEntries(Object.entries(o)
+  .filter(([, v]) => !Array.isArray(v) && v !== undefined)
+  .map(([k, v]) => [k, v && typeof v === "object" ? (depth < 2 ? compact(v, depth + 1) : undefined) : v]).filter(([, v]) => v !== undefined));
 
 export async function run(req: RunRequest, cfg: Config, opts: { echo?: boolean } = {}): Promise<RunResult & { message?: string }> {
   const runId = `r-${randomUUID().slice(0, 8)}`;
@@ -79,9 +86,18 @@ export async function run(req: RunRequest, cfg: Config, opts: { echo?: boolean }
   const modeLabel = !live ? "sample (rules reasoner, no LLM)"
     : `${degraded.size ? "mixed" : "live"} (data: ${cfg.mode.data === "zetaris" && !degraded.has("data") ? "Zetaris" : cfg.mode.data === "zetaris" ? "Zetaris with local fallback" : "local sample"}; ` +
       `reasoning: ${cfg.mode.llm === "nightshift" ? (degraded.has("llm") ? "Nemotron via Nightshift with rules fallback" : "Nemotron via Nightshift") : "rules"})`;
-  return {
+  const result = {
     run_id: runId, mode: modeLabel, outlet_id: state.outlet_id, as_of: state.as_of,
     decisions: state.decisions, actions: state.actions, unresolved: state.unresolved, log: path,
     ...(message ? { message } : {}),
   };
+  // Saved next to the log so GET /runs/:id and the Admin run log read the same record (never by the agent).
+  writeFileSync(join(cfg.logDir, `${runId}.result.json`), JSON.stringify({
+    ...result, question, intents: state.intents, briefing: state.briefing, created_at: new Date().toISOString(),
+    tool_calls: state.counters.tool_calls, run_mode: !live ? "sample" : degraded.size ? "mixed" : "live",
+    // Approved findings, scalars only (for eval/ and audit); weeks/rows arrays are left out to keep it small.
+    findings: state.claims.filter((c) => c.status === "approved").map((c) => ({ kind: c.kind, text: c.text, data: compact(c.data) })),
+    ruled_out: state.hypotheses.filter((h) => h.status === "rejected").map((h) => ({ kind: h.kind, reason: h.reason })),
+  }, null, 1));
+  return result;
 }

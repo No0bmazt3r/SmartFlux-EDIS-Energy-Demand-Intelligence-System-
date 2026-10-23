@@ -2,15 +2,20 @@
   "name": "smartflux",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@12.9.1",
   "engines": {
     "node": ">=22.13"
   },
   "scripts": {
     "agent": "tsx apps/backend/src/cli.ts",
+    "start": "tsx apps/backend/src/server.ts",
     "test": "node --import tsx --test \"apps/backend/src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit -p .",
     "zetaris:setup": "tsx scripts/zetaris-setup.ts",
     "smoke": "tsx scripts/smoke.ts",
+    "eval": "tsx eval/run-eval.ts",
+    "benchmark": "tsx eval/benchmark.ts",
+    "examples": "tsx scripts/examples.ts",
     "data:generate": "tsx scripts/generate-data.ts --seed 1 --out data/sample && tsx scripts/generate-data.ts --seed 2 --out data/seed2"
   },
   "devDependencies": {

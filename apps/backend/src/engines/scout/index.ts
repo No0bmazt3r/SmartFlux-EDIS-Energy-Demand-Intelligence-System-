@@ -36,7 +36,9 @@ export const CAPABILITIES = [
 ];
 
 export function classify(text: string, lang?: Lang) {
-  const intents = INTENT_PATTERNS.filter(([, re]) => re.test(text)).map(([i]) => i);
+  let intents = INTENT_PATTERNS.filter(([, re]) => re.test(text)).map(([i]) => i);
+  // "Did the promo help?" asks about past advice, not for a new plan.
+  if (intents.includes("advice_followup")) intents = intents.filter((i) => i !== "load_shift_plan");
   return {
     intents: intents.length ? intents : (["out_of_scope"] as Intent[]),
     risk: "read_only" as Risk, // a question is read-only; actions are gated separately by gate()

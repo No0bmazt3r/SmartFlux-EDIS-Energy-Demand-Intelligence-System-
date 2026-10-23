@@ -1,0 +1,86 @@
+{
+  "run_id": "r-1d4824d3",
+  "mode": "sample (rules reasoner, no LLM)",
+  "outlet_id": "OUT-01",
+  "as_of": "2026-10-04",
+  "decisions": [
+    {
+      "type": "bill_explanation",
+      "verdict": "Energy use +2% per day vs the baseline week",
+      "confidence": "high",
+      "evidence": [
+        "116 → 118 kWh per day",
+        "Cause: dryer D4, about 3.1 kWh/day extra"
+      ],
+      "ruled_out": [
+        "Humid weather raised dryer energy: other dryers rose only 1.1%; humidity explains a small share, the rest is D4",
+        "More customers raised usage: Customer numbers barely changed (90 → 89 cycles/day, -1.1%)",
+        "A public holiday changed the usage pattern: Malaysia Day (16 Sept) fell before the period compared, so it can't explain it"
+      ],
+      "assumptions": [
+        "Normal level = the baseline week 7 Sept–13 Sept; compared with 21 Sept–4 Oct",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
+    },
+    {
+      "type": "tariff",
+      "verdict": "Switch to the ToU tariff",
+      "rm_per_month": 9.54,
+      "confidence": "high",
+      "evidence": [
+        "Peak share 56.8% vs break-even 63.6%",
+        "Worst week (week 4): 59.0% in peak",
+        "ToU RM1733.57/month vs flat RM1743.11/month"
+      ],
+      "ruled_out": [
+        "Staying on flat: costs RM9.54 more per month"
+      ],
+      "assumptions": [
+        "Rates used: peak RM0.5217, off-peak RM0.4808, flat RM0.5068 per kWh (all-in; confirm against TNB's schedule)",
+        "Solar not considered here; ask \"Solar, ToU or both?\" for the joint decision",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
+    },
+    {
+      "type": "machine_fault",
+      "verdict": "Service dryer D4",
+      "rm_per_month": 48.03,
+      "confidence": "high",
+      "evidence": [
+        "D4 uses 2.70 kWh per cycle vs its normal 2.15 (+26%)",
+        "Cycles +16% longer (53 → 61 min)",
+        "Other dryers of the same type: +1%"
+      ],
+      "ruled_out": [
+        "Humid weather raised dryer energy: other dryers rose only 1.1%; humidity explains a small share, the rest is D4",
+        "More customers raised usage: Customer numbers barely changed (90 → 89 cycles/day, -1.1%)",
+        "A public holiday changed the usage pattern: Malaysia Day (16 Sept) fell before the period compared, so it can't explain it"
+      ],
+      "assumptions": [
+        "Normal level = the baseline week 7 Sept–13 Sept; compared with 21 Sept–4 Oct",
+        "Flat rate used: RM0.5068 per kWh (all-in; confirm against TNB's schedule)",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "r-1d4824d3-a1",
+      "type": "switch_tariff",
+      "target": "OUT-01",
+      "reason": "ToU saves about RM9.54/month",
+      "risk": "financial",
+      "status": "awaiting_approval"
+    },
+    {
+      "id": "r-1d4824d3-a2",
+      "type": "schedule_service",
+      "target": "OUT-01-D4",
+      "reason": "D4 wastes about RM48.03/month",
+      "risk": "operational",
+      "status": "awaiting_approval"
+    }
+  ],
+  "unresolved": [],
+  "log": "output_examples/logs/02-bill-why.jsonl"
+}
