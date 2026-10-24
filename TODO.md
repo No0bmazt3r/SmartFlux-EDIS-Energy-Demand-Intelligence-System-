@@ -5,6 +5,8 @@ Phases follow [implementation.md §4](docs/implementation.md#4-build-order). Aft
 
 Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if behind: [proposal §18.4](docs/proposal.md#184-cut-order).
 
+**Path to an A (90+), set 24 Oct:** the biggest gains first. 15.1 + 15.2 video and deck (≈ +9) → 11.3–11.11 owner screens and 11.14 admin web (≈ +5) → 9.6, 9.8, 9.10 one live run with the log saved to `output_examples/logs/` (≈ +3) → 15.6 + 0.7 public repo and prototype hash (gates) → 11.17–11.19 customer view with the D4 approve → maintenance scene in the video (≈ +3) → 11.20 only if time is left. Without owner interviews the ceiling is about 89–91.
+
 ---
 
 ## Phase 0: Blockers and decisions (today, 24 Oct)
@@ -139,6 +141,10 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 - [ ] **11.13** PWA manifest. *Done when:* the app installs on a phone.
 - [ ] **11.14** Admin web: KPI tiles, outlet energy chart (with a "view as table" option), flagged machines, advice scoreboard, run log (W1–W6). *Done when:* it's wired to `/admin/overview`.
 - [ ] **11.15** Admin Should items: outlets table, washer vs dryer split, Scope 2 CSV, as-of picker, run detail. *Done when:* they're done or explicitly cut.
+- [ ] **11.17** Customer view backend: `machine_status` template (lightning + sqlite, parity in `pnpm smoke`), `GET /outlets/:id/availability`, maintenance gate (FR-38, FR-39). *Done when:* a test shows D4 `maintenance` only after Skeptic approval + owner approval, and an unapproved flag stays hidden.
+- [ ] **11.18** RBAC middleware `requireRole` + demo login issuing `{role, outlet_ids}` (FR-75). *Done when:* a test shows a customer gets `403` on `/run`, `/approve` and `/admin/overview`, and an owner gets `403` on another owner's outlet.
+- [ ] **11.19** Customer screens C-01 Machines near me (+ C-02 detail if time), promo banner, third login button (FR-40). *Done when:* approving D4 on the owner screen flips D4 on the customer screen at 390 px.
+- [ ] **11.20** (Could) Report a problem: C-03 + `POST /outlets/:id/reports` → H-MEM `customer_report`; the Investigator lists it as evidence (FR-41). *Done when:* a report shows in the next run's evidence and never flags a machine on its own.
 - [ ] **11.16** Accessibility pass against design-system §9, at 360, 390 and 430 px, plus a keyboard pass on the Admin web. *Done when:* every checklist item is ticked.
 
 ## Phase 12: Benchmark (step 18)
@@ -155,6 +161,8 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 - [ ] **13.5** Clean-clone check (proposal §22) in a fresh folder with an empty `.env` and the sponsors stopped. *Done when:* `pnpm install && pnpm test && pnpm eval` and all 8 examples pass.
 
 ## Phase 14: User research (in parallel, by 26 Oct 06:00)
+
+> **24 Oct:** no time for interviews (proof of concept). Skip 14.1, 14.2 and 14.4; do 14.3 the honest way (deck and README say "no owner reached", cite public sources such as news on the ToU tariff and Solar ATAP and laundromat-owner forum posts). Never invent a quote.
 
 - [ ] **14.1** Contact at least 2 laundromat owners (family network, nearby outlets, Facebook groups, franchise sales lines). *Done when:* at least 1 interview is booked.
 - [ ] **14.2** Run the interview (user-research §3, EN or BM). *Done when:* notes are in `docs/research/` using the template, with no personal data.

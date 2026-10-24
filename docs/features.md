@@ -3,11 +3,12 @@
 **For:** Dina and anyone drafting mockups (Google Stitch, Figma).
 **Read with:** [design-system.md](design-system.md) (colours, fonts, components) and [prd.md](prd.md) (requirements).
 
-> **Who is the "customer"?** The mobile app is for the **laundromat owner**, the person who pays for SmartFlux. Walk-in laundry customers have **no app**. The web is for the **SmartFlux admin** (franchise operator) who looks after many outlets.
+> **Who uses what?** One mobile app serves two roles: the **laundromat owner** (the person who pays for SmartFlux) and the **walk-in customer** (sees which machines are free, in use or under maintenance). The role picked at login decides which screens appear ([§A.4](#a4-customer-view-same-app-customer-role), [§A.5](#a5-roles-and-access-rbac)). The web is for the **SmartFlux admin** (franchise operator) who looks after many outlets.
 
 | Surface | User | Device | Size to design at |
 | --- | --- | --- | --- |
-| **Owner app** (mobile) | Laundromat owner | Phone, installable web app (PWA) | 390 × 844 (also check 360 wide) |
+| **Mobile app**, owner role | Laundromat owner | Phone, installable web app (PWA) | 390 × 844 (also check 360 wide) |
+| **Mobile app**, customer role | Walk-in laundry customer | Phone, opened from a QR code at the outlet | 390 × 844 (also check 360 wide) |
 | **Admin web** | SmartFlux admin / franchise operator | Laptop | 1440 × 900 (content max 1280) |
 
 Style for every screen: dark theme, background `#0F061E`, cards `#1C1230` / `#2A1F42`, primary purple `#9D4EDD`, orange `#FF9100` for peak/money at stake/main action, peach `#FFC880` for savings. Headlines Plus Jakarta Sans, body Inter, labels and numbers JetBrains Mono. Rounded cards (16 px), pill bottom nav.
@@ -57,7 +58,7 @@ Top bar: outlet switcher (OUT-01 ▾), language toggle EN / BM
 #### Screen M-01: Login — Must
 
 - SmartFlux logo, tagline "Know what to save, and prove it worked."
-- Two big buttons: **Continue as Owner**, **Continue as Admin** (demo login, no password)
+- Three big buttons: **Continue as Customer**, **Continue as Owner**, **Continue as Admin** (demo login, no password; Admin opens the web layout)
 - Small text: "Demo mode — sample data"
 
 #### Screen M-02: Home — Must
@@ -183,6 +184,68 @@ Other card types to design (same layout): Tariff, Energy plan, Verification ("Di
 - Text never smaller than 14 px; touch targets 44 px.
 - Malay text is ~25% longer: leave room.
 - Design both a **Live** and **Sample** mode badge (small, top-right of Evidence).
+
+### A.4 Customer view (same app, `customer` role)
+
+The customer sees **availability and approved promos only**: no energy, RM, tariff, agent or approval data. The customer view is where the agent's approved actions reach real people, and where their effect is measured:
+
+| What the customer sees | Where it comes from |
+| --- | --- |
+| `FREE` / `IN USE · 12 min left` | `machine_status` query template over the payment system's cycle logs at `as_of` (a machine is in use when a cycle spans that time). Runs through **Zetaris** in live mode, SQLite in sample mode, like every other template |
+| `UNDER MAINTENANCE` | Only a fault the **Skeptic verified** and the **owner approved** for service, until the service is logged. Unverified or unapproved flags never reach customers |
+| Promo banner | Only a promo the agent proposed, the Skeptic checked and the owner approved. The next session's `promo_check` measures whether customers actually shifted (off-peak share change vs the other outlets) and remembers it in H-MEM |
+| "Report a problem" | The customer's report is stored in H-MEM as a `customer_report`; the Investigator treats it as extra evidence next to the meter data. It never flags a machine on its own |
+
+```text
+QR at outlet / Login (Customer) ──► Machines near me ──► Machine detail ──► Report a problem
+Top bar: outlet name (no switcher; one outlet per QR), language toggle EN / BM
+No bottom nav (three screens only)
+```
+
+**Demo scene (≤ 10 s):** owner taps **Approve** on "Service dryer D4" → the customer phone shows D4 `UNDER MAINTENANCE` → cut to "Did it work? D4 service verified". Second beat if time allows: promo approved → banner on the customer phone → next briefing "off-peak share +6 pts".
+
+| # | Feature | What the customer can do | Priority |
+| --- | --- | --- | --- |
+| C1 | Demo login / QR entry | Open the outlet's page as Customer (no account) | Must |
+| C2 | Machine availability | See each washer and dryer as `FREE` / `IN USE · 12 min left` / `UNDER MAINTENANCE` | Must |
+| C3 | Filter | All · Washers · Dryers · Free now | Should |
+| C4 | Machine detail | Price per cycle, programs, typical cycle length | Should |
+| C5 | Promo banner | See an owner-approved off-peak promo (e.g. "Sat 22:00: RM1 off dryers") | Should |
+| C6 | Language | English / Bahasa Melayu | Should |
+| C7 | Report a problem | Tap "Not working?" on a machine, pick a reason (won't start, not heating, too long, other) | Could |
+
+#### Screen C-01: Machines near me — Must
+
+- Header: "SmartFlux · OUT-01 Ipoh" · "Updated 18 Oct, 19:30" · mode badge `SAMPLE`
+- Summary line: "4 washers free · 2 dryers free"
+- Grid of machine tiles (2 columns): name + type icon, status chip with icon + text, minutes left when in use, price ("RM7 · dry")
+- `UNDER MAINTENANCE` tile is greyed with a wrench icon, not tappable
+- Promo banner at the top when an approved promo is active
+
+#### Screen C-02: Machine detail — Should
+
+- "Dryer D2 · RM7 per cycle" · status chip · programs and typical minutes ("Dry 50 min")
+- Text link **Not working?** → C-03
+
+#### Screen C-03: Report a problem — Could
+
+- Reason chips: Won't start · Not heating · Takes too long · Other
+- Submit → toast "Thanks, the owner will be told." (no promise that the machine is broken)
+
+### A.5 Roles and access (RBAC)
+
+One login picks the role; the server checks the role on every route, and the UI only hides what the server already refuses.
+
+| Data / action | Customer | Owner | Admin |
+| --- | --- | --- | --- |
+| Machine availability (own outlet) | ✓ | ✓ | ✓ |
+| Active promo | ✓ | ✓ | ✓ |
+| Report a problem (own outlet) | ✓ | ✓ | ✕ |
+| Energy, RM, machine efficiency, briefings | ✕ | own outlets | all outlets |
+| Ask the agent (`POST /run`) | ✕ | own outlets | all outlets |
+| Approve / reject actions | ✕ | own outlets | ✕ (view only) |
+| Evidence, run log | ✕ | own runs | all runs |
+| Scope 2 export, broadcast banner | ✕ | ✕ | ✓ |
 
 ---
 
@@ -329,6 +392,9 @@ Paste one at a time; attach the palette board image for style.
 
 **Approvals**
 > Mobile screen "Approvals", same dark style. Tabs Pending (1) and History. Card "Service dryer D4", reason text, "Predicted saving RM182/month", OPERATIONAL badge with wrench icon, orange Approve button and outlined Reject button. History list with Verified (green check) and Not yet (hourglass) badges.
+
+**Customer machines**
+> Mobile screen "Machines near me", same dark style. Header "SmartFlux · OUT-01 Ipoh", small "Updated 18 Oct, 19:30" and SAMPLE badge, EN/BM toggle. Peach promo banner "Sat 22:00: RM1 off dryers". Summary "4 washers free · 2 dryers free". Filter chips All, Washers, Dryers, Free now. Two-column grid of machine tiles: "W1 Washer, FREE, RM5" with green check; "D1 Dryer, IN USE · 12 min left" with orange clock; "D4 Dryer, UNDER MAINTENANCE" greyed with wrench icon. No bottom nav.
 
 **Admin dashboard**
 > Desktop admin dashboard 1440px, dark theme #0F061E, cards #1C1230, purple #9D4EDD, orange #FF9100, peach #FFC880, Plus Jakarta Sans / Inter / JetBrains Mono. Top bar "SmartFlux Admin", date picker "as of 18 Oct 2026", button "Export Scope 2 CSV". Row of 5 KPI tiles: Total load 11.9 MWh, Energy cost RM6,040, Revenue RM18,200, Margin 66%, Verified savings RM164/month. Left: stacked bar chart of peak (orange) vs off-peak (purple) kWh per outlet per week for 3 outlets. Right: "Advice scoreboard" list with predicted vs verified savings. Below: "Flagged machines" table (outlet, machine, type, heat source, change, RM/month, status) and "Run log" table with Open links.

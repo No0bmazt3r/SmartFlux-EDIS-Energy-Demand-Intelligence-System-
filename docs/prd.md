@@ -41,9 +41,10 @@ Every answer shows its evidence. A Skeptic agent re-checks every money claim aga
 | --- | --- | --- | --- |
 | **Aisyah, absentee owner** (primary) | Owns 1–3 outlets, 8–20 machines each; checks her phone between other work; reads Malay and English | Lower bill, no surprises, decisions she can trust in two minutes | Owner app (mobile) |
 | **Raj, franchise operator** (secondary) | Runs SmartFlux for a franchise of 3–30 outlets | See which outlets need attention, whether advice is working, export emissions figures | Admin web (desktop) |
+| **Walk-in customer** (tertiary) | Uses the outlet's machines; doesn't pay for SmartFlux | Know which machine is free or broken before walking over or waiting | Mobile app, customer role (QR at the outlet) |
 | **Judge** (evaluation user) | Hackathon panelist with limited time and no credentials | Run it, see agents collaborate, see sponsor tech doing real work | `POST /run`, CLI, sample mode |
 
-Walk-in laundromat customers are **not** users. They only see the result of an approved promo.
+Customers get availability and approved promos only; they never see energy, money or agent data (FR-75).
 
 Personas are working assumptions until confirmed by the owner conversations in [user-research.md](user-research.md).
 
@@ -81,6 +82,14 @@ Payments and subscriptions; real authentication (demo login only); multi-tenancy
 | US-09 | see cost vs price per cycle for each machine | I can reprice or retire machines | Should |
 | US-10 | ask in Malay and get answers in Malay | I'm comfortable using it | Should |
 | US-11 | be told plainly when solar isn't possible (no roof) or when to stay on my tariff | I'm not sold something that doesn't fit | Must |
+
+### Customer view
+
+| ID | As a walk-in customer, I want to… | So that… | Priority |
+| --- | --- | --- | --- |
+| US-30 | see which washers and dryers are free, in use (with minutes left) or under maintenance | I don't wait for or pay into a broken machine | Must |
+| US-31 | see an active promo | I can come at the cheaper off-peak time | Should |
+| US-32 | report a machine that isn't working | the owner finds out sooner | Could |
 
 ### Admin web
 
@@ -138,6 +147,15 @@ Payments and subscriptions; real authentication (demo login only); multi-tenancy
 | FR-36 | Machines | Per machine: kWh or minutes per cycle with error bar, cost vs price per cycle, trend vs baseline, service date, verified saving |
 | FR-37 | Navigation | Bottom navigation: Home, Ask, Machines, Approvals (badge with count) |
 
+### 6.2a Customer view (mobile app, `customer` role)
+
+| ID | Screen | Requirement |
+| --- | --- | --- |
+| FR-38 | Availability | Per machine at `as_of`: `free`, `in_use` with minutes left (a cycle in `machine_cycles` spans `as_of`), or `maintenance`. Computed by a `machine_status` query template (Zetaris live, SQLite sample), logged as a `zetaris.query` event like any template. Shows the data time and mode badge |
+| FR-39 | Maintenance gate | `maintenance` only for a fault with an approved Skeptic verification **and** an owner-approved service action not yet in `service_log`. Test: an unverified or unapproved flag never shows as `maintenance` |
+| FR-40 | Promo loop | Shows an owner-approved promo while it is active. The next session's `promo_check` measures the off-peak share change vs other outlets and records the outcome in H-MEM (existing `run.test.ts` promo test) |
+| FR-41 | Customer report (Could) | `POST /outlets/:id/reports {machine_id, reason}` stores a `customer_report` in H-MEM; the Investigator lists it as supporting evidence, never as a flag by itself |
+
 ### 6.3 Admin web
 
 | ID | Section | Requirement |
@@ -160,6 +178,8 @@ Payments and subscriptions; real authentication (demo login only); multi-tenancy
 | FR-72 | `GET /runs/:id` returns run state and log events; `GET /admin/overview` returns the Admin web data |
 | FR-73 | `pnpm agent --input <file>` and `pnpm agent --briefing --as-of <date>` print log events and the result |
 | FR-74 | Invalid requests return `400` with a message; missing live config returns a clear error suggesting `SAMPLE_MODE=true` |
+| FR-75 | Role-based access: demo login issues a role (`customer`, `owner`, `admin`) and an outlet scope; one middleware checks both on every route and returns `403` otherwise. Matrix in [features.md §A.5](features.md#a5-roles-and-access-rbac). `risk.test.ts`-style test: a customer calling `/run`, `/approve` or `/admin/overview` gets `403` |
+| FR-76 | `GET /outlets/:id/availability?as_of=` returns machine status and active promo only (customer-safe fields) |
 
 ## 7. Non-functional requirements
 
@@ -180,7 +200,7 @@ Payments and subscriptions; real authentication (demo login only); multi-tenancy
 | Release | Contents |
 | --- | --- |
 | **Hackathon submission (MVP)** | Everything marked Must and Should above; FR-57 if time |
-| Roadmap 1 | Real cycle-log import (CSV first, then payment-provider partnerships); myTNB export upload |
+| Roadmap 1 | Real cycle-log import (CSV first, then payment-provider partnerships); myTNB export upload; live availability feed for the customer view (today it is computed at `as_of` from batch cycle logs) |
 | Roadmap 2 | Light theme; WhatsApp briefing; per-outlet subscription |
 | Roadmap 3 | MD module for medium-voltage sites; Markovian franchise-wide audits |
 

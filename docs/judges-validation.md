@@ -152,6 +152,8 @@ Score each criterion within its band. Anchors come from the official criteria an
 | H2 | What if the owner's tariff rates differ? | Rates live in one table; every card lists the rates used |
 | H3 | What can go wrong for the owner? | A wrong solar size or tariff switch; both are financial actions that need approval and show their assumptions |
 | H4 | What would you build next? | Real cycle-log import, WhatsApp briefings, MD module for medium-voltage sites |
+| H5 | Customer availability already exists in payment apps. Why build it? | Availability is the easy part. What's new: customers only see faults the Skeptic verified and the owner approved, promos reach them only after approval, and the next session measures whether they shifted. Their reports feed back as evidence |
+| H6 | Did you talk to users? | No owner reached in the build window (a proof of concept). We say so and cite public sources; the personas are stated assumptions |
 
 ## 6. Score sheet (one per panelist)
 

@@ -106,7 +106,7 @@ flowchart TB
 
 | Container | Technology | Responsibility |
 | --- | --- | --- |
-| Owner app | React 18, Vite, PWA manifest | Briefings, ask, decisions, evidence, approvals, machines, energy plan |
+| Mobile app (owner + customer roles) | React 18, Vite, PWA manifest | Owner: briefings, ask, decisions, evidence, approvals, machines, energy plan. Customer: machine availability, active promo |
 | Admin web | React 18 (same app, `/admin` routes) | All-outlet overview, scoreboard, run log, Scope 2 export |
 | Backend | Node 22.13+, Express 5, TypeScript | API, orchestration, agents, calculators, adapters, logs, scheduler |
 | H-MEM store | JSON files in `data/hmem/` | Persistent memory across restarts |
@@ -209,7 +209,26 @@ sequenceDiagram
     B-->>O: briefing card "D4 fix verified"
 ```
 
-### 7.4 Fallback
+### 7.4 Customer view (approved actions reach customers)
+
+```mermaid
+sequenceDiagram
+    actor O as Owner
+    actor U as Customer
+    participant API
+    participant Z as Zetaris / SQLite
+    participant H as H-MEM
+    O->>API: approve "service D4" (Skeptic-verified fault)
+    API->>H: record approval
+    U->>API: GET /outlets/OUT-01/availability (role: customer)
+    API->>Z: machine_status template at as_of
+    API->>H: approved, unfinished service actions
+    API-->>U: D4 = maintenance, D1 = in_use 12 min, W1 = free, active promo
+    U->>API: POST report "D2 not heating" (Could)
+    API->>H: customer_report → evidence for the next Investigator run
+```
+
+### 7.5 Fallback
 
 A Zetaris call that times out is retried once with a narrower window, then the same template runs on local SQLite; an LLM call that fails twice is handed to the role's rules twin. Both are logged with `status: "fallback"` and the run's `mode` becomes `mixed`.
 
@@ -257,6 +276,7 @@ Ports: app API 8000, web 5173 (dev) or served by the API in Docker, Zetaris UI 3
 | --- | --- |
 | Logging | One `emit()`; JSONL per run; stdout; the UI reads logs, never a separate store |
 | Errors | Typed adapter errors → retry → fallback → structured error in the output; never a hang |
+| Access control | Demo login issues `{role, outlet_ids}`; one Express middleware `requireRole(roles)` checks role and outlet scope per route (`403` otherwise); customer routes return availability fields only. UI hides what the server already refuses ([features.md §A.5](features.md#a5-roles-and-access-rbac)) |
 | Security | Read-only SQL guard (SELECT/SHOW/DESCRIBE only, USL namespace only); secrets from env; no secrets in logs; NVIDIA key stays in Nightshift |
 | Time | Everything evaluated at `as_of`; the clock is never read inside agents |
 | Language | Scout detects English or Malay; Reporter writes in the request language; numbers are never translated by the LLM |
@@ -277,6 +297,7 @@ Ports: app API 8000, web 5173 (dev) or served by the API in Docker, Zetaris UI 3
 | 008 | Weekly regression and peer-controlled M&V | One fit over all data; before/after only | Sees fault onset; cancels weather and traffic |
 | 009 | Dark theme only for the hackathon | Light and dark | Matches the design system; light theme on the roadmap |
 | 010 | One React app with owner and admin routes | Two apps | Shared components and tokens; one build |
+| 011 | Customer is a role in the same mobile app, gated server-side | Separate customer app; client-only hiding | One build; the server, not the UI, decides what a customer can read |
 
 ## 12. Technical risks and debt
 
@@ -286,6 +307,7 @@ Ports: app API 8000, web 5173 (dev) or served by the API in Docker, Zetaris UI 3
 | Template parity between Lightning SQL and SQLite | Parity test on sample data for every template |
 | Scout Intent spec not in the resource pack | Fallback in force (24 Oct): plain intent routing and risk gating; H-MEM carries the Build rule |
 | File-backed H-MEM | Fine for a single process; a database would be needed for multi-instance |
+| Demo-grade RBAC | Role comes from a demo login, not real authentication (non-goal); production needs signed sessions |
 | Scheduler in-process | Fine for the demo; production would use a job runner |
 
 ## Sources
