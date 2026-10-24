@@ -28,8 +28,8 @@ const RECIPES: Partial<Record<Intent, HypothesisKind[]>> = {
   bill_investigation: ["bill", "fault", "humidity", "traffic", "holiday"],
 };
 
-// Core hypotheses per intent always run. In live mode Nemotron (fast lane) reads the H-MEM context and may
-// add optional ones it thinks could explain the answer; in rules mode the recipe's own list is used.
+// Each intent's recipe always runs. In live mode Nemotron (fast lane) reads the H-MEM context and may add
+// optional hypotheses it thinks could explain the answer; it cannot drop any from the recipe.
 export async function planner(state: RunState, ctx: Ctx) {
   const fresh: Hypothesis[] = [];
   let model: string | undefined, reasons: Record<string, string> = {}, llmAdd: HypothesisKind[] | undefined;
@@ -44,7 +44,9 @@ export async function planner(state: RunState, ctx: Ctx) {
       state.unresolved.push(`${intent}: not built yet in the rules reasoner`);
       continue;
     }
-    for (const kind of llmAdd ? [...kinds.filter((k) => CORE.includes(k)), ...llmAdd] : kinds) {
+    // The recipe always runs in full (for a bill question that includes the alternative causes, so they can be
+    // ruled out); the model can only add optional hypotheses on top, never remove one.
+    for (const kind of llmAdd ? [...kinds, ...llmAdd] : kinds) {
       if (kind === "tou" && state.intents.includes("energy_plan")) continue; // the joint decision already covers the tariff
       if ([...state.hypotheses, ...fresh].some((h) => h.kind === kind)) continue;
       fresh.push({ id: `h${state.hypotheses.length + fresh.length + 1}`, intent, kind, text: HYPOTHESES[kind], status: "open" });

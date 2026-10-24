@@ -5,7 +5,12 @@
 // The model that actually answered is returned so every log event can show it.
 
 export type Lane = "fast" | "deep";
-export type LlmConfig = { baseUrl: string; token: string; models: Record<Lane, string>; app?: string; timeoutMs?: number; retries?: number };
+// jsonMode: send response_format (Nightshift: yes; some NVIDIA endpoints reject it, so it is optional there).
+// extraBody: provider-specific fields merged into the request, e.g. turning off Nemotron's thinking output.
+export type LlmConfig = {
+  baseUrl: string; token: string; models: Record<Lane, string>; app?: string; timeoutMs?: number; retries?: number;
+  provider?: string; jsonMode?: boolean; extraBody?: Record<string, unknown>;
+};
 export type GenerateOpts = { lane: Lane; system?: string; json?: boolean; maxTokens?: number; signal?: AbortSignal };
 export type Generation = { text: string; model: string; ms: number; retries: number };
 export type Generator = (prompt: string, opts: GenerateOpts) => Promise<Generation>;
@@ -32,14 +37,15 @@ export function createNightshift(cfg: LlmConfig): Generator {
             model: cfg.models[opts.lane],
             messages: [...(opts.system ? [{ role: "system", content: opts.system }] : []), { role: "user", content: prompt }],
             temperature: 0, max_tokens: opts.maxTokens ?? 800,
-            ...(opts.json ? { response_format: { type: "json_object" } } : {}),
+            ...(opts.json && cfg.jsonMode !== false ? { response_format: { type: "json_object" } } : {}),
+            ...(cfg.extraBody ?? {}),
           }),
           signal: opts.signal ?? AbortSignal.timeout(timeout),
         });
-        if (!res.ok) throw new LlmError(`Nightshift HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`, res.status);
+        if (!res.ok) throw new LlmError(`${cfg.provider ?? "Nightshift"} HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`, res.status);
         const body = await res.json();
         const text = body?.choices?.[0]?.message?.content;
-        if (typeof text !== "string") throw new LlmError("Nightshift returned no message content");
+        if (typeof text !== "string") throw new LlmError(`${cfg.provider ?? "Nightshift"} returned no message content`);
         return { text, model: body.model ?? cfg.models[opts.lane], ms: Math.round(performance.now() - t0), retries: attempt };
       } catch (e) {
         const status = (e as LlmError).status;
@@ -53,7 +59,7 @@ export function createNightshift(cfg: LlmConfig): Generator {
 
 // Models return JSON with stray prose or code fences more often than not; take the first JSON object.
 export function parseJson<T = any>(text: string): T {
-  const cleaned = text.replace(/```(?:json)?/g, "");
+  const cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, "").replace(/```(?:json)?/g, ""); // reasoning models may prepend <think>…</think>
   const start = cleaned.indexOf("{"), end = cleaned.lastIndexOf("}");
   if (start < 0 || end <= start) throw new LlmError("No JSON object in the model output");
   return JSON.parse(cleaned.slice(start, end + 1));

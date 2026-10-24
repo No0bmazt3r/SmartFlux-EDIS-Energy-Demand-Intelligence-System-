@@ -1,9 +1,22 @@
 {
-  "run_id": "r-d56a2696",
-  "mode": "sample (rules reasoner, no LLM)",
+  "run_id": "r-760622b7",
+  "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
   "outlet_id": "OUT-01",
   "as_of": "2026-10-18",
   "decisions": [
+    {
+      "type": "machine_fault",
+      "verdict": "No dryer is wasting energy",
+      "confidence": "high",
+      "evidence": [
+        "All 6 dryers are within their normal range"
+      ],
+      "ruled_out": [],
+      "assumptions": [
+        "Normal level = the baseline week 7 Sept–13 Sept; compared with 5 Oct–18 Oct",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
+    },
     {
       "type": "energy_plan",
       "verdict": "Install 10 kWp solar, stay on your current tariff",
@@ -22,7 +35,7 @@
         "15 kWp: the extra 5 kWp pays back in 10.7 years, beyond the 10-year Solar ATAP term"
       ],
       "assumptions": [
-        "Installed cost RM3500 per kWp, derate 0.8 (installer quotes to confirm)",
+        "Installed cost RM3500 per kWp, derate 0.8\r (installer quotes to confirm)",
         "Exported solar valued at RM0 (credit terms vary; confirm under Solar ATAP)",
         "Generation from real hourly radiation at the outlet (Open-Meteo)",
         "Rates used: peak RM0.5217, off-peak RM0.4808, flat RM0.5068 per kWh (all-in; confirm against TNB's schedule)",
@@ -32,7 +45,7 @@
   ],
   "actions": [
     {
-      "id": "r-d56a2696-a1",
+      "id": "r-760622b7-a1",
       "type": "request_solar_quote",
       "target": "OUT-01 10 kWp",
       "reason": "10 kWp saves about RM502.75/month",

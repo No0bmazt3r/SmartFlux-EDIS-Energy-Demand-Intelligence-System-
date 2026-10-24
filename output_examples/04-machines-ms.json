@@ -1,6 +1,6 @@
 {
-  "run_id": "r-54db23a2",
-  "mode": "sample (rules reasoner, no LLM)",
+  "run_id": "r-af23ad5e",
+  "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
   "outlet_id": "OUT-02",
   "as_of": "2026-10-18",
   "decisions": [
@@ -24,7 +24,7 @@
   ],
   "actions": [
     {
-      "id": "r-54db23a2-a1",
+      "id": "r-af23ad5e-a1",
       "type": "schedule_service",
       "target": "OUT-02-G3",
       "reason": "G3 wastes about RM84.79/month",

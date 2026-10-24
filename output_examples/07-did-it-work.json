@@ -1,9 +1,39 @@
 {
-  "run_id": "r-4de7d0a3",
-  "mode": "sample (rules reasoner, no LLM)",
+  "run_id": "r-ce41a3de",
+  "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
   "outlet_id": "OUT-01",
   "as_of": "2026-10-18",
   "decisions": [
+    {
+      "type": "bill_explanation",
+      "verdict": "Energy use up 5% per day vs last week",
+      "confidence": "medium",
+      "evidence": [
+        "116 to 122 kWh per day"
+      ],
+      "ruled_out": [
+        "Humid weather raised dryer energy: The humidity increase and dryer energy rise are identical to peer buildings, indicating a shared external factor rather than a causal link. (Skeptic's causal judgment)",
+        "More customers raised usage: Customer numbers barely changed (90 → 94 cycles/day, +3.6%)",
+        "A public holiday changed the usage pattern: Malaysia Day (16 Sept) fell before the period compared, so it can't explain it"
+      ],
+      "assumptions": [
+        "Normal level = the baseline week 7 Sept–13 Sept; compared with 5 Oct–18 Oct",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
+    },
+    {
+      "type": "machine_fault",
+      "verdict": "No dryer is wasting energy",
+      "confidence": "high",
+      "evidence": [
+        "All 6 dryers are within their normal range"
+      ],
+      "ruled_out": [],
+      "assumptions": [
+        "Normal level = the baseline week 7 Sept–13 Sept; compared with 5 Oct–18 Oct",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
+    },
     {
       "type": "verification",
       "verdict": "Servicing D4 saved RM64.65/month",
@@ -11,7 +41,7 @@
       "confidence": "high",
       "evidence": [
         "Predicted RM48.03 vs actual RM64.65 (135% of prediction)",
-        "D4: 2.73 → 2.14 kWh per cycle; other dryers 2.08 → 2.17",
+        "D4: 2.73 to 2.14 kWh per cycle; other dryers 2.08 to 2.17",
         "Uncertainty band ± RM14.33/month",
         "Serviced 6 Oct; 12 days of data since",
         "Compared against your other dryers, so weather and customer numbers don't skew it"

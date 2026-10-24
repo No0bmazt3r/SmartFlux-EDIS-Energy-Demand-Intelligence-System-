@@ -1,0 +1,11 @@
+{
+  "key": "daffab29d7fa7529c8d2",
+  "provider": "nvidia",
+  "lane": "deep",
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "system": "You are Reporter. You only reword; numbers come from calculators and must not change. Answer with JSON only.",
+  "prompt": "Rewrite these decision cards for a busy laundromat owner in English: short, plain, no jargon.\nKeep every number exactly as written, add no new numbers, keep the same number of evidence lines.\n[{\"verdict\":\"Stay on your current flat tariff\",\"evidence\":[\"Peak share 75.0% vs break-even 63.6%\",\"Worst week (week 4): 78.1% in peak\",\"ToU RM1349.44/month vs flat RM1337.14/month\"]},{\"verdict\":\"No dryer is wasting energy\",\"evidence\":[\"All 6 dryers are within their normal range\"]}]\n\nReturn JSON {\"cards\": [{\"verdict\": \"...\", \"evidence\": [\"...\"]}]} in the same order.",
+  "text": "{\"cards\": [{\"verdict\": \"Keep your current flat rate plan\",\"evidence\": [\"Peak usage 75.0% compared to break-even 63.6%\",\"Lowest week (week 4): 78.1% during peak hours\",\"Time-of-use costs RM1349.44 per month versus flat RM1337.14 per month\"]},{\"verdict\": \"No dryer is using excess power\",\"evidence\": [\"All 6 dryers are operating within their expected range\"]}]}",
+  "ms": 8475,
+  "recorded_at": "2026-10-24T09:56:19.587Z"
+}

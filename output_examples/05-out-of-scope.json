@@ -1,6 +1,6 @@
 {
-  "run_id": "r-f6ba083a",
-  "mode": "sample (rules reasoner, no LLM)",
+  "run_id": "r-cb5b4a06",
+  "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
   "outlet_id": "OUT-01",
   "as_of": "2026-10-18",
   "decisions": [],

@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { openSampleDb } from "../adapters/local-sqlite.ts";
-import { createNightshift } from "../adapters/llm.ts";
+import { createLlm } from "../adapters/llm-providers.ts";
 import { createZetaris } from "../adapters/zetaris.ts";
 import { llmReporter, llmScout } from "../agents/llm/index.ts";
 import { investigator } from "../agents/rules/investigator.ts";
@@ -14,7 +14,7 @@ import { reporter } from "../agents/rules/reporter.ts";
 import { skeptic } from "../agents/rules/skeptic.ts";
 import type { Config } from "../config.ts";
 import { openHmem } from "../engines/hmem/index.ts";
-import { classify } from "../engines/scout/index.ts";
+import { classify, groundIntents } from "../engines/scout/index.ts";
 import { createLogger } from "../log.ts";
 import { capsHit } from "./caps.ts";
 import { recallContext } from "./memory.ts";
@@ -28,12 +28,12 @@ const compact = (o: Record<string, any>, depth = 0): Record<string, unknown> => 
 
 export async function run(req: RunRequest, cfg: Config, opts: { echo?: boolean } = {}): Promise<RunResult & { message?: string }> {
   const runId = `r-${randomUUID().slice(0, 8)}`;
-  const live = cfg.mode.data === "zetaris" || cfg.mode.llm === "nightshift";
+  const live = cfg.mode.data === "zetaris" || cfg.mode.llm === "nightshift" || cfg.mode.llm === "nvidia";
   const degraded = new Set<string>();
   const { emit, path } = createLogger(runId, () => (!live ? "sample" : degraded.size ? "mixed" : "live"), cfg.logDir, opts.echo ?? true);
   const ctx: Ctx = {
     db: openSampleDb(cfg.dataDir), emit, hmem: openHmem(cfg.hmemDir, cfg.logDir), degraded,
-    zetaris: cfg.zetaris && createZetaris(cfg.zetaris), llm: cfg.llm && createNightshift(cfg.llm),
+    zetaris: cfg.zetaris && createZetaris(cfg.zetaris), llm: createLlm(cfg),
   };
 
   const question = req.question ?? "";
@@ -43,6 +43,15 @@ export async function run(req: RunRequest, cfg: Config, opts: { echo?: boolean }
   if (!scout && ctx.llm) {
     scout = await tryLlm(ctx, "Scout", "classify", () => llmScout(ctx.llm!, question));
     if (scout && req.lang) scout.lang = req.lang;
+    if (scout) {
+      const g = groundIntents(question, scout.intents);
+      if (g.dropped.length || g.intents.length !== scout.intents.length) emit({
+        agent_name: "Scout", action: "ground_intents", input_summary: `model proposed [${scout.intents.join(",")}]`,
+        output_summary: `kept [${g.intents.join(",")}]${g.dropped.length ? `; dropped [${g.dropped.join(",")}]: not mentioned in the question` : ""}`,
+        target_agent: "Scout", status: g.dropped.length ? "needs_revision" : "success", model: scout.model,
+      });
+      scout.intents = g.intents;
+    }
   }
   scout ??= classify(question, req.lang);
   const state: RunState = {
@@ -83,9 +92,10 @@ export async function run(req: RunRequest, cfg: Config, opts: { echo?: boolean }
     }
   }
 
-  const modeLabel = !live ? "sample (rules reasoner, no LLM)"
+  const reasoning = { nightshift: "Nemotron via Nightshift", nvidia: "Nemotron via build.nvidia.com", replay: "recorded Nemotron answers", rules: "rules" }[cfg.mode.llm];
+  const modeLabel = !live ? (cfg.mode.llm === "replay" ? `sample (data: local sample; reasoning: ${reasoning}${degraded.has("llm") ? ", rules twin on replay misses" : ""})` : "sample (rules reasoner, no LLM)")
     : `${degraded.size ? "mixed" : "live"} (data: ${cfg.mode.data === "zetaris" && !degraded.has("data") ? "Zetaris" : cfg.mode.data === "zetaris" ? "Zetaris with local fallback" : "local sample"}; ` +
-      `reasoning: ${cfg.mode.llm === "nightshift" ? (degraded.has("llm") ? "Nemotron via Nightshift with rules fallback" : "Nemotron via Nightshift") : "rules"})`;
+      `reasoning: ${cfg.mode.llm === "rules" ? "rules" : degraded.has("llm") ? `${reasoning} with rules fallback` : reasoning})`;
   const result = {
     run_id: runId, mode: modeLabel, outlet_id: state.outlet_id, as_of: state.as_of,
     decisions: state.decisions, actions: state.actions, unresolved: state.unresolved, log: path,

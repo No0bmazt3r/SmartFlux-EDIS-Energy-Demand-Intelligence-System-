@@ -1,6 +1,6 @@
 {
-  "run_id": "r-08a077d5",
-  "mode": "sample (rules reasoner, no LLM)",
+  "run_id": "r-760de63b",
+  "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
   "outlet_id": "OUT-01",
   "as_of": "2026-10-18",
   "decisions": [
@@ -22,11 +22,24 @@
         "Solar not considered here; ask \"Solar, ToU or both?\" for the joint decision",
         "Sample data: business data is synthetic, weather and holidays are real"
       ]
+    },
+    {
+      "type": "machine_fault",
+      "verdict": "No dryer is wasting energy",
+      "confidence": "high",
+      "evidence": [
+        "All 6 dryers are within their normal range"
+      ],
+      "ruled_out": [],
+      "assumptions": [
+        "Normal level = the baseline week 7 Sept–13 Sept; compared with 5 Oct–18 Oct",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
     }
   ],
   "actions": [
     {
-      "id": "r-08a077d5-a1",
+      "id": "r-760de63b-a1",
       "type": "switch_tariff",
       "target": "OUT-01",
       "reason": "ToU saves about RM7.6/month",

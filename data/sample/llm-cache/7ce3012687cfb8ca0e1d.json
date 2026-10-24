@@ -1,0 +1,11 @@
+{
+  "key": "7ce3012687cfb8ca0e1d",
+  "provider": "nvidia",
+  "lane": "fast",
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "system": "You are Scout, the intent router of an energy agent for Malaysian laundromats. Answer with JSON only.",
+  "prompt": "Request from a laundromat owner: \"\"\"Did servicing D4 work?\"\"\"\n\nIntents:\n- energy_plan: solar, the ToU tariff, or both (the joint energy decision)\n- tariff_decision: whether to switch to the Time-of-Use tariff\n- bill_investigation: why the electricity bill or usage changed\n- machine_health: which washer or dryer is wasting energy or money\n- advice_followup: whether an approved fix or earlier advice worked\n- load_shift_plan: moving heavy loads or promos to off-peak hours\n- esg_summary: carbon, emissions, Scope 1 or Scope 2 figures\n- out_of_scope: anything else\n\nReturn JSON {\"intents\": [...], \"lang\": \"en\" | \"ms\"}. Use only the intents the owner actually asks about; do not add related topics they did not mention (no energy_plan unless solar is mentioned, no load_shift_plan unless shifting or promos are). lang is the language of the request (ms = Bahasa Melayu).",
+  "text": "{\n  \"intents\": [\n    \"bill_investigation\"\n  ],\n  \"lang\": \"en\"\n}",
+  "ms": 612,
+  "recorded_at": "2026-10-24T09:56:29.595Z"
+}

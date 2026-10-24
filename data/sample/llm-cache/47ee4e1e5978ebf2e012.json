@@ -1,0 +1,11 @@
+{
+  "key": "47ee4e1e5978ebf2e012",
+  "provider": "nvidia",
+  "lane": "deep",
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "system": "You are Reporter. You only reword; numbers come from calculators and must not change. Answer with JSON only.",
+  "prompt": "Rewrite these decision cards for a busy laundromat owner in English: short, plain, no jargon.\nKeep every number exactly as written, add no new numbers, keep the same number of evidence lines.\n[{\"verdict\":\"No dryer is wasting energy\",\"evidence\":[\"All 6 dryers are within their normal range\"]},{\"verdict\":\"Install 10 kWp solar, stay on your current tariff\",\"evidence\":[\"10 kWp: saves RM502.75/month, payback 5.8 years, 77% of solar used on site\",\"Without solar: switch to the ToU tariff (ToU saves RM7.6)\",\"With solar: stay on flat; ToU would cost RM1.39 more\",\"Peak share 58.3% → 64.9% after solar (break-even 63.6%): solar removes mostly off-peak use\",\"5 kWp: saves RM296.48/month, payback 4.9 years, 91% of solar used on site\",\"15 kWp: saves RM638.56/month, payback 6.9 years, 65% of solar used on site\"]}]\n\nReturn JSON {\"cards\": [{\"verdict\": \"...\", \"evidence\": [\"...\"]}]} in the same order.",
+  "text": "{\"cards\": [{\"verdict\": \"No dryer is wasting energy\", \"evidence\": [\"All 6 dryers are within their normal range\"]}, {\"verdict\": \"Install 10 kWp solar, stay on your current tariff\", \"evidence\": [\"10 kWp: saves RM502.75/month, payback 5.8 years, 77% of solar used on site\", \"Without solar: switch to the ToU tariff (ToU saves RM7.6)\", \"With solar: stay on flat; ToU would cost RM1.39 more\", \"Peak share 58.3% → 64.9% after solar (break-even 63.6%): solar removes mostly off-peak use\", \"5 kWp: saves RM296.48/month, payback 4.9 years, 91% of solar used on site\", \"15 kWp: saves RM638.56/month, payback 6.9 years, 65% of solar used on site\"]}]}",
+  "ms": 3712,
+  "recorded_at": "2026-10-24T09:56:28.944Z"
+}

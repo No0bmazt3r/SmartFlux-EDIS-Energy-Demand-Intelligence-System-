@@ -1,18 +1,18 @@
 {
-  "run_id": "r-f43e60c3",
-  "mode": "sample (rules reasoner, no LLM)",
+  "run_id": "r-b26d05b7",
+  "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
   "outlet_id": "OUT-03",
   "as_of": "2026-10-18",
   "decisions": [
     {
       "type": "tariff",
-      "verdict": "Stay on your current flat tariff",
+      "verdict": "Keep your current flat rate plan",
       "rm_per_month": 12.3,
       "confidence": "high",
       "evidence": [
-        "Peak share 75.0% vs break-even 63.6%",
-        "Worst week (week 4): 78.1% in peak",
-        "ToU RM1349.44/month vs flat RM1337.14/month"
+        "Peak usage 75.0% compared to break-even 63.6%",
+        "Lowest week (week 4): 78.1% during peak hours",
+        "Time-of-use costs RM1349.44 per month versus flat RM1337.14 per month"
       ],
       "ruled_out": [
         "Switching to ToU: your peak share is above break-even"
@@ -20,6 +20,19 @@
       "assumptions": [
         "Rates used: peak RM0.5217, off-peak RM0.4808, flat RM0.5068 per kWh (all-in; confirm against TNB's schedule)",
         "Solar not considered here; ask \"Solar, ToU or both?\" for the joint decision",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
+    },
+    {
+      "type": "machine_fault",
+      "verdict": "No dryer is using excess power",
+      "confidence": "high",
+      "evidence": [
+        "All 6 dryers are operating within their expected range"
+      ],
+      "ruled_out": [],
+      "assumptions": [
+        "Normal level = the baseline week 7 Sept–13 Sept; compared with 5 Oct–18 Oct",
         "Sample data: business data is synthetic, weather and holidays are real"
       ]
     }

@@ -17,7 +17,9 @@ const INTENTS: Record<Exclude<Intent, "out_of_scope">, string> = {
 export async function llmScout(llm: Generator, question: string) {
   const g = await llm(
     `Request from a laundromat owner: """${question}"""\n\nIntents:\n${Object.entries(INTENTS).map(([k, v]) => `- ${k}: ${v}`).join("\n")}\n` +
-    `- out_of_scope: anything else\n\nReturn JSON {"intents": [...], "lang": "en" | "ms"}. Use every intent that applies; lang is the language of the request (ms = Bahasa Melayu).`,
+    `- out_of_scope: anything else\n\nReturn JSON {"intents": [...], "lang": "en" | "ms"}. Use only the intents the owner actually asks about; ` +
+    `do not add related topics they did not mention (no energy_plan unless solar is mentioned, no load_shift_plan unless shifting or promos are). ` +
+    `lang is the language of the request (ms = Bahasa Melayu).`,
     { lane: "fast", json: true, maxTokens: 120, system: "You are Scout, the intent router of an energy agent for Malaysian laundromats. Answer with JSON only." },
   );
   const out = parseJson<{ intents: string[]; lang: string }>(g.text);
