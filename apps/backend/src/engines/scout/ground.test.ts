@@ -16,6 +16,13 @@ test("explicit topics are kept, and an ask the LLM missed is added back", () => 
   assert.deepEqual(groundIntents("Did the promo help?", ["advice_followup"]).dropped, []);
 });
 
+test("a follow-up on advice is not also a bill question unless the owner asks about the bill (seen live in example 07)", () => {
+  assert.deepEqual(groundIntents("Did servicing D4 work?", ["bill_investigation", "advice_followup"]),
+    { intents: ["advice_followup"], dropped: ["bill_investigation"] });
+  assert.deepEqual(groundIntents("Did servicing D4 work? My bill is still higher", ["bill_investigation", "advice_followup"]).intents,
+    ["bill_investigation", "advice_followup"]);
+});
+
 test("a paraphrase the rules table misses can still come from the LLM", () => {
   // No rules keyword for this phrasing; the LLM's reading is kept because tariff questions may be paraphrased.
   const g = groundIntents("Is the peak-hour pricing plan worth it for me?", ["tariff_decision"]);

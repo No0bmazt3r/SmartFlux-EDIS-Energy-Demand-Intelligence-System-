@@ -9,6 +9,8 @@
   "scripts": {
     "agent": "tsx apps/backend/src/cli.ts",
     "start": "tsx apps/backend/src/server.ts",
+    "demo": "pnpm web:build && pnpm start",
+    "dev": "pnpm run \"/^(start|web:dev)$/\"",
     "web:dev": "pnpm --filter @smartflux/frontend dev",
     "web:build": "pnpm --filter @smartflux/frontend build",
     "test": "node --import tsx --test \"apps/backend/src/**/*.test.ts\"",

@@ -57,6 +57,9 @@ export function groundIntents(question: string, proposed: Intent[]) {
   const kept = proposed.filter((i) => !EXPLICIT_ONLY.includes(i) || ruled.includes(i));
   const dropped = proposed.filter((i) => !kept.includes(i));
   for (const i of ruled) if (!kept.includes(i)) kept.push(i);
+  // Same rule as classify(): "Did servicing D4 work?" asks about past advice, not why the bill changed.
+  if (kept.includes("advice_followup") && !ruled.includes("bill_investigation") && kept.includes("bill_investigation"))
+    dropped.push(...kept.splice(kept.indexOf("bill_investigation"), 1));
   if (kept.length > 1) kept.splice(0, kept.length, ...kept.filter((i) => i !== "out_of_scope"));
   return { intents: kept.length ? kept : (["out_of_scope"] as Intent[]), dropped };
 }

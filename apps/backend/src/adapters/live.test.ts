@@ -28,14 +28,14 @@ async function serve(handler: (req: IncomingMessage, json: any) => { status?: nu
 // Fake Nightshift: answers each role the way a well-behaved Nemotron would, and records what it was sent.
 const seen: { headers: IncomingMessage["headers"]; body: any }[] = [];
 const MODEL = "nvidia/nemotron-test";
-const nightshift = (opts: { fail?: boolean; badNumbers?: boolean; prose?: boolean } = {}) => serve((req, json) => {
+const nightshift = (opts: { fail?: boolean; badNumbers?: boolean; prose?: boolean; planAdd?: string[] } = {}) => serve((req, json) => {
   seen.push({ headers: req.headers, body: json });
   if (opts.fail) return { status: 503, json: { error: "overloaded" } };
   if (opts.prose && json.messages.length === 2) return { json: { model: MODEL, choices: [{ message: { content: "Sure! Here is my answer." } }] } };
   const sys: string = json.messages[0].content, user: string = json.messages[1].content;
   let content: unknown;
   if (sys.startsWith("You are Scout")) content = { intents: /bill|higher/i.test(user.split('"""')[1]) ? ["bill_investigation"] : ["tariff_decision"], lang: "en" };
-  else if (sys.startsWith("You are Planner")) content = { add: ["humidity", "holiday"], reasons: { humidity: "September was humid", holiday: "Malaysia Day fell in the window" } };
+  else if (sys.startsWith("You are Planner")) content = { add: opts.planAdd ?? ["humidity", "holiday"], reasons: { humidity: "September was humid", holiday: "Malaysia Day fell in the window" } };
   else if (sys.startsWith("You are Skeptic")) content = { verdict: "approve", reason: "Peers barely moved, so the weather is not the cause." };
   else {
     const cards = JSON.parse(user.split("\n").find((l) => l.startsWith("[{"))!);
@@ -87,6 +87,12 @@ test("Reporter rewrites that change a number are rejected; the calculator's text
   const res = await run({ outlet_id: "OUT-01", as_of: "2026-10-18", question: "Should I switch to the ToU tariff?" }, liveLlm(await nightshift({ badNumbers: true })), { echo: false });
   assert.equal(res.decisions[0].verdict, "Switch to the ToU tariff");
   assert.ok(events(res.log).some((e) => e.action === "word" && /kept the template text/.test(e.output_summary)));
+});
+
+test("A dryer check the Planner model adds to a tariff question runs, but finding nothing adds no card (seen live in examples 01, 03)", async () => {
+  const res = await run({ outlet_id: "OUT-01", as_of: "2026-10-18", question: "Should I switch to the ToU tariff?" }, liveLlm(await nightshift({ planAdd: ["fault"] })), { echo: false });
+  assert.deepEqual(res.decisions.map((d) => d.type), ["tariff"]);
+  assert.ok(events(res.log).some((e) => e.agent_name === "Planner" && /fault/.test(e.output_summary)));
 });
 
 // Fake Zetaris: checks the request the way the real REST API expects it, then answers from the sample data by

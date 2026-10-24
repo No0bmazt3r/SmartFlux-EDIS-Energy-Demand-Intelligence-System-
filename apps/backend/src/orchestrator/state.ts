@@ -13,7 +13,7 @@ export type RunRequest = { outlet_id: string; as_of: string; question?: string; 
 
 // kind picks the Investigator recipe and the Skeptic check; reason says why a hypothesis was ruled out.
 export type HypothesisKind = "tou" | "energy" | "fault" | "humidity" | "traffic" | "holiday" | "bill" | "verify" | "shift";
-export type Hypothesis = { id: string; intent: Intent; kind: HypothesisKind; text: string; status: "open" | "supported" | "rejected" | "unresolved"; reason?: string };
+export type Hypothesis = { id: string; intent: Intent; kind: HypothesisKind; text: string; status: "open" | "supported" | "rejected" | "unresolved"; reason?: string; optional?: true };
 export type Evidence = { id: string; kind: "query" | "calc"; name: string; params: Record<string, unknown>; summary: string; output: unknown };
 export type Claim = {
   id: string; hypothesis_id: string; kind: HypothesisKind; text: string;

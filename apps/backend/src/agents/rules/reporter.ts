@@ -241,7 +241,9 @@ export function reporter(state: RunState, ctx: Ctx) {
       ruled_out: ruledOut, assumptions: [t.baseline(range(bill.data.windows.baseline, state.lang), range(bill.data.windows.current, state.lang)), t.synthetic],
     });
   }
-  for (const claim of approved) {
+  // A check the Planner model added on its own earns a card only when it found something.
+  const optionalQuiet = (c: Claim) => c.kind === "fault" && (c.data.none || c.data.learned) && state.hypotheses.find((h) => h.id === c.hypothesis_id)?.optional;
+  for (const claim of approved.filter((c) => !optionalQuiet(c))) {
     if (claim.kind === "energy") {
       const card = energyCard(claim, state.claims.filter((c) => c.hypothesis_id === claim.hypothesis_id && c.status === "rejected"), state.lang);
       state.decisions.push(card);

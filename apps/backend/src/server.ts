@@ -131,5 +131,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   createApp(cfg, { webDir: process.env.WEB_DIR ?? "apps/frontend/dist" }).listen(cfg.port, "0.0.0.0", () => {
     console.log(`SmartFlux API on http://0.0.0.0:${cfg.port} (data: ${cfg.mode.data}, reasoning: ${cfg.mode.llm})`);
     if (process.env.BRIEFING_SCHEDULER !== "off") startScheduler(cfg);
+  }).on("error", (e: NodeJS.ErrnoException) => {
+    if (e.code !== "EADDRINUSE") throw e;
+    console.error(`Port ${cfg.port} is already in use, probably by another SmartFlux server (pnpm start / demo / dev). Stop it with Ctrl+C, or run with PORT=8001.`);
+    process.exit(1);
   });
 }

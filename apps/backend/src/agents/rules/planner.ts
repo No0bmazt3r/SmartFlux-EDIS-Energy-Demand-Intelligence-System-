@@ -45,11 +45,12 @@ export async function planner(state: RunState, ctx: Ctx) {
       continue;
     }
     // The recipe always runs in full (for a bill question that includes the alternative causes, so they can be
-    // ruled out); the model can only add optional hypotheses on top, never remove one.
+    // ruled out); the model can only add optional hypotheses on top, never remove one. Those are marked so a
+    // check that finds nothing stays in the log without adding an off-topic card.
     for (const kind of llmAdd ? [...kinds, ...llmAdd] : kinds) {
       if (kind === "tou" && state.intents.includes("energy_plan")) continue; // the joint decision already covers the tariff
       if ([...state.hypotheses, ...fresh].some((h) => h.kind === kind)) continue;
-      fresh.push({ id: `h${state.hypotheses.length + fresh.length + 1}`, intent, kind, text: HYPOTHESES[kind], status: "open" });
+      fresh.push({ id: `h${state.hypotheses.length + fresh.length + 1}`, intent, kind, text: HYPOTHESES[kind], status: "open", ...(kinds.includes(kind) ? {} : { optional: true as const }) });
     }
   }
   state.hypotheses.push(...fresh);

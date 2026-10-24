@@ -72,8 +72,8 @@ No `.env` is needed for sample mode. On Windows, run it inside WSL2.
 ### Web app (customer, owner, admin)
 
 ```bash
-pnpm web:build && pnpm start      # API + web app on http://localhost:8000
-# or, while editing the UI: pnpm start  (one terminal)  +  pnpm web:dev  (Vite on :5173, proxies the API)
+pnpm demo      # builds the web app, then serves it with the API on http://localhost:8000
+pnpm dev       # while editing: API on :8000 + Vite with hot reload on http://localhost:5173 (proxies the API)
 ```
 
 One app, three roles, picked at the demo login (no password):
@@ -97,7 +97,18 @@ pnpm smoke                                 # Zetaris checks + template parity, N
 pnpm agent --input input_examples/02-bill-why.json
 ```
 
-Each side can go live on its own (`DATA_MODE=zetaris` or `LLM_MODE=nightshift`). If a live service fails mid-run, that step retries, then uses its local twin (SQLite or the rules reasoner), and the run is marked `mixed`.
+Each side can go live on its own (`DATA_MODE=zetaris` or `LLM_MODE=nightshift`).
+
+`LLM_MODE` picks who reasons. The mode label and every log event name the source.
+
+| `LLM_MODE` | Reasoning | Needs |
+| --- | --- | --- |
+| `rules` (sample default) | The rules agents only, no LLM | Nothing |
+| `nightshift` (live default) | Nemotron through Meterless Nightshift, the primary path | Nightshift runtime URL, token, two pinned routes |
+| `nvidia` | Nemotron straight from build.nvidia.com; a backup when Nightshift is unreachable | `NVIDIA_API_KEY` |
+| `replay` | Answers recorded from a real Nemotron run (`data/sample/llm-cache/`), offline; every number is still computed. A prompt with no recording uses the rules agent for that step | Nothing |
+
+`LLM_RECORD=true` saves live answers for replay. The recorded live run of all 8 examples is in [output_examples/live-nemotron/](output_examples/live-nemotron/). It was recorded through build.nvidia.com, not Nightshift. If a live service fails mid-run, that step retries, then uses its local twin (SQLite or the rules reasoner), and the run is marked `mixed`.
 
 ## Usage
 
