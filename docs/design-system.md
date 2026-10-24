@@ -25,8 +25,8 @@
 | **Secondary** | `#FF9100` | Peak energy, money at stake, the main call to action on a card |
 | **Tertiary** | `#FFC880` | Highlights, savings figures, chips |
 | **Neutral** | `#0F061E` | Page background (deepest neutral) |
-| Purple deep 1 | `#5A189A` | Gradients, hero areas, selected states |
-| Purple deep 2 | `#3C096C` | Gradients, pressed states |
+| Purple deep 1 | `#5A189A` | Selected states |
+| Purple deep 2 | `#3C096C` | The briefing card's flat field, pressed states |
 
 ### 2.1 Tonal scales
 
@@ -98,7 +98,7 @@ Text needs 4.5:1 (3:1 for large text, 24 px or 18.66 px bold); UI components and
 | --- | --- | --- | --- |
 | Headline | **Plus Jakarta Sans** | 600, 700, 800 | Screen titles, verdicts, big numbers |
 | Body | **Inter** | 400, 500, 600 | Paragraphs, card text, tables |
-| Label / data | **JetBrains Mono** | 400, 500 | Labels, chips, IDs, SQL, log lines, tabular figures |
+| Code | **JetBrains Mono** | 400 | IDs, SQL and query-template names only; figures use Inter's tabular numerals |
 
 All three are on Google Fonts under the SIL Open Font License.
 
@@ -116,8 +116,8 @@ All three are on Google Fonts under the SIL Open Font License.
 | `h3` | 18 / 24 | Jakarta 600 | Section title |
 | `body` | 16 / 24 | Inter 400 | Card text (never smaller on mobile) |
 | `body-sm` | 14 / 20 | Inter 400 | Secondary text |
-| `label` | 13 / 16 | JetBrains Mono 500, +0.02em | Chips, badges, table headers |
-| `mono` | 13 / 20 | JetBrains Mono 400 | SQL, log lines |
+| `label` | 13 / 18 | Inter 500, sentence case, no tracking | Small labels above values, badges, table headers |
+| `mono` | 13 / 20 | JetBrains Mono 400 | SQL, IDs |
 
 Numbers in tables and KPIs use `font-variant-numeric: tabular-nums`. Malay strings run about 20–30% longer than English: never fix text widths.
 
@@ -140,24 +140,25 @@ These follow the palette board.
 
 | Component | Spec |
 | --- | --- |
-| **Button: Primary** | `--primary-soft` fill, `#1F102C` text, radius `md`, height 44, label in Inter 600 |
+| **Button: Primary** | `--primary-soft` fill, `#1F102C` text, radius `full` (cards are soft, so controls are pills), height 44, label in Inter 600 |
 | **Button: Secondary** | `--surface-2` fill, `--text` |
 | **Button: Inverted** | `--primary-50` fill, `#1F102C` text; used on purple hero areas |
 | **Button: Outlined** | Transparent, 1 px `--outline` border, `--text` |
 | **Button: Call to action** | `--secondary` fill, `--text-on-accent`; at most one per screen (Approve, Ask) |
 | **Search / input** | `--surface-2` fill, 1 px `--outline`, leading search icon, 44 px high; focus ring `--focus` |
 | **Progress bar** | 6 px track `--surface-3`; fill `--primary-soft` (progress), `--tertiary` (savings), `--secondary` (peak share) |
-| **Bottom navigation** | Floating pill on `--surface-2`, radius `full`; 4 items (Home, Ask, Machines, Approvals); active item is a `--primary-soft` circle with dark icon; Approvals shows a count badge |
-| **FAB** | 48 px square, radius `md`, `--tertiary-700` fill (`#AD8857`), **dark** icon `#0F061E` (6.0:1; a light icon would fail at 2.9:1). Used for "Ask" on Home |
-| **Label chip** | `--primary` fill, white text, leading icon, radius `sm` |
+| **Bottom navigation** | A docked bar on `--surface` with a 1 px `--surface-2` top rule and no shadow; 4 items (Home, Ask, Machines, Approvals); the active item is a `--surface-3` pill with the icon in `--primary-text`; Approvals shows a count badge |
+| **Type line** | The decision type (icon + muted text) sits on one line with the confidence badge, under the RM figure; no filled chip above the heading |
 | **Icon buttons** | 36 px circles: magic (`--primary-soft`), group (`--secondary-300`), tag (`--tertiary`), delete (`--danger`), each with a dark icon and an `aria-label` |
-| **Decision card** | `--surface`, radius `lg`; label chip (decision type), verdict (`h2`), RM figure (`display` in `--tertiary` for savings or `--secondary` for waste), confidence badge, ruled-out list, "Show evidence" link in `--primary-text` |
-| **Briefing card** | Gradient `#5A189A` → `#3C096C`, `--text`; date in mono; 3 bullet lines; "Open" inverted button |
-| **Risk badge** | Mono label + icon: read-only (eye, muted), advisory (lightbulb, primary-text), operational (wrench, tertiary), financial (payments, secondary) |
+| **Decision card** | `--surface`, radius `lg`; verdict (`h2`), RM figure (`display` in `--tertiary` for savings or `--secondary` for waste) with a muted unit, type line with confidence badge, ruled-out list, "Show evidence" link in `--primary-text` |
+| **Briefing card** | Flat `#3C096C` field, `--text`; "Weekly briefing · date" label; 3 bullet lines; "Open" inverted button |
+| **Risk badge** | Sentence-case label + icon: read-only (eye, muted), advisory (lightbulb, primary-text), operational (wrench, tertiary), financial (payments, secondary) |
 | **Status badge** | verified (check, success), awaiting approval (hourglass, tertiary), rejected (close, danger), not achieved (error, danger), unresolved (help, muted) |
-| **Agent timeline** | Vertical list; each row: agent name (mono), action, arrow to target agent, status badge, model chip; `needs_revision` rows get a left 3 px `--tertiary` bar plus "Sent back" text |
+| **Agent timeline** | Vertical list; each row: agent name, action, arrow to target agent, status badge, model chip; `needs_revision` rows get a left 3 px `--tertiary` bar plus "Sent back" text |
 | **Evidence block** | SQL in mono on `--bg` with a copy button; calculator inputs and outputs as a two-column table |
-| **Table (Admin)** | Header in `label`; rows 48 px; zebra with `--surface` / `--surface-2`; numbers right-aligned, tabular |
+| **Table (Admin)** | Header in `label` over a 1 px `--surface-3` rule; rows 48 px split by 1 px `--surface-2` rules, no zebra; numbers right-aligned, tabular |
+| **List** | Rows on one `--surface` card split by 1 px `--surface-2` rules (alerts, machines, recent questions, run log), not a stack of separate cards |
+| **KPI strip (Admin)** | One card split into equal cells by 1 px seams; label above value; savings in `--tertiary` only when above zero |
 
 Icons: Material Symbols Rounded, 24 px, weight 400.
 

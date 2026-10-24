@@ -104,6 +104,14 @@ test("three sessions across restarts: learn, flag and approve, verify, then brie
   assert.ok(brief.decisions[0].evidence.some((e) => /^Servicing D4 saved RM/.test(e)), "briefing reports the remembered outcome");
 });
 
+test("asking again while advice awaits approval points at it instead of queuing a copy", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sf-dup-"));
+  const c = { ...cfg, hmemDir: join(dir, "hmem"), logDir: join(dir, "logs") };
+  const q = { outlet_id: "OUT-01", as_of: "2026-10-18", question: "Should I switch to the ToU tariff?" };
+  const [a, b] = [await run(q, c, { echo: false }), await run(q, c, { echo: false })];
+  assert.equal(b.actions[0].id, a.actions[0].id);
+});
+
 test("rejected advice is not proposed again", async () => {
   const dir = mkdtempSync(join(tmpdir(), "sf-reject-"));
   const c = { ...cfg, hmemDir: join(dir, "hmem"), logDir: join(dir, "logs") };

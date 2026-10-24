@@ -35,7 +35,7 @@ function Home({ o, outlet, reload }: Ctx) {
   const alerts = [
     ...o.machines.filter((m) => m.health === "flagged" || m.health === "service_approved").map((m) => ({ icon: "warning", cls: "warn", text: m.flag?.verdict ?? `${m.name} flagged`, href: `/machines/${m.machine_id}` })),
     ...o.advice.filter((a) => a.verified).map((a) => ({ icon: a.verified!.verdict === "verified" ? "check_circle" : "hourglass_empty", cls: a.verified!.verdict === "verified" ? "ok" : "muted",
-      text: `${actionTitle(a, t)}: ${a.verified!.verdict === "verified" ? `${t("savingVerified")} ${rm(a.verified!.realised_rm_per_month)}/month` : a.verified!.verdict.replace("_", " ")}`, href: "/approvals?tab=history" })),
+      text: `${actionTitle(a, t)}: ${a.verified!.verdict === "verified" ? `${t("savingVerified")} ${rm(a.verified!.realised_rm_per_month, 2)}${t("perMonth")}` : a.verified!.verdict.replace("_", " ")}`, href: "/approvals?tab=history" })),
     ...o.machines.filter((m) => m.customer_reports.length).map((m) => ({ icon: "campaign", cls: "info", text: `${t("custReported")} ${m.name}: ${reasonLabel(m.customer_reports.at(-1)!.reason, t)}`, href: `/machines/${m.machine_id}` })),
   ];
   const brief = async () => { setBusy(true); try { navigate(`/briefing/${await ask(outlet, o.as_of, p.lang, { briefing: true })}`); reload(); } finally { setBusy(false); } };
@@ -43,19 +43,19 @@ function Home({ o, outlet, reload }: Ctx) {
     <div className="stack">
       {o.briefing ? (
         <section className="card briefing">
-          <span className="label">{day(o.briefing.as_of).toUpperCase()} · {t("weeklyBriefing").toUpperCase()}</span>
+          <span className="label">{t("weeklyBriefing")} · {day(o.briefing.as_of)}</span>
           <ul>{o.briefing.decisions[0].evidence.slice(0, 3).map((b) => <li key={b}>{b}</li>)}</ul>
           <a className="btn inverted" {...linkProps(`/briefing/${o.briefing.run_id}`)}>{t("open")}</a>
         </section>
       ) : (
         <section className="card briefing">
-          <span className="label">{t("weeklyBriefing").toUpperCase()}</span>
+          <span className="label">{t("weeklyBriefing")}</span>
           <p>{t("briefingNone")}</p>
           <button className="btn inverted" disabled={busy} onClick={brief}>{busy ? t("preparing") : t("prepareNow")}</button>
         </section>
       )}
       <section className="card">
-        <span className="label muted">{t("thisMonth").toUpperCase()} · {t("to").toUpperCase()} {day(o.as_of).toUpperCase()}</span>
+        <span className="label muted">{t("thisMonth")} · {t("to")} {day(o.as_of)}</span>
         <p className="display num">{Math.round(k.kwh_month_to_date).toLocaleString()} kWh</p>
         <p className="num">{rm(k.cost_rm_month_to_date)} {t("soFar")} · {t("projected")} {rm(k.projected_bill_rm)}</p>
         <div className="bar" role="progressbar" aria-label={t("billBar")} aria-valuenow={Math.round((k.cost_rm_month_to_date / k.projected_bill_rm) * 100)}><span style={{ width: `${Math.min(100, (k.cost_rm_month_to_date / k.projected_bill_rm) * 100)}%` }} /></div>
@@ -63,17 +63,17 @@ function Home({ o, outlet, reload }: Ctx) {
       </section>
       {alerts.length > 0 && <section className="stack tight" aria-label={t("alerts")}>
         <h3>{t("alerts")}</h3>
-        {alerts.map((a) => <a key={a.text} className="mrow" {...linkProps(a.href)}><Icon name={a.icon} className={a.cls} /><span className="grow">{a.text}</span><Icon name="chevron_right" /></a>)}
+        <div className="list">{alerts.map((a) => <a key={a.text} className="mrow" {...linkProps(a.href)}><Icon name={a.icon} className={a.cls} /><span className="grow">{a.text}</span><Icon name="chevron_right" className="muted" /></a>)}</div>
       </section>}
       <a className="card link" {...linkProps("/plan")}>
-        <span className="chip"><Icon name="solar_power" className="sm" />{t("energyPlan").toUpperCase()}</span>
-        <h3>{plan ? plan.verdicts[0] : t("planTeaser")}</h3>
+        <span className="label muted row"><Icon name="solar_power" className="sm" />{t("energyPlan")}</span>
+        <div className="row between"><h3>{plan ? plan.verdicts[0] : t("planTeaser")}</h3><Icon name="chevron_right" className="muted" /></div>
       </a>
       <section className="card">
         <span className="label muted">{t("verifiedSavings")}</span>
-        <p className="h3 save num">{rm(o.verified_savings_rm_per_month, 2)}{t("savedFromAdvice")}</p>
+        {o.verified_savings_rm_per_month > 0 ? <p className="h3 save num">{rm(o.verified_savings_rm_per_month, 2)}{t("savedFromAdvice")}</p>
+          : <p className="sm muted"><span className="h3 num">{rm(0, 2)}</span><br />{t("noSavingsYet")}</p>}
       </section>
-      <a className="fab" aria-label={t("ask")} {...linkProps("/ask")}><Icon name="auto_awesome" /></a>
     </div>
   );
 }
@@ -118,8 +118,8 @@ function Ask({ outlet, o, reload }: Ctx) {
       {busy && <section className="card"><Working /></section>}
       {err && <Failed error={err} />}
       <h3>{t("recent")}</h3>
-      {o.run_log.filter((r) => r.kind === "ask").slice(0, 5).map((r) =>
-        <a key={r.run_id} className="mrow" {...linkProps(`/result/${r.run_id}`)}><Icon name="history" /><span className="grow">{r.question}<br /><span className="sm muted">{r.verdicts[0]} · {t("asOfLc")} {day(r.as_of)}</span></span></a>)}
+      <div className="list">{o.run_log.filter((r) => r.kind === "ask").slice(0, 5).map((r) =>
+        <a key={r.run_id} className="mrow" {...linkProps(`/result/${r.run_id}`)}><Icon name="history" className="muted" /><span className="grow">{r.question}<br /><span className="sm muted">{r.verdicts[0]} · {t("asOfLc")} {day(r.as_of)}</span></span></a>)}</div>
     </div>
   );
 }
@@ -194,7 +194,7 @@ function Plan({ outlet, o, reload }: Ctx) {
   const go = async () => { setBusy(true); try { await ask(outlet, o.as_of, p.lang, { question: t("planQ") }); reload(); } finally { setBusy(false); } };
   if (!run) return (
     <section className="card stack">
-      <span className="chip"><Icon name="solar_power" className="sm" />{t("energyPlan").toUpperCase()}</span>
+      <span className="label muted row"><Icon name="solar_power" className="sm" />{t("energyPlan")}</span>
       <h2>{t("planQ")}</h2>
       <p>{t("planIntro")}</p>
       <button className="btn cta" disabled={busy} onClick={go}>{busy ? t("preparing") : t("workOut")}</button>
@@ -210,10 +210,9 @@ function Plan({ outlet, o, reload }: Ctx) {
   return (
     <div className="stack">
       <article className="card">
-        <span className="chip"><Icon name="solar_power" className="sm" />{t("energyPlan").toUpperCase()}</span>
         <h2>{d.verdict}</h2>
-        {d.rm_per_month != null && <p className="display save num">{rm(d.rm_per_month)}<span className="h3"> {t("perMonth")}</span></p>}
-        <Confidence c={d.confidence} />
+        {d.rm_per_month != null && <p className="display save num">{rm(d.rm_per_month)}<span className="unit"> {t("perMonth")}</span></p>}
+        <p className="meta"><span className="row muted"><Icon name="solar_power" className="sm" />{t("energyPlan")}</span><Confidence c={d.confidence} /></p>
       </article>
       {options.length > 0 && <section className="card"><h3>{t("solarOptions")}</h3>
         {options.map((e) => <p key={e} className="row"><Icon name={e.startsWith(`${kwp} kWp`) ? "star" : "solar_power"} className={e.startsWith(`${kwp} kWp`) ? "save" : "muted"} /><span>{e}{e.startsWith(`${kwp} kWp`) ? ` · ${t("recommended")}` : ""}</span></p>)}
@@ -287,20 +286,20 @@ function Machines({ o }: Ctx) {
         {([["all", t("all")], ["washer", t("washers")], ["dryer", t("dryers")], ["flagged", t("flagged")]] as const).map(([k, l]) => <button key={k} aria-pressed={f === k} onClick={() => setF(k)}>{l}</button>)}
       </div>
       {!o.machines.some((m) => m.normal) && <p className="card sm">{t("normalHint")}</p>}
-      {shown.map((m) => (
+      <div className="list">{shown.map((m) => (
         <a key={m.machine_id} className="mrow" {...linkProps(`/machines/${m.machine_id}`)}>
-          <Icon name={m.type === "dryer" ? "mode_heat" : "local_laundry_service"} />
+          <Icon name={m.type === "dryer" ? "mode_heat" : "local_laundry_service"} className="muted" />
           <div className="grow stack tight">
             <div className="row between wrap"><span className="h3">{m.name}</span><Sparkline weeks={m.weekly} normal={normalOf(m)} /><StatusBadge s={m.health} /></div>
             <div className="row wrap sm">
-              {m.type === "dryer" && <span className="chip soft">{m.heat_source.toUpperCase()}</span>}
-              {m.normal && <span className="mono">{m.heat_source === "gas" ? `${m.normal.minutes_per_cycle?.toFixed(0)} min` : `${m.normal.kwh_per_cycle?.toFixed(2)} kWh`} {t("perCycle")}</span>}
+              {m.type === "dryer" && <span className="muted">{t(m.heat_source === "gas" ? "gas" : "electric")}</span>}
+              {m.normal && <span className="num">{m.heat_source === "gas" ? `${m.normal.minutes_per_cycle?.toFixed(0)} min` : `${m.normal.kwh_per_cycle?.toFixed(2)} kWh`} {t("perCycle")}</span>}
             </div>
             {m.cost_per_cycle_rm != null && <p className="sm">{t("costs")} {rm(m.cost_per_cycle_rm, 2)} · {t("youCharge")} {m.price_from_rm === m.price_to_rm ? rm(m.price_from_rm, 2) : `${rm(m.price_from_rm)}–${rm(m.price_to_rm)}`}</p>}
             {m.customer_reports.length > 0 && <p className="sm info"><Icon name="campaign" className="sm" /> {m.customer_reports.length} {t("custReports")}</p>}
           </div>
         </a>
-      ))}
+      ))}</div>
     </div>
   );
 }
@@ -341,7 +340,7 @@ function Briefing({ runId }: { runId: string }) {
   const [b, ...rest] = r.data.result.decisions;
   return (
     <div className="stack">
-      <section className="card briefing"><span className="label">{b.verdict.toUpperCase()}</span><ul>{b.evidence.map((e) => <li key={e}>{e}</li>)}</ul></section>
+      <section className="card briefing"><h2>{b.verdict}</h2><ul>{b.evidence.map((e) => <li key={e}>{e}</li>)}</ul></section>
       {rest.map((d, i) => <a key={i} className="card link" {...linkProps(`/decision/${runId}/${i + 1}`)}><DecisionCard d={d} compact /></a>)}
       <p className="sm muted">{t("generated")} <a {...linkProps(`/evidence/${runId}`)}>{t("evidence")}</a></p>
     </div>

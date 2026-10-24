@@ -38,7 +38,7 @@ function Machines() {
       <TopBar><DemoControls /></TopBar>
       <div className="stack">
         <div className="row between wrap">
-          <div><h1>SmartFlux · {outlet} {name}</h1>{v && <p className="sm muted">{t("updated")} {day(v.at)}, {v.at.slice(11, 16)}</p>}</div>
+          <div><h2>{outlet} {name}</h2>{v && <p className="sm muted">{t("updated")} {day(v.at)}, {v.at.slice(11, 16)}</p>}</div>
           {v && <ModeBadge mode={v.mode} />}
         </div>
         {v?.promos.map((p) => <div key={p.slot} className="promo"><Icon name="local_offer" />{t("promo")}: {slot(p.slot, lang)}</div>)}

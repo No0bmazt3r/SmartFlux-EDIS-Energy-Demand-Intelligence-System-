@@ -222,10 +222,13 @@ export function reporter(state: RunState, ctx: Ctx) {
   }
   const approved = state.claims.filter((c) => c.status === "approved");
   const ruledOut = state.hypotheses.filter((h) => h.status === "rejected" && h.reason).map((h) => `${h.text}: ${h.reason}`);
-  // Every proposed action is remembered with its prediction; advice the owner already declined is not re-proposed.
+  // Every proposed action is remembered with its prediction; advice the owner already declined is not re-proposed,
+  // and asking again while the same advice still awaits a decision points at that one instead of queuing a copy.
   const propose = (type: string, target: string, reason: string, predicted?: number) => {
     const declined = priorRejection(state, ctx, type, target);
     if (declined) return state.decisions.at(-1)?.assumptions.unshift(t.declined(type, fmt(declined.as_of, state.lang)));
+    const open = pendingApprovals(state, ctx).find((m) => m.data.type === type && m.data.target === target);
+    if (open) return state.actions.push({ id: open.data.action_id, type, target, reason, risk: ACTION_RISK[type], status: "awaiting_approval" });
     const action = { id: `${state.run_id}-a${state.actions.length + 1}`, type, target, reason, risk: ACTION_RISK[type], status: gate(type) === "auto" ? "approved" as const : "awaiting_approval" as const };
     state.actions.push(action);
     rememberAdvice(state, ctx, action, predicted);

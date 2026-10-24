@@ -7,7 +7,7 @@ const DICT = {
   home: ["Home", "Utama"], ask: ["Ask", "Tanya"], machines: ["Machines", "Mesin"], approvals: ["Approvals", "Kelulusan"],
   evidence: ["Show evidence", "Tunjuk bukti"], ruledOut: ["Ruled out", "Ditolak"], assumptions: ["Assumptions", "Andaian"],
   why: ["Why", "Sebab"], approve: ["Approve", "Lulus"], reject: ["Reject", "Tolak"], pending: ["Pending", "Menunggu"], history: ["History", "Sejarah"],
-  free: ["FREE", "KOSONG"], inUse: ["IN USE", "DIGUNAKAN"], maint: ["UNDER MAINTENANCE", "DALAM PENYELENGGARAAN"], minLeft: ["min left", "min lagi"],
+  free: ["Free", "Kosong"], inUse: ["In use", "Digunakan"], maint: ["Under maintenance", "Dalam penyelenggaraan"], minLeft: ["min left", "min lagi"],
   all: ["All", "Semua"], washers: ["Washers", "Pembasuh"], dryers: ["Dryers", "Pengering"], freeNow: ["Free now", "Kosong sekarang"], flagged: ["Flagged", "Dibenderakan"],
   updated: ["Updated", "Dikemas kini"], signOut: ["Sign out", "Log keluar"], asOf: ["As of", "Pada"], loading: ["Loading…", "Memuatkan…"],
   notWorking: ["Not working?", "Tidak berfungsi?"], open: ["Open", "Buka"], thisMonth: ["This month", "Bulan ini"],
@@ -15,7 +15,7 @@ const DICT = {
   prepareNow: ["Prepare briefing now", "Sediakan taklimat sekarang"], preparing: ["Preparing…", "Sedang menyediakan…"],
   soFar: ["so far", "setakat ini"], projected: ["projected bill", "anggaran bil"], peakShare: ["Peak share", "Bahagian puncak"], breakeven: ["ToU break-even", "Titik pulang modal ToU"],
   alerts: ["Alerts", "Amaran"], planTeaser: ["Solar, ToU or both? See your plan", "Solar, ToU atau kedua-duanya? Lihat pelan anda"],
-  verifiedSavings: ["VERIFIED SAVINGS", "PENJIMATAN DISAHKAN"], savedFromAdvice: ["/month saved from past advice", "/bulan dijimatkan daripada nasihat lalu"],
+  verifiedSavings: ["Verified savings", "Penjimatan disahkan"], savedFromAdvice: ["/month saved from past advice", "/bulan dijimatkan daripada nasihat lalu"],
   nothingPending: ["Nothing waiting for your approval.", "Tiada yang menunggu kelulusan anda."], predictedSaving: ["Predicted saving", "Anggaran penjimatan"],
   advisedAsOf: ["Advised as of", "Dinasihatkan pada"], perMonth: ["/month", "/bulan"],
   toastService: ["Approved. Customers now see it as under maintenance; we'll check if it worked after 2 weeks.", "Diluluskan. Pelanggan kini melihatnya dalam penyelenggaraan; kami akan semak hasilnya selepas 2 minggu."],
@@ -53,8 +53,9 @@ const DICT = {
   generated: ["Generated automatically by SmartFlux agents.", "Dijana secara automatik oleh ejen SmartFlux."], answer: ["Answer", "Jawapan"], decision: ["Decision", "Keputusan"], machine: ["Machine", "Mesin"],
   worst: ["per cycle at its worst (week", "setiap kitaran pada tahap terburuk (minggu"], inWeek: ["in week", "pada minggu"], normal: ["normal", "biasa"], serviced: ["serviced", "diservis"],
   byWeek: ["per cycle by week", "setiap kitaran mengikut minggu"], week: ["Week", "Minggu"], wasted: ["wasted", "dibazirkan"],
-  tEnergy: ["ENERGY PLAN", "PELAN TENAGA"], tTariff: ["TARIFF", "TARIF"], tFault: ["MACHINE FAULT", "KEROSAKAN MESIN"], tBill: ["BILL", "BIL"],
-  tVerify: ["DID IT WORK?", "ADAKAH IA BERKESAN?"], tPromo: ["PROMO", "PROMOSI"], tEsg: ["EMISSIONS", "PELEPASAN"], tBriefing: ["WEEKLY BRIEFING", "TAKLIMAT MINGGUAN"],
+  tEnergy: ["Energy plan", "Pelan tenaga"], tTariff: ["Tariff", "Tarif"], tFault: ["Machine fault", "Kerosakan mesin"], tBill: ["Bill", "Bil"],
+  tVerify: ["Did it work?", "Adakah ia berkesan?"], tPromo: ["Promo", "Promosi"], tEsg: ["Emissions", "Pelepasan"], tBriefing: ["Weekly briefing", "Taklimat mingguan"],
+  noSavingsYet: ["No verified savings yet. Approved advice is checked about 2 weeks after it's done.", "Belum ada penjimatan disahkan. Nasihat yang diluluskan disemak kira-kira 2 minggu selepas dilaksanakan."],
   aService: ["Service", "Servis"], aPromo: ["Run promo", "Adakan promosi"], aTou: ["Switch to ToU", "Tukar ke ToU"], aQuote: ["Request solar quote", "Minta sebut harga solar"],
 } satisfies Record<string, [string, string]>;
 export type T = ReturnType<typeof useT>;
@@ -81,14 +82,14 @@ const ms = () => (getLang() === "ms" ? 1 : 0);
 export const StatusBadge = ({ s }: { s: string }) => {
   usePrefs();
   const [icon, cls, text] = STATUS[s] ?? ["help", "muted", [s.replace(/_/g, " "), s.replace(/_/g, " ")]];
-  return <span className={`badge ${cls}`}><Icon name={icon} />{text[ms()].toUpperCase()}</span>;
+  return <span className={`badge ${cls}`}><Icon name={icon} />{text[ms()]}</span>;
 };
 const RISK: Record<string, [string, string, [string, string]]> = { read_only: ["visibility", "muted", ["Read-only", "Baca sahaja"]], advisory: ["lightbulb", "info", ["Advisory", "Nasihat"]],
   operational: ["build", "warn", ["Operational", "Operasi"]], financial: ["payments", "peak", ["Financial", "Kewangan"]] };
-export const RiskBadge = ({ r }: { r: string }) => { usePrefs(); return <span className={`badge ${RISK[r]?.[1] ?? "muted"}`}><Icon name={RISK[r]?.[0] ?? "help"} />{(RISK[r]?.[2][ms()] ?? r.replace("_", "-")).toUpperCase()}</span>; };
+export const RiskBadge = ({ r }: { r: string }) => { usePrefs(); return <span className={`badge ${RISK[r]?.[1] ?? "muted"}`}><Icon name={RISK[r]?.[0] ?? "help"} />{RISK[r]?.[2][ms()] ?? r.replace("_", "-")}</span>; };
 const CONF: Record<string, [string, string]> = { high: ["High confidence", "Keyakinan tinggi"], medium: ["Medium confidence", "Keyakinan sederhana"], low: ["Low confidence", "Keyakinan rendah"] };
-export const Confidence = ({ c }: { c: string }) => { usePrefs(); return <span className={`badge ${c === "high" ? "ok" : c === "medium" ? "warn" : "muted"}`}><Icon name="radio_button_checked" />{(CONF[c]?.[ms()] ?? c).toUpperCase()}</span>; };
-export const ModeBadge = ({ mode }: { mode: string }) => <span className="chip soft"><Icon name={mode.startsWith("live") ? "sensors" : "science"} className="sm" />{mode.startsWith("live") ? "LIVE" : mode.startsWith("mixed") ? "MIXED" : "SAMPLE"}</span>;
+export const Confidence = ({ c }: { c: string }) => { usePrefs(); return <span className={`badge ${c === "high" ? "ok" : c === "medium" ? "warn" : "muted"}`}><Icon name="radio_button_checked" />{CONF[c]?.[ms()] ?? c}</span>; };
+export const ModeBadge = ({ mode }: { mode: string }) => <span className="chip soft"><Icon name={mode.startsWith("live") ? "sensors" : "science"} className="sm" />{mode.startsWith("live") ? "Live" : mode.startsWith("mixed") ? "Mixed" : "Sample"}</span>;
 
 const TYPE: Record<string, [string, keyof typeof DICT]> = {
   energy_plan: ["solar_power", "tEnergy"], tariff: ["schedule", "tTariff"], machine_fault: ["build", "tFault"], bill_explanation: ["receipt_long", "tBill"],
@@ -100,10 +101,9 @@ export function DecisionCard({ d, runId, compact }: { d: Decision; runId?: strin
   const waste = d.type === "machine_fault";
   return (
     <article className="card">
-      <span className="chip"><Icon name={TYPE[d.type]?.[0] ?? "info"} className="sm" />{TYPE[d.type] ? t(TYPE[d.type][1]) : d.type.toUpperCase()}</span>
       <h2>{d.verdict}</h2>
-      {d.rm_per_month != null && <p className={`display num ${waste ? "waste" : "save"}`}>{rm(d.rm_per_month, d.rm_per_month < 100 ? 2 : 0)}<span className="h3"> {t("perMonth")}</span>{waste && <span className="sm muted"> {t("wasted")}</span>}</p>}
-      <Confidence c={d.confidence} />
+      {d.rm_per_month != null && <p className={`display num ${waste ? "waste" : "save"}`}>{rm(d.rm_per_month, d.rm_per_month < 100 ? 2 : 0)}<span className="unit"> {t("perMonth")}</span>{waste && <span className="sm muted"> {t("wasted")}</span>}</p>}
+      <p className="meta"><span className="row muted"><Icon name={TYPE[d.type]?.[0] ?? "info"} className="sm" />{TYPE[d.type] ? t(TYPE[d.type][1]) : d.type.replace(/_/g, " ")}</span><Confidence c={d.confidence} /></p>
       {!compact && d.evidence.length > 0 && <div className="stack tight"><h3>{t("why")}</h3><ul>{d.evidence.map((e) => <li key={e}>{e}</li>)}</ul></div>}
       {!compact && d.ruled_out.length > 0 && <div className="stack tight"><h3>{t("ruledOut")}</h3>{d.ruled_out.map((r) => <p key={r} className="row"><Icon name="close" className="bad" />{r}</p>)}</div>}
       {!compact && d.assumptions.length > 0 && <details><summary>{t("assumptions")}</summary><ul className="sm muted">{d.assumptions.map((a) => <li key={a}>{a}</li>)}</ul></details>}
@@ -123,13 +123,13 @@ export function Timeline({ events }: { events: LogEvent[] }) {
           <li key={i} className={back ? "sent-back" : ""}>
             <div className="row between wrap">
               <span className="label">{e.agent_name}{e.target_agent && e.target_agent !== e.agent_name ? ` → ${e.target_agent}` : ""} · {e.action}</span>
-              {back ? <span className="badge warn"><Icon name="undo" />SENT BACK</span>
-                : e.status === "fallback" ? <span className="badge warn"><Icon name="alt_route" />FALLBACK</span>
-                : e.status === "error" ? <span className="badge bad"><Icon name="error" />ERROR</span>
+              {back ? <span className="badge warn"><Icon name="undo" />Sent back</span>
+                : e.status === "fallback" ? <span className="badge warn"><Icon name="alt_route" />Fallback</span>
+                : e.status === "error" ? <span className="badge bad"><Icon name="error" />Error</span>
                 : <span className="badge ok"><Icon name="check" />OK</span>}
             </div>
             <p className="sm">{e.output_summary}</p>
-            <p className="mono muted">{e.input_summary}{e.ms != null ? ` · ${e.ms} ms` : ""}</p>
+            <p className="sm muted">{e.input_summary}{e.ms != null ? ` · ${e.ms} ms` : ""}</p>
             {e.model && <span className="chip soft">{e.model}</span>}
           </li>
         );
@@ -223,8 +223,8 @@ export function TopBar({ title, back, children }: { title?: string; back?: strin
     <header className="topbar">
       {back ? <a className="back" aria-label="Back" {...linkProps(back)}><Icon name="arrow_back" /></a> : null}
       {title ? <h1 className="grow" style={{ fontSize: 22, lineHeight: "28px" }}>{title}</h1>
-        : <a className="brand" {...linkProps("/")}><Icon name="bolt" className="save" />SmartFlux</a>}
-      {children}
+        : <h1 className="brand-h"><a className="brand" {...linkProps("/")}><Icon name="bolt" className="save" />SmartFlux</a></h1>}
+      {children && <div className="controls">{children}</div>}
     </header>
   );
 }
