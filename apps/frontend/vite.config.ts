@@ -5,5 +5,6 @@ import { defineConfig } from "vite";
 const api = { target: "http://localhost:8000", bypass: (req: { headers: { accept?: string } }) => (req.headers.accept?.includes("text/html") ? "/index.html" : undefined) };
 export default defineConfig({
   plugins: [react()],
-  server: { proxy: Object.fromEntries(["/login", "/outlets", "/run", "/approve", "/runs", "/admin", "/health"].map((p) => [p, api])) },
+  // /auth is always proxied: the Google redirect is a page load that must reach the API, not the SPA.
+  server: { proxy: { ...Object.fromEntries(["/login", "/signup", "/me", "/users", "/outlets", "/run", "/approve", "/runs", "/franchise", "/health"].map((p) => [p, api])), "/auth": { target: api.target } } },
 });

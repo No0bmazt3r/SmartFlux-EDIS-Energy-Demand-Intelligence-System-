@@ -65,7 +65,7 @@ Design: [design-system.md](design-system.md) colours and fonts; one idea per sli
 >
 > **What was unique.** No money claim reaches the owner until the Skeptic has re-derived it from Zetaris, and the Skeptic rejects savings summed across interacting decisions. Solar sizing re-decides the tariff on the remaining grid load. H-MEM lets the agent check whether its own advice worked.
 
-Facts for the form: intent routing is the documented fallback, not the Scout Intent engine (its spec was not in the resource pack); `pnpm test` 45/45 pass; `pnpm eval` 24/24 checks pass on seed 1 and the held-out seed 2; benchmark 30 outlets, fault recall 21/21, 0 false flags. Still to fill after the first live run: [exact Nemotron route names].
+Facts for the form: intent routing is the documented fallback, not the Scout Intent engine (its spec was not in the resource pack); `pnpm test` 60/60 pass; `pnpm eval` 24/24 checks pass on seed 1 and the held-out seed 2; benchmark 30 outlets, fault recall 21/21, 0 false flags. Still to fill after the first live run: [exact Nemotron route names].
 
 ## 5. README outline
 

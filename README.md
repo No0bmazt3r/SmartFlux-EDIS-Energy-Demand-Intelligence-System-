@@ -76,15 +76,23 @@ pnpm demo      # builds the web app, then serves it with the API on http://local
 pnpm dev       # while editing: API on :8000 + Vite with hot reload on http://localhost:5173 (proxies the API)
 ```
 
-One app, three roles, picked at the demo login (no password):
+One app, three roles. Accounts are stored in SQLite (`data/users.db`, created on first start) with scrypt-hashed passwords; Google sign-in turns on when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set (see `.env.example`).
 
 | Role | Sees | Can do |
 | --- | --- | --- |
-| **Customer** (QR at the outlet: `/customer?outlet=OUT-01`) | Each machine as free, in use (minutes left) or under maintenance; owner-approved promos | Report a machine that isn't working |
-| **Owner** (phone) | Weekly briefing, bill so far, energy plan, decisions with evidence, machines | Ask the agent, approve or reject actions |
-| **Admin** (desktop) | Every outlet: KPIs, peak vs off-peak, flagged machines, advice scoreboard, run log | Export Scope 2 CSV |
+| **Super admin** (the business owner; desktop) | Every outlet: the franchise dashboard (KPIs, peak vs off-peak, flagged machines, advice scoreboard, run log) and the outlet app | Everything an admin can, export Scope 2 CSV, and add, edit or remove people on the People screen |
+| **Admin** (a franchise manager; phone) | The outlets they were given: weekly briefing, bill so far, energy plan, decisions with evidence, machines | Ask the agent, approve or reject actions |
+| **Customer** (phone) | Outlets with live free machines, each machine as free, in use (a countdown from the real cycle) or under maintenance; owner-approved happy hours | Report a machine that isn't working. Sign up with email or Google, or scan an outlet's QR code (`/customer?outlet=OUT-01`) to look as a guest |
 
-The server checks the role and outlet on every route (signed token; `403` otherwise), so a customer can never read energy data or approve anything. A machine shows **under maintenance** only after the Skeptic approved the fault and the owner approved the service; a customer report is cited as supporting evidence but never flags a machine on its own. Use the date picker to replay the sessions (13 Sep → 4 Oct → 18 Oct).
+In sample mode a clean clone seeds three demo accounts, all with the password `smartflux-demo` (sample mode only; live mode creates only the super admin you name in `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD`):
+
+| Email | Role |
+| --- | --- |
+| `owner@smartflux.demo` | Super admin |
+| `ipoh@smartflux.demo` | Admin for OUT-01 Ipoh |
+| `customer@smartflux.demo` | Customer |
+
+The server re-reads the account and checks its role and outlet on every route (`403` otherwise; a removed account is signed out at once), so a customer can never read energy data or approve anything. Five wrong passwords lock an email for 15 minutes. A machine shows **under maintenance** only after the Skeptic approved the fault and an admin approved the service; a customer report is cited as supporting evidence but never flags a machine on its own. Use the date picker to replay the sessions (13 Sep → 4 Oct → 18 Oct).
 
 ### Live mode (Zetaris + Nightshift)
 
@@ -117,7 +125,7 @@ Each side can go live on its own (`DATA_MODE=zetaris` or `LLM_MODE=nightshift`).
 **HTTP** (`pnpm start`, port 8000): sign in, then ask.
 
 ```bash
-TOKEN=$(curl -s localhost:8000/login -d '{"role":"owner"}' | sed -E 's/.*"token":"([^"]+)".*/\1/')
+TOKEN=$(curl -s localhost:8000/login -d '{"email":"owner@smartflux.demo","password":"smartflux-demo"}' | sed -E 's/.*"token":"([^"]+)".*/\1/')
 curl -s localhost:8000/run -H "authorization: Bearer $TOKEN" \
   -d '{"outlet_id":"OUT-01","as_of":"2026-10-18","question":"Solar, ToU or both?"}'
 curl -s localhost:8000/approve -H "authorization: Bearer $TOKEN" -d '{"action_id":"<id>","decision":"approved"}'
@@ -162,8 +170,8 @@ Every step is one JSON line on stdout and in `logs/<run_id>.jsonl` (fields in [a
 
 ```text
 $ pnpm test        # calculators, H-MEM, Scout routing + risk gate, agents, live-path fakes, HTTP + roles
-ℹ tests 45
-ℹ pass 45
+ℹ tests 60
+ℹ pass 60
 ℹ fail 0
 
 $ pnpm eval        # outcomes O1–O11 + log assertions on seed 1 and the held-out seed 2 (report: eval/report.md)

@@ -1,4 +1,4 @@
-// Admin web (features.md Part B): the franchise view across outlets, from GET /admin/overview.
+// Franchise dashboard (features.md Part B), for the super admin: every outlet at once, from GET /franchise/overview.
 import { useState } from "react";
 import { api, linkProps, match, usePath, usePrefs, useApi } from "./api.ts";
 import { DemoControls, Failed, Icon, Loading, ModeBadge, StatusBadge, day, rm, short } from "./ui.tsx";
@@ -82,7 +82,7 @@ function RunLog({ runs }: { runs: Overview["run_log"] }) {
     <section className="card"><div className="row between"><h3>Run log <span className="sm muted num count-inline">{runs.length}</span></h3>
       {runs.length > 6 && <button className="textlink" onClick={() => setAll(!all)}>{all ? "Show fewer" : "View all"}</button>}</div>
       {runs.length ? <div className="list flush">{(all ? runs : runs.slice(0, 6)).map((x) => (
-        <a key={x.run_id} className="mrow" {...linkProps(`/admin/run/${x.run_id}`)}>
+        <a key={x.run_id} className="mrow" {...linkProps(`/franchise/run/${x.run_id}`)}>
           <span className="sm grow">{day(x.as_of)} · {x.outlet_id} · {x.kind}<br /><span className="muted">{x.verdicts[0] ?? x.question}</span></span><ModeBadge mode={x.mode} /></a>
       ))}</div> : <p className="sm muted">No runs yet.</p>}
     </section>
@@ -91,13 +91,13 @@ function RunLog({ runs }: { runs: Overview["run_log"] }) {
 
 function Dashboard() {
   const { asOf } = usePrefs();
-  const r = useApi<Overview>(`/admin/overview?as_of=${asOf}`);
+  const r = useApi<Overview>(`/franchise/overview?as_of=${asOf}`);
   if (r.error) return <Failed error={r.error} />;
   if (!r.data) return <Loading />;
   const o = r.data, cost = sum(o.outlets, "cost_rm_month_to_date"), rev = sum(o.outlets, "revenue_rm_month_to_date");
   const plans = new Map(o.run_log.filter((x) => x.intents?.includes("energy_plan")).map((x) => [x.outlet_id, x.verdicts[0]]));
   const exportCsv = async () => {
-    const csv = await api<string>(`/admin/scope2.csv?as_of=${asOf}`);
+    const csv = await api<string>(`/franchise/scope2.csv?as_of=${asOf}`);
     const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })), download: `smartflux-scope2-${asOf}.csv` });
     a.click(); URL.revokeObjectURL(a.href);
   };
@@ -117,7 +117,7 @@ function Dashboard() {
             <div className="table-wrap"><table><thead><tr><th>Outlet</th><th>Machine</th><th>Finding</th><th className="n">RM/month</th><th>Status</th><th></th></tr></thead>
               <tbody>{o.flagged_machines.length ? o.flagged_machines.map((f) => (
                 <tr key={f.machine_id}><td className="nowrap">{f.outlet_id}</td><td>{short(f.machine_id)}</td><td className="sm">{f.evidence ?? f.verdict}</td><td className="n">{f.rm_per_month?.toFixed(2) ?? "est."}</td>
-                  <td><StatusBadge s={f.status.startsWith("verified: ") ? f.status.slice(10) : f.status} /></td><td><a {...linkProps(`/admin/run/${f.run_id}`)}>Open</a></td></tr>
+                  <td><StatusBadge s={f.status.startsWith("verified: ") ? f.status.slice(10) : f.status} /></td><td><a {...linkProps(`/franchise/run/${f.run_id}`)}>Open</a></td></tr>
               )) : <tr><td colSpan={6} className="muted">No flagged machines.</td></tr>}</tbody></table></div>
           </section>
           <section className="card"><h3>Outlets</h3>
@@ -145,16 +145,28 @@ function Dashboard() {
   );
 }
 
+// The super admin's header on every staff screen: the three places they work, then the demo controls.
+const STAFF_NAV: [string, string, string][] = [["/franchise", "monitoring", "Franchise"], ["/", "storefront", "Outlet app"], ["/people", "group", "People"]];
+export function StaffBar({ back }: { back?: string }) {
+  const path = usePath(), { session } = usePrefs();
+  return (
+    <header className="topbar staff">
+      {back ? <a className="back" aria-label="Back" {...linkProps(back)}><Icon name="arrow_back" /></a> : null}
+      <a className="brand" {...linkProps("/franchise")}><span className="app-tile"><Icon name="local_laundry_service" /></span>SmartFlux HQ</a>
+      <nav className="staff-nav" aria-label="Sections">{STAFF_NAV.map(([href, icon, label]) =>
+        <a key={href} {...linkProps(href)} aria-current={(href === "/" ? path === "/" : path.startsWith(href)) ? "page" : undefined}><Icon name={icon} className="sm" />{label}</a>)}</nav>
+      <DemoControls />
+      <span className="avatar" title={`${session?.name ?? ""} · ${session?.email ?? ""}`}>{session?.name?.[0] ?? "?"}</span>
+    </header>
+  );
+}
+
 export function AdminApp() {
   const path = usePath();
-  const run = match("/admin/run/:id", path);
+  const run = match("/franchise/run/:id", path);
   return (
     <div className="admin">
-      <header className="topbar">
-        {run ? <a className="back" aria-label="Back" {...linkProps("/admin")}><Icon name="arrow_back" /></a> : null}
-        <span className="brand"><Icon name="bolt" className="save" />SmartFlux Admin</span>
-        <DemoControls />
-      </header>
+      <StaffBar back={run ? "/franchise" : undefined} />
       {run ? <div style={{ maxWidth: 960 }}><Evidence runId={run.id} /></div> : <Dashboard />}
     </div>
   );

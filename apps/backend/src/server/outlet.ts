@@ -34,6 +34,7 @@ export async function availability(cfg: Config, db: SampleDb, outlet: string, as
       price_from_rm: r.price_from_rm, price_to_rm: r.price_to_rm,
       status: maintenance.has(r.machine_id) ? "maintenance" : r.busy_until ? "in_use" : "free",
       minutes_left: !maintenance.has(r.machine_id) && r.busy_until ? minutesBetween(at, r.busy_until) : null,
+      cycle_minutes: !maintenance.has(r.machine_id) && r.busy_until ? minutesBetween(r.busy_from, r.busy_until) : null,
     })),
     // FR-40: a promo reaches customers only once the owner approved it.
     promos: approved(memory, "run_promo").map((d) => ({ slot: d.data.target, approved_as_of: d.as_of })),

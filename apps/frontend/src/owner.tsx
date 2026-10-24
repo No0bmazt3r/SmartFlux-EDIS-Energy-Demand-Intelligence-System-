@@ -41,6 +41,7 @@ function Home({ o, outlet, reload }: Ctx) {
   const brief = async () => { setBusy(true); try { navigate(`/briefing/${await ask(outlet, o.as_of, p.lang, { briefing: true })}`); reload(); } finally { setBusy(false); } };
   return (
     <div className="stack">
+      <div className="hello">{p.session?.name && <p className="muted">{t("hello")}, {p.session.name.split(/[ (]/)[0]}</p>}<h2 className="title-lg">SmartFlux {o.outlet.name}</h2></div>
       {o.briefing ? (
         <section className="card briefing">
           <span className="label">{t("weeklyBriefing")} · {day(o.briefing.as_of)}</span>
@@ -368,7 +369,10 @@ export function OwnerApp() {
   else screen = <Home {...ctx} />;
   return (
     <div className="app">
-      <TopBar title={title} back={back}>{!title && <DemoControls outlets={outlets.data?.filter((x) => prefs.session!.outlets.includes(x.outlet_id)).map((x) => ({ id: x.outlet_id, name: x.name }))} />}</TopBar>
+      <TopBar title={title} back={back}>{!title && <>
+        <DemoControls outlets={outlets.data?.filter((x) => prefs.session!.outlets.includes(x.outlet_id)).map((x) => ({ id: x.outlet_id, name: x.name }))} />
+        {prefs.session!.role === "superadmin" && <a className="back" aria-label={t("hq")} title={t("hq")} {...linkProps("/franchise")}><Icon name="monitoring" /></a>}
+      </>}</TopBar>
       {screen}
       <BottomNav pending={o?.advice.filter((a) => a.status === "awaiting_approval").length ?? 0} />
     </div>

@@ -3,12 +3,15 @@
 //   POST /run              {outlet_id, as_of, question?, lang?, briefing?} → decisions, actions, unresolved, log
 //   POST /approve          {action_id, decision: "approved" | "rejected"}
 //   GET  /runs/:id         the stored result and every log event of one run (the Evidence screen)
-//   GET  /admin/overview   ?as_of=YYYY-MM-DD   all-outlet view;   GET /admin/scope2.csv?as_of=...
-//   POST /login            {role, outlet_id?} → signed token (demo login);   GET /outlets   names for the login screen
+//   GET  /franchise/overview ?as_of=YYYY-MM-DD   all-outlet view (super admin);   GET /franchise/scope2.csv?as_of=...
+//   POST /login {email, password} · POST /signup {name, email, password} · POST /login/guest {outlet_id} → signed token
+//   GET  /auth/config · GET /auth/google → Google → GET /auth/google/callback · GET /me
+//   GET|POST /users · PATCH|DELETE /users/:id   the People screen (super admin)
+//   GET  /outlets   names for the sign-in screen
 //   GET  /outlets/:id/availability ?as_of&at   customer view;   POST /outlets/:id/reports {machine_id, reason, as_of}
 //   GET  /outlets/:id/owner ?as_of             owner home, machines, approvals
 //   GET  /health
-// Every route except /health, /login and /outlets needs a token; roles and outlet scope per server/auth.ts.
+// Every route except /health, sign-in and /outlets needs a token; roles and outlet scope per server/auth.ts.
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, join, normalize } from "node:path";
@@ -21,7 +24,9 @@ import { WINDOW, validateRequest } from "./orchestrator/state.ts";
 import { startScheduler } from "./scheduler.ts";
 import { TEMPLATES } from "./templates/index.ts";
 import { adminOverview, dataQuery, scope2Csv } from "./server/admin.ts";
-import { deny, issueToken, POLICY, readToken, type Role } from "./server/auth.ts";
+import { deny, issueToken, lockedOut, noteLogin, POLICY, readToken, type Role } from "./server/auth.ts";
+import { cookie, googleConfig, googleFinish, googleStart, STATE_COOKIE } from "./server/google.ts";
+import { openUsers, seedUsers, UserError, type User } from "./server/users.ts";
 import { availability, ownerView, recordReport, REPORT_REASONS } from "./server/outlet.ts";
 
 class HttpError extends Error { constructor(readonly status: number, message: string) { super(message); } }
@@ -42,24 +47,69 @@ const asOfParam = (url: URL) => {
   return asOf;
 };
 
-export function createApp(cfg: Config, opts: { webDir?: string } = {}) {
+export function createApp(cfg: Config, opts: { webDir?: string; env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch } = {}) {
+  const env = opts.env ?? process.env;
   const db = openSampleDb(cfg.dataDir);
   const outlets = () => dataQuery(cfg, WINDOW.end, db)("outlet_list", {});
+  const users = openUsers(cfg.usersDb), google = googleConfig(env), sample = cfg.mode.data === "local";
+  const ids = outlets().then((o) => o.map((x) => x.outlet_id as string));
+  const seeded = ids.then((all) => seedUsers(users, all, env, sample));
+  const signedIn = (u: User) => ({ token: issueToken(u.role, u.outlets, u.id), role: u.role, outlets: u.outlets, name: u.name, email: u.email });
   return createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
-    const session = readToken(req.headers.authorization);
+    await seeded;
+    const session = readToken(req.headers.authorization, users);
     const need = (roles: Role[], outlet?: string) => { const d = deny(session, roles, outlet); if (d) throw new HttpError(...d); };
     try {
       if (req.method === "OPTIONS") return send(res, 204, "");
       if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, mode: cfg.mode });
       if (req.method === "GET" && url.pathname === "/outlets") return send(res, 200, await outlets());
       if (req.method === "POST" && url.pathname === "/login") {
-        const b = await readJson(req), ids = (await outlets()).map((o) => o.outlet_id as string);
-        if (!["customer", "owner", "admin"].includes(b.role)) throw new HttpError(400, 'role must be "customer", "owner" or "admin"');
-        // Demo accounts: a customer is scoped to the outlet whose QR they scanned; the demo owner owns every outlet.
-        if (b.role === "customer" && !ids.includes(b.outlet_id)) throw new HttpError(400, `A customer picks one outlet: ${ids.join(", ")}`);
-        const scope = b.role === "customer" ? [b.outlet_id] : ids;
-        return send(res, 200, { token: issueToken(b.role, scope), role: b.role, outlets: scope });
+        const b = await readJson(req), email = String(b.email ?? "");
+        if (lockedOut(email)) throw new HttpError(429, "Too many wrong passwords. Try again in 15 minutes.");
+        const u = users.check(email, String(b.password ?? ""));
+        noteLogin(email, !!u);
+        if (!u) throw new HttpError(401, "Wrong email or password");
+        return send(res, 200, signedIn(u));
+      }
+      if (req.method === "POST" && url.pathname === "/signup") {
+        const b = await readJson(req);
+        return send(res, 201, signedIn(users.create({ name: b.name, email: b.email, password: b.password ?? "", role: "customer" }, await ids)));
+      }
+      // The QR code at an outlet: a customer can see that outlet's machines without an account.
+      if (req.method === "POST" && url.pathname === "/login/guest") {
+        const b = await readJson(req), all = await ids;
+        if (!all.includes(b.outlet_id)) throw new HttpError(400, `Pick an outlet: ${all.join(", ")}`);
+        return send(res, 200, { token: issueToken("customer", [b.outlet_id]), role: "customer", outlets: [b.outlet_id], name: "Guest" });
+      }
+      if (req.method === "GET" && url.pathname === "/me") { need(POLICY.me); return send(res, 200, { ...session, exp: undefined }); }
+      if (req.method === "GET" && url.pathname === "/auth/config") {
+        const demo = sample ? users.list().filter((u) => u.email.endsWith("@smartflux.demo")) : [];
+        return send(res, 200, { google: !!google, demo: demo.length ? { password: env.DEMO_PASSWORD ? null : "smartflux-demo", accounts: demo.map((u) => ({ email: u.email, role: u.role, name: u.name })) } : null });
+      }
+      if (req.method === "GET" && url.pathname === "/auth/google") {
+        if (!google) throw new HttpError(404, "Google sign-in is not configured (set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)");
+        const s = googleStart(google);
+        res.writeHead(302, { Location: s.url, "Set-Cookie": s.cookie }).end();
+        return;
+      }
+      if (req.method === "GET" && url.pathname === "/auth/google/callback") {
+        const back = (hash: string) => res.writeHead(302, { Location: `/login#${hash}`, "Set-Cookie": `${STATE_COOKIE}=; Path=/auth; Max-Age=0` }).end();
+        const state = url.searchParams.get("state"), code = url.searchParams.get("code");
+        if (!google || !code || !state || state !== cookie(req.headers.cookie, STATE_COOKIE)) return back("error=Google%20sign-in%20failed.%20Try%20again.");
+        try {
+          const u = users.google(await googleFinish(google, code, opts.fetchImpl), await ids);
+          return back(`token=${signedIn(u).token}`);
+        } catch (e) { return back(`error=${encodeURIComponent((e as Error).message)}`); }
+      }
+      if (url.pathname === "/users" || /^\/users\/\d+$/.test(url.pathname)) {
+        need(POLICY.people);
+        const id = Number(url.pathname.split("/")[2]);
+        if (req.method === "GET" && !id) return send(res, 200, users.list());
+        if (req.method === "POST" && !id) return send(res, 201, users.create(await readJson(req), await ids, session!.uid));
+        if (req.method === "PATCH" && id) return send(res, 200, users.update(id, await readJson(req), await ids, session!.uid ?? -1));
+        if (req.method === "DELETE" && id) { users.remove(id, session!.uid ?? -1); return send(res, 200, { ok: true }); }
+        throw new HttpError(405, "Method not allowed");
       }
       const outletMatch = url.pathname.match(/^\/outlets\/(OUT-\d{2})\/(availability|reports|owner)$/);
       if (outletMatch) {
@@ -110,8 +160,8 @@ export function createApp(cfg: Config, opts: { webDir?: string } = {}) {
         const sql = Object.fromEntries([...used].map((n) => [n, cfg.mode.data === "zetaris" ? TEMPLATES[n].lightning : TEMPLATES[n].sqlite]));
         return send(res, 200, { result, events, sql });
       }
-      if (req.method === "GET" && url.pathname === "/admin/overview") { need(POLICY.admin); return send(res, 200, await adminOverview(cfg, asOfParam(url), db)); }
-      if (req.method === "GET" && url.pathname === "/admin/scope2.csv") { need(POLICY.admin); return send(res, 200, scope2Csv(await adminOverview(cfg, asOfParam(url), db)), "text/csv"); }
+      if (req.method === "GET" && url.pathname === "/franchise/overview") { need(POLICY.franchise); return send(res, 200, await adminOverview(cfg, asOfParam(url), db)); }
+      if (req.method === "GET" && url.pathname === "/franchise/scope2.csv") { need(POLICY.franchise); return send(res, 200, scope2Csv(await adminOverview(cfg, asOfParam(url), db)), "text/csv"); }
       if (req.method === "GET" && opts.webDir && existsSync(opts.webDir)) {
         const safe = normalize(url.pathname).replace(/^(\.\.[/\\])+/, "");
         const path = join(opts.webDir, safe);
@@ -120,7 +170,7 @@ export function createApp(cfg: Config, opts: { webDir?: string } = {}) {
       }
       throw new HttpError(404, "Not found");
     } catch (e) {
-      const status = e instanceof HttpError ? e.status : 500;
+      const status = e instanceof HttpError || e instanceof UserError ? e.status : 500;
       send(res, status, { error: (e as Error).message });
     }
   });

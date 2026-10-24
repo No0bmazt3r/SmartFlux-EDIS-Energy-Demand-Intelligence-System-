@@ -4,3 +4,4 @@ dist/
 /logs/
 data/hmem/
 *.log
+data/users.db

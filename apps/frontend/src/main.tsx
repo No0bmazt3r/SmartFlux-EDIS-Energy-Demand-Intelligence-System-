@@ -1,4 +1,7 @@
-// One app, three roles. The role from the demo login decides which screens exist; the server enforces the same rules.
+// One app, three roles. The role from sign-in decides which screens exist; the server enforces the same rules.
+//   super admin (the business owner): franchise dashboard, people, and the outlet app for every outlet
+//   admin (a franchise manager): the outlet app for the outlets it was given
+//   customer: outlets and machines (a QR scan works as a guest, without an account)
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api, navigate, setPref, usePath, usePrefs, useApi, type Role, type Session } from "./api.ts";
@@ -6,47 +9,105 @@ import { AdminApp } from "./admin.tsx";
 import { CustomerApp } from "./customer.tsx";
 import { KitchenSink } from "./kitchen.tsx";
 import { OwnerApp } from "./owner.tsx";
-import { Failed, Icon } from "./ui.tsx";
+import { PeopleApp } from "./people.tsx";
+import { Dropdown, Failed, Icon } from "./ui.tsx";
 import "./styles.css";
 
-const HOME: Record<Role, string> = { customer: "/customer", owner: "/", admin: "/admin" };
+const HOME: Record<Role, string> = { customer: "/customer", admin: "/", superadmin: "/franchise" };
+const STAFF_ONLY = ["/franchise", "/people"];
 const allowed = (role: Role, path: string) =>
-  role === "customer" ? path.startsWith("/customer") : role === "admin" ? path.startsWith("/admin") : !path.startsWith("/admin") && !path.startsWith("/customer") && !path.startsWith("/login");
+  role === "customer" ? path.startsWith("/customer")
+  : role === "admin" ? !path.startsWith("/customer") && !path.startsWith("/login") && !STAFF_ONLY.some((p) => path.startsWith(p))
+  : !path.startsWith("/customer") && !path.startsWith("/login");
 
-async function signIn(role: Role, outlet_id?: string) {
-  const s = await api<Session>("/login", { role, outlet_id });
+function start(s: Session) {
   setPref("session", s);
   setPref("outlet", s.outlets[0]);
-  navigate(HOME[role], true);
+  navigate(HOME[s.role], true);
 }
+const guest = (outlet_id: string) => api<Session>("/login/guest", { outlet_id }).then(start);
+
+type AuthConfig = { google: boolean; demo: { password: string | null; accounts: { email: string; role: Role; name: string }[] } | null };
+const ROLE_LABEL: Record<Role, string> = { superadmin: "Super admin", admin: "Admin", customer: "Customer" };
 
 function Login() {
   const outlets = useApi<{ outlet_id: string; name: string }[]>("/outlets");
-  const [outlet, setOutlet] = useState("OUT-01"), [err, setErr] = useState("");
-  const go = (role: Role) => signIn(role, role === "customer" ? outlet : undefined).catch((e) => setErr(e.message));
+  const config = useApi<AuthConfig>("/auth/config");
+  const [mode, setMode] = useState<"in" | "up">("in");
+  const [name, setName] = useState(""), [email, setEmail] = useState(""), [password, setPassword] = useState(""), [show, setShow] = useState(false);
+  const [outlet, setOutlet] = useState("OUT-01"), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
+  // Back from Google: /login#token=… (or #error=…). The token never reaches the server's logs in a fragment.
+  useEffect(() => {
+    const h = new URLSearchParams(location.hash.slice(1));
+    history.replaceState(null, "", "/login");
+    if (h.get("error")) setErr(h.get("error")!);
+    const token = h.get("token");
+    if (token) fetch("/me", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Google sign-in expired. Try again."))))
+      .then((me: Omit<Session, "token">) => start({ ...me, token }), (e) => setErr(e.message));
+  }, []);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true); setErr("");
+    try { start(await api<Session>(mode === "in" ? "/login" : "/signup", mode === "in" ? { email, password } : { name, email, password })); }
+    catch (x) { setErr((x as Error).message); setBusy(false); }
+  };
+  const demo = config.data?.demo;
   return (
     <main className="login">
-      <div className="stack tight">
-        <span className="brand"><Icon name="bolt" className="save" />SmartFlux</span>
-        <p className="h3">Know what to save, and prove it worked.</p>
+      <div className="login-head">
+        <span className="app-tile lg"><Icon name="local_laundry_service" /></span>
+        <h1>{mode === "in" ? "Welcome back" : "Create your account"}</h1>
+        <p className="muted">{mode === "in" ? "Sign in to SmartFlux" : "Find a free machine and see happy-hour times"}</p>
       </div>
-      <section className="card">
-        <h2>Customer</h2>
-        <p className="sm muted">Scan the QR at the outlet to see which machines are free. Demo: pick the outlet.</p>
-        <label className="stack tight"><span className="label muted">OUTLET</span>
-          <select className="select" value={outlet} onChange={(e) => setOutlet(e.target.value)}>
-            {outlets.data?.map((o) => <option key={o.outlet_id} value={o.outlet_id}>{o.outlet_id} {o.name}</option>)}
-          </select>
-        </label>
-        <button className="btn primary" onClick={() => go("customer")}><Icon name="qr_code_scanner" />Continue as Customer</button>
+      <form className="card glow stack" onSubmit={submit}>
+        {mode === "up" && <div className="field"><label className="label" htmlFor="su-name">Name</label>
+          <span className="input-icon"><Icon name="person" className="sm muted" /><input id="su-name" className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required /></span></div>}
+        <div className="field"><label className="label" htmlFor="si-email">Email address</label>
+          <span className="input-icon"><Icon name="mail" className="sm muted" /><input id="si-email" className="input" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></span></div>
+        <div className="field"><label className="label" htmlFor="si-pw">Password</label>
+          <span className="input-icon"><Icon name="lock" className="sm muted" />
+            <input id="si-pw" className="input" type={show ? "text" : "password"} autoComplete={mode === "in" ? "current-password" : "new-password"} minLength={mode === "up" ? 8 : undefined} value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <button type="button" className="icon-btn eye" aria-label={show ? "Hide password" : "Show password"} onClick={() => setShow(!show)}><Icon name={show ? "visibility_off" : "visibility"} className="sm" /></button>
+          </span>
+          {mode === "up" && <span className="sm muted">At least 8 characters.</span>}</div>
+        {err && <p className="bad sm" role="alert"><Icon name="error" className="sm" /> {err}</p>}
+        <button className="btn cta" disabled={busy}>{mode === "in" ? "Sign in" : "Create account"}<Icon name="arrow_forward" className="sm" /></button>
+        {config.data?.google && <>
+          <div className="or"><span>or continue with</span></div>
+          <a className="btn secondary" href="/auth/google"><GoogleMark />Google</a>
+        </>}
+      </form>
+      <p className="center muted">{mode === "in" ? "Don't have an account? " : "Already have an account? "}
+        <button className="textlink accent" onClick={() => { setMode(mode === "in" ? "up" : "in"); setErr(""); }}>{mode === "in" ? "Sign up" : "Sign in"}</button></p>
+
+      <section className="card stack tight">
+        <h2 className="h3 row"><Icon name="qr_code_scanner" className="accent" />At the outlet?</h2>
+        <p className="sm muted">Scanning the QR code on a machine shows that outlet's free machines, no account needed.</p>
+        <div className="row"><Dropdown label="Outlet" value={outlet} onChange={setOutlet} options={outlets.data?.map((o) => ({ value: o.outlet_id, label: `${o.outlet_id} ${o.name}` })) ?? []} />
+          <button className="btn secondary" onClick={() => guest(outlet).catch((e) => setErr(e.message))}>See machines</button></div>
       </section>
-      <button className="btn cta" onClick={() => go("owner")}><Icon name="storefront" />Continue as Owner</button>
-      <button className="btn secondary" onClick={() => go("admin")}><Icon name="monitoring" />Continue as Admin</button>
-      {err && <Failed error={err} />}
-      <p className="sm muted">Demo mode: no password, sample data unless the server runs live.</p>
+
+      {demo && <section className="card stack tight" aria-label="Demo accounts">
+        <h2 className="h3">Demo accounts</h2>
+        <p className="sm muted">Sample mode only. {demo.password ? <>Password <code className="mono">{demo.password}</code>. </> : null}Tap one to fill the form.</p>
+        <div className="list flush">{demo.accounts.map((a) => (
+          <button key={a.email} className="mrow" onClick={() => { setMode("in"); setEmail(a.email); if (demo.password) setPassword(demo.password); }}>
+            <span className="avatar sm">{a.name[0]}</span><span className="grow left">{a.name}<br /><span className="sm muted">{a.email}</span></span><span className="pill">{ROLE_LABEL[a.role]}</span></button>
+        ))}</div>
+      </section>}
+      {(outlets.error || config.error) && <Failed error={outlets.error ?? config.error!} />}
     </main>
   );
 }
+
+const GoogleMark = () => (
+  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+    <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+    <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
+  </svg>
+);
 
 function App() {
   const path = usePath(), { session, lang } = usePrefs();
@@ -54,15 +115,19 @@ function App() {
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   useEffect(() => {
     if (path.startsWith("/kitchen-sink")) return;
-    // QR code at the outlet: /customer?outlet=OUT-01 signs a customer in for that outlet.
-    if (qr && path.startsWith("/customer") && (session?.role !== "customer" || session.outlets[0] !== qr)) { signIn("customer", qr); return; }
+    if (session && !HOME[session.role]) { setPref("session", null); return; } // a session from an older build
+    // QR code at the outlet: /customer?outlet=OUT-01 opens that outlet as a guest unless a customer is already signed in.
+    if (qr && path.startsWith("/customer") && (session?.role !== "customer" || !session.outlets.includes(qr))) { guest(qr); return; }
     if (!session && !path.startsWith("/login")) navigate("/login", true);
     else if (session && !allowed(session.role, path)) navigate(HOME[session.role], true);
   }, [path, session, qr]);
   if (path.startsWith("/kitchen-sink")) return <KitchenSink />; // public: components only, no data
-  if (!session || path.startsWith("/login")) return <Login />;
+  if (!session || !HOME[session.role] || path.startsWith("/login")) return <Login />;
   if (!allowed(session.role, path)) return null;
-  return session.role === "customer" ? <CustomerApp /> : session.role === "admin" ? <AdminApp /> : <OwnerApp />;
+  if (session.role === "customer") return <CustomerApp />;
+  if (path.startsWith("/franchise")) return <AdminApp />;
+  if (path.startsWith("/people")) return <PeopleApp />;
+  return <OwnerApp />;
 }
 
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);

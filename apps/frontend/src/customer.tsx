@@ -1,89 +1,190 @@
-// Customer view (features.md §A.4): availability and approved promos only, for the one outlet whose QR was scanned.
+// Customer app (features.md §A.4): outlets, live machine availability, owner-approved happy hours, and reporting a
+// broken machine. Everything shown comes from the payment system's cycle records; no energy data reaches customers.
 import { useState } from "react";
-import { api, linkProps, match, navigate, usePath, usePrefs, useApi } from "./api.ts";
-import { DemoControls, Failed, Icon, Loading, ModeBadge, TopBar, day, useT, useToast } from "./ui.tsx";
+import { api, linkProps, match, navigate, setPref, usePath, usePrefs, useApi } from "./api.ts";
+import { DatePicker, Failed, Icon, Loading, ModeBadge, TopBar, day, useT, useToast } from "./ui.tsx";
 
-type Machine = { machine_id: string; name: string; type: string; heat_source: string; price_from_rm: number | null; price_to_rm: number | null; status: "free" | "in_use" | "maintenance"; minutes_left: number | null };
+type Machine = { machine_id: string; name: string; type: string; heat_source: string; price_from_rm: number | null; price_to_rm: number | null;
+  status: "free" | "in_use" | "maintenance"; minutes_left: number | null; cycle_minutes: number | null };
 type View = { outlet_id: string; at: string; mode: string; machines: Machine[]; promos: { slot: string }[] };
+type Outlet = { outlet_id: string; name: string; state?: string };
 
-const price = (m: Machine) => m.price_from_rm == null ? "" : m.price_from_rm === m.price_to_rm ? `RM${m.price_from_rm}` : `RM${m.price_from_rm}–${m.price_to_rm}`;
+const rmx = (n: number | null) => (n == null ? "" : `RM ${n.toFixed(2)}`);
 const DAYS_MS: Record<string, string> = { Sunday: "Ahad", Monday: "Isnin", Tuesday: "Selasa", Wednesday: "Rabu", Thursday: "Khamis", Friday: "Jumaat", Saturday: "Sabtu" };
 const slot = (s: string, lang: string) => lang === "ms" ? s.replace(/^(\w+) /, (_, d) => `${DAYS_MS[d] ?? d} dari `) : s.replace(/^(\w+) /, "$1s from ");
 const typeIcon = (m: Machine) => (m.type === "dryer" ? "mode_heat" : "local_laundry_service");
 
-function Status({ m }: { m: Machine }) {
+function Pill({ m }: { m: Machine }) {
   const t = useT();
-  if (m.status === "maintenance") return <span className="badge muted"><Icon name="build" />{t("maint")}</span>;
-  if (m.status === "in_use") return <span className="badge peak"><Icon name="schedule" />{t("inUse")} · {m.minutes_left} {t("minLeft")}</span>;
-  return <span className="badge ok"><Icon name="check_circle" />{t("free")}</span>;
+  if (m.status === "maintenance") return <span className="pill"><Icon name="build" className="xs" />{t("maintShort")}</span>;
+  if (m.status === "in_use") return <span className="pill busy">{m.minutes_left}{t("mLeft")}</span>;
+  return <span className="pill ok">{t("ready")}</span>;
 }
 
+// The outlet the customer picked (a guest has exactly one), its name, and its live machines.
 function useOutlet() {
-  const { session, asOf } = usePrefs();
-  const outlet = session!.outlets[0];
-  const names = useApi<{ outlet_id: string; name: string }[]>("/outlets");
+  const { session, asOf, outlet: picked } = usePrefs();
+  const outlet = picked && session!.outlets.includes(picked) ? picked : session!.outlets[0];
+  const names = useApi<Outlet[]>("/outlets");
   const view = useApi<View>(`/outlets/${outlet}/availability?as_of=${asOf}`);
-  return { outlet, name: names.data?.find((o) => o.outlet_id === outlet)?.name ?? "", view, asOf };
+  return { outlet, info: names.data?.find((o) => o.outlet_id === outlet), view, asOf };
 }
 
-function Machines() {
-  const t = useT();
-  const { outlet, name, view } = useOutlet(), { lang } = usePrefs();
+function Header({ title, back }: { title: string; back?: string }) {
+  const { session } = usePrefs();
+  return <TopBar title={title} back={back}><a className="avatar" aria-label="Account" {...linkProps("/customer/account")}>{session?.name?.[0] ?? "G"}</a></TopBar>;
+}
+
+function Home() {
+  const t = useT(), { lang, session } = usePrefs();
+  const { outlet, info, view } = useOutlet();
   const [filter, setFilter] = useState<"all" | "washer" | "dryer" | "free">("all");
   const v = view.data;
   const shown = v?.machines.filter((m) => filter === "all" || (filter === "free" ? m.status === "free" : m.type === filter)) ?? [];
-  const free = (type: string) => v?.machines.filter((m) => m.type === type && m.status === "free").length ?? 0;
   return (
-    <div className="app">
-      <TopBar><DemoControls /></TopBar>
-      <div className="stack">
-        <div className="row between wrap">
-          <div><h2>{outlet} {name}</h2>{v && <p className="sm muted">{t("updated")} {day(v.at)}, {v.at.slice(11, 16)}</p>}</div>
-          {v && <ModeBadge mode={v.mode} />}
-        </div>
-        {v?.promos.map((p) => <div key={p.slot} className="promo"><Icon name="local_offer" />{t("promo")}: {slot(p.slot, lang)}</div>)}
-        {view.loading && !v && <Loading />}
-        {view.error && <Failed error={view.error} />}
-        {v && <>
-          <p className="h3">{free("washer")} {free("washer") === 1 ? t("washersFree").replace("washers", "washer") : t("washersFree")} · {free("dryer")} {free("dryer") === 1 ? t("dryersFree").replace("dryers", "dryer") : t("dryersFree")}</p>
-          <div className="filter" role="group" aria-label="Filter">
-            {([["all", t("all")], ["washer", t("washers")], ["dryer", t("dryers")], ["free", t("freeNow")]] as const).map(([k, label]) =>
-              <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>)}
-          </div>
-          <div className="tiles">
-            {shown.map((m) => m.status === "maintenance"
-              ? <div key={m.machine_id} className="tile off" aria-label={`${m.name}, under maintenance`}>
-                  <h3><Icon name={typeIcon(m)} />{m.name}</h3><span className="sm">{t(m.type === "dryer" ? "dryer" : "washer")}</span><Status m={m} />
-                </div>
-              : <a key={m.machine_id} className="tile" {...linkProps(`/customer/machine/${m.machine_id}`)}>
-                  <h3><Icon name={typeIcon(m)} />{m.name}</h3><span className="sm muted">{t(m.type === "dryer" ? "dryer" : "washer")} · {price(m)}</span><Status m={m} />
-                </a>)}
-          </div>
-          <p className="sm muted">{t("synthetic")}</p>
-        </>}
+    <div className="stack">
+      <div className="hello">
+        {session?.name && session.name !== "Guest" && <p className="muted">{t("hello")}, {session.name.split(" ")[0]}</p>}
+        <h2 className="title-lg">SmartFlux {info?.name ?? outlet}</h2>
       </div>
+      <a className="card glow outlet-card" {...linkProps("/customer/outlets")}>
+        <span className="row"><span className="dot ok" aria-hidden />{outlet}{info?.state ? ` · ${info.state}` : ""}</span>
+        {v && <span className="sm muted row wrap">{t("updated")} {day(v.at)}, {v.at.slice(11, 16)} <ModeBadge mode={v.mode} /></span>}
+        <Icon name="chevron_right" className="muted corner" />
+      </a>
+      {v?.promos.map((p) => (
+        <section key={p.slot} className="card promo-card">
+          <span className="app-tile warm"><Icon name="bolt" /></span>
+          <div><span className="eyebrow warm">{t("happyHour")}</span><p className="h3">{slot(p.slot, lang)}</p></div>
+        </section>
+      ))}
+      {view.loading && !v && <Loading />}
+      {view.error && <Failed error={view.error} />}
+      {v && <>
+        <div className="row between"><span className="eyebrow">{t("liveMachines")}</span>
+          <span className="sm row legend"><span className="dot ok" aria-hidden />{t("available")}<span className="dot busy" aria-hidden />{t("busy")}</span></div>
+        <div className="filter" role="group" aria-label="Filter">
+          {([["all", `${t("all")} (${v.machines.length})`], ["washer", t("washers")], ["dryer", t("dryers")], ["free", t("freeNow")]] as const).map(([k, label]) =>
+            <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>)}
+        </div>
+        <div className="tiles">
+          {shown.map((m) => (
+            <a key={m.machine_id} className={`tile ${m.status}`} {...linkProps(`/customer/machine/${m.machine_id}`)}>
+              <span className="row between"><b>{m.name}</b><Pill m={m} /></span>
+              <span className="well"><Icon name={typeIcon(m)} /></span>
+              <span className="row between end-row">
+                <span className="sm muted">{t(m.type === "dryer" ? "dryer" : "washer")}{m.type === "dryer" ? <><br />{t(m.heat_source === "gas" ? "gas" : "electric")}</> : null}</span>
+                {m.price_from_rm != null && <span className="price right"><span className="xs-label">{t("from")}</span><br />{rmx(m.price_from_rm)}</span>}
+              </span>
+            </a>
+          ))}
+        </div>
+        <p className="sm muted">{t("synthetic")}</p>
+      </>}
     </div>
+  );
+}
+
+// A ring that empties as the cycle runs: the share of the paid cycle still to go.
+function Ring({ left, total }: { left: number; total: number }) {
+  const t = useT(), r = 88, c = 2 * Math.PI * r, share = Math.max(0, Math.min(1, left / total));
+  return (
+    <figure className="ring" aria-label={`${left} ${t("minLeft")} ${t("cycleOf")} ${total} ${t("minCycle")}`}>
+      <svg viewBox="0 0 200 200" aria-hidden>
+        <circle cx="100" cy="100" r={r} className="ring-track" />
+        <circle cx="100" cy="100" r={r} className="ring-fill" strokeDasharray={c} strokeDashoffset={c * (1 - share)} transform="rotate(-90 100 100)" />
+      </svg>
+      <figcaption><span className="ring-time num">{left}<span className="unit"> min</span></span>
+        <span className="eyebrow">{t("remaining")}</span><span className="sm muted">{t("cycleOf")} {total} {t("minCycle")}</span></figcaption>
+    </figure>
   );
 }
 
 function Detail({ id }: { id: string }) {
   const t = useT();
-  const { view } = useOutlet();
+  const { view, info } = useOutlet();
   const m = view.data?.machines.find((x) => x.machine_id === id);
   return (
-    <div className="app">
-      <TopBar back="/customer" title={m ? `${t(m.type === "dryer" ? "dryer" : "washer")} ${m.name}` : ""} />
-      {!m ? <Loading /> : (
+    <>
+      <Header title={t("machineDetail")} back="/customer" />
+      {!m ? (view.error ? <Failed error={view.error} /> : <Loading />) : (
         <div className="stack">
-          <div className="card">
-            <Status m={m} />
-            <p className="display num">{price(m)}<span className="h3"> {t("perCycle")}</span></p>
-            <p className="sm muted">{m.type === "dryer" ? `${m.heat_source === "gas" ? "Gas" : "Electric"} dryer` : "Washer"}</p>
-          </div>
-          <a className="textlink" {...linkProps(`/customer/report/${m.machine_id}`)}>{t("notWorking")}</a>
+          <section className="card glow machine-head">
+            <span className="app-tile lg"><Icon name={typeIcon(m)} /></span>
+            <div className="grow"><span className="row wrap"><h2>{t(m.type === "dryer" ? "dryer" : "washer")} {m.name}</h2><Pill m={m} /></span>
+              <p className="sm muted">{m.type === "dryer" ? `${t(m.heat_source === "gas" ? "gas" : "electric")} · ` : ""}SmartFlux {info?.name}</p></div>
+          </section>
+          {m.status === "in_use" && m.minutes_left != null && m.cycle_minutes ? <Ring left={m.minutes_left} total={m.cycle_minutes} /> : null}
+          {m.price_from_rm != null && <section className="card">
+            <span className="eyebrow">{t("perCycleRange")}</span>
+            <p className="price lg">{m.price_from_rm === m.price_to_rm ? rmx(m.price_from_rm) : `${rmx(m.price_from_rm)} – ${rmx(m.price_to_rm)}`}</p>
+          </section>}
+          <a className="btn outlined" {...linkProps(`/customer/report/${m.machine_id}`)}><Icon name="flag" className="sm" />{t("reportIt")}</a>
         </div>
       )}
-    </div>
+    </>
+  );
+}
+
+function OutletRow({ o, current }: { o: Outlet; current: boolean }) {
+  const t = useT(), { asOf, lang } = usePrefs();
+  const v = useApi<View>(`/outlets/${o.outlet_id}/availability?as_of=${asOf}`).data;
+  const free = (type: string) => v ? `${v.machines.filter((m) => m.type === type && m.status === "free").length}/${v.machines.filter((m) => m.type === type).length}` : "–";
+  return (
+    <section className={`card ${current ? "glow" : ""} stack tight`}>
+      {current && <span className="eyebrow warm row"><span className="dot busy" aria-hidden />{t("current")}</span>}
+      <div className="row between"><h2 className="h3">SmartFlux {o.name}</h2>
+        {!current && <button className="btn secondary sm-btn" onClick={() => { setPref("outlet", o.outlet_id); navigate("/customer"); }}>{t("select")}</button>}</div>
+      <p className="sm muted row"><Icon name="location_on" className="sm" />{o.outlet_id}{o.state ? ` · ${o.state}` : ""}</p>
+      <div className="stats">
+        <span><Icon name="local_laundry_service" className="sm accent" /><b className="num">{free("washer")}</b><span className="sm muted">{t("washersFree")}</span></span>
+        <span><Icon name="mode_heat" className="sm accent" /><b className="num">{free("dryer")}</b><span className="sm muted">{t("dryersFree")}</span></span>
+      </div>
+      {v?.promos.map((p) => <p key={p.slot} className="sm warm row"><Icon name="bolt" className="sm" />{t("happyHour")}: {slot(p.slot, lang)}</p>)}
+      {current && <a className="btn cta" {...linkProps("/customer")}>{t("machines")}<Icon name="arrow_forward" className="sm" /></a>}
+    </section>
+  );
+}
+
+function Outlets() {
+  const t = useT(), { session } = usePrefs();
+  const { outlet } = useOutlet();
+  const names = useApi<Outlet[]>("/outlets");
+  const mine = names.data?.filter((o) => session!.outlets.includes(o.outlet_id)) ?? [];
+  return (
+    <>
+      <Header title={t("outlets")} />
+      {names.error ? <Failed error={names.error} /> : !names.data ? <Loading /> : (
+        <div className="stack">
+          {[...mine].sort((a, b) => Number(b.outlet_id === outlet) - Number(a.outlet_id === outlet)).map((o) => <OutletRow key={o.outlet_id} o={o} current={o.outlet_id === outlet} />)}
+          {!session!.email && <p className="sm muted">{t("guestNote")}</p>}
+        </div>
+      )}
+    </>
+  );
+}
+
+function Account() {
+  const t = useT(), p = usePrefs();
+  const guest = !p.session?.email;
+  const out = () => { setPref("session", null); navigate("/login"); };
+  return (
+    <>
+      <Header title={t("account")} />
+      <div className="stack">
+        <section className="card glow row">
+          <span className="avatar lg">{p.session?.name?.[0] ?? "G"}</span>
+          <div className="grow"><h2 className="h3">{guest ? t("guest") : p.session!.name}</h2>{!guest && <p className="sm muted">{p.session!.email}</p>}</div>
+        </section>
+        {guest && <section className="card stack tight"><p className="sm">{t("guestNote")}</p><button className="btn cta" onClick={out}>{t("createAccount")}</button></section>}
+        <section className="card stack">
+          <div className="row between"><span>{t("language")}</span>
+            <div className="seg" role="group" aria-label={t("language")}>{(["en", "ms"] as const).map((l) => <button key={l} aria-pressed={p.lang === l} onClick={() => setPref("lang", l)}>{l === "en" ? "EN" : "BM"}</button>)}</div></div>
+          <div className="row between"><span>{t("demoDate")}</span><DatePicker value={p.asOf} onChange={(d) => setPref("asOf", d)} /></div>
+        </section>
+        <button className="btn outlined" onClick={out}><Icon name="logout" className="sm" />{t("signOut")}</button>
+      </div>
+    </>
   );
 }
 
@@ -104,8 +205,8 @@ function Report({ id }: { id: string }) {
     } catch (e) { toast.show((e as Error).message); setBusy(false); }
   };
   return (
-    <div className="app">
-      <TopBar back={`/customer/machine/${id}`} title={`${t("notWorking")} ${m?.name ?? ""}`} />
+    <>
+      <Header title={`${t("notWorking")} ${m?.name ?? ""}`} back={`/customer/machine/${id}`} />
       <div className="stack">
         <p>{t("whatsWrong")}</p>
         <div className="filter wrap" role="group" aria-label="Reason">
@@ -115,14 +216,29 @@ function Report({ id }: { id: string }) {
         <p className="sm muted">{t("reportNote")}</p>
       </div>
       {toast.node}
-    </div>
+    </>
+  );
+}
+
+function CustomerNav() {
+  const path = usePath().split("?")[0], t = useT();
+  const items: [string, string, string][] = [["/customer", "home", t("home")], ["/customer/outlets", "storefront", t("outlets")], ["/customer/account", "account_circle", t("account")]];
+  return (
+    <nav className="nav" aria-label="Main">
+      {items.map(([href, icon, label]) => (
+        <a key={href} {...linkProps(href)} aria-current={(href === "/customer" ? path === "/customer" || path.startsWith("/customer/machine") : path.startsWith(href)) ? "page" : undefined}><Icon name={icon} />{label}</a>
+      ))}
+    </nav>
   );
 }
 
 export function CustomerApp() {
-  const path = usePath();
-  let p;
-  if ((p = match("/customer/machine/:id", path))) return <Detail id={p.id} />;
-  if ((p = match("/customer/report/:id", path))) return <Report id={p.id} />;
-  return <Machines />;
+  const path = usePath(), t = useT();
+  let p, screen;
+  if ((p = match("/customer/machine/:id", path))) screen = <Detail id={p.id} />;
+  else if ((p = match("/customer/report/:id", path))) screen = <Report id={p.id} />;
+  else if (match("/customer/outlets", path)) screen = <Outlets />;
+  else if (match("/customer/account", path)) screen = <Account />;
+  else screen = <><Header title={t("home")} /><Home /></>;
+  return <div className="app">{screen}<CustomerNav /></div>;
 }

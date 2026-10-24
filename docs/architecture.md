@@ -276,7 +276,7 @@ Ports: app API 8000 (also serves the built web app), web 5173 (Vite dev only), Z
 | --- | --- |
 | Logging | One `emit()`; JSONL per run; stdout; the UI reads logs, never a separate store |
 | Errors | Typed adapter errors → retry → fallback → structured error in the output; never a hang |
-| Access control | Demo login issues `{role, outlet_ids}`; `server.ts` checks the token's role and outlet scope on every route (`403` otherwise); customer routes return availability fields only. UI hides what the server already refuses ([features.md §A.5](features.md#a5-roles-and-access-rbac)) |
+| Access control | Sign-in (email + scrypt-hashed password, or Google OAuth) issues an HMAC-signed token; `server.ts` re-reads the account from `data/users.db` and checks its role (`customer`, `admin`, `superadmin`) and outlet scope on every route (`403` otherwise); customer routes return availability fields only. UI hides what the server already refuses ([features.md §A.5](features.md#a5-roles-and-access-rbac)) |
 | Security | Read-only SQL guard (SELECT/SHOW/DESCRIBE only, USL namespace only); secrets from env; no secrets in logs; NVIDIA key stays in Nightshift |
 | Time | Everything evaluated at `as_of`; the clock is never read inside agents |
 | Language | Scout detects English or Malay; Reporter writes in the request language; numbers are never translated by the LLM |

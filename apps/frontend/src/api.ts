@@ -1,8 +1,8 @@
 // API client, the demo session and a tiny router (one app, three roles: customer, owner, admin).
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-export type Role = "customer" | "owner" | "admin";
-export type Session = { token: string; role: Role; outlets: string[] };
+export type Role = "customer" | "admin" | "superadmin";
+export type Session = { token: string; role: Role; outlets: string[]; name?: string; email?: string };
 export type Lang = "en" | "ms";
 
 // Per-viewer settings: the demo session, the demo "as of" date, the language, the selected outlet.
@@ -27,6 +27,8 @@ let snapshot = { ...state };
 listeners.add(() => { snapshot = { ...state }; });
 export const usePrefs = () => useSyncExternalStore((l) => (listeners.add(l), () => listeners.delete(l)), () => snapshot);
 export const WINDOW = { start: "2026-09-07", end: "2026-10-18" };
+// The three demo sessions: learn the baselines, flag and approve D4, verify and brief.
+export const SESSIONS = ["2026-09-13", "2026-10-04", "2026-10-18"];
 
 export class ApiError extends Error { constructor(readonly status: number, message: string) { super(message); } }
 export async function api<T = any>(path: string, body?: unknown): Promise<T> {

@@ -10,12 +10,23 @@ import { createApp } from "./server.ts";
 import { issueToken } from "./server/auth.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "sf-api-"));
-const cfg = { ...loadConfig({ SAMPLE_MODE: "true" }), logDir: join(dir, "logs"), hmemDir: join(dir, "hmem") };
-const server = createApp(cfg);
+const cfg = { ...loadConfig({ SAMPLE_MODE: "true" }), logDir: join(dir, "logs"), hmemDir: join(dir, "hmem"), usersDb: join(dir, "users.db") };
+// A fake Google token endpoint: answers the one code the test uses with an ID token for this app.
+const GOOGLE = { GOOGLE_CLIENT_ID: "cid.apps.googleusercontent.com", GOOGLE_CLIENT_SECRET: "secret" };
+const idToken = (claims: object) => `x.${Buffer.from(JSON.stringify({ iss: "https://accounts.google.com", aud: GOOGLE.GOOGLE_CLIENT_ID, exp: Date.now() / 1000 + 600, email_verified: true, ...claims })).toString("base64url")}.y`;
+const fakeGoogle = (async (_url: string, init: RequestInit) => {
+  const code = new URLSearchParams(String(init.body)).get("code");
+  if (code === "good") return Response.json({ id_token: idToken({ sub: "g-123", email: "new.person@gmail.com", name: "New Person" }) });
+  if (code === "staff") return Response.json({ id_token: idToken({ sub: "g-456", email: "ipoh@smartflux.demo", name: "Hafiz" }) });
+  if (code === "other-app") return Response.json({ id_token: idToken({ sub: "g-789", email: "x@gmail.com", aud: "someone-else" }) });
+  return new Response("bad code", { status: 400 });
+}) as typeof fetch;
+const server = createApp(cfg, { env: GOOGLE, fetchImpl: fakeGoogle });
 await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
 after(() => server.close());
 const base = () => `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-const owner = issueToken("owner", ["OUT-01", "OUT-02", "OUT-03"]), admin = issueToken("admin", ["OUT-01", "OUT-02", "OUT-03"]);
+// The super admin is the business owner (every outlet); the tests below act as them unless they say otherwise.
+const owner = issueToken("superadmin", ["OUT-01", "OUT-02", "OUT-03"]), admin = owner;
 const auth = (token?: string): Record<string, string> => (token ? { Authorization: `Bearer ${token}` } : {});
 const post = (path: string, body: unknown, token: string | undefined = owner) =>
   fetch(base() + path, { method: "POST", headers: { "Content-Type": "application/json", ...auth(token) }, body: JSON.stringify(body) });
@@ -34,21 +45,21 @@ test("bad requests get a 400 with a message", async () => {
 });
 
 test("roles: each route refuses the wrong role or outlet with a 403, and no token with a 401", async () => {
-  const login = await (await post("/login", { role: "customer", outlet_id: "OUT-01" }, "")).json();
+  const login = await (await post("/login/guest", { outlet_id: "OUT-01" }, "")).json();
   assert.deepEqual(login.outlets, ["OUT-01"]);
   const customer = login.token;
-  assert.equal((await post("/login", { role: "customer" }, "")).status, 400, "a customer must pick an outlet");
+  assert.equal((await post("/login/guest", {}, "")).status, 400, "a guest picks the outlet whose QR they scanned");
   assert.equal((await post("/run", { outlet_id: "OUT-01", as_of: "2026-10-18", question: "Should I switch to ToU?" }, customer)).status, 403);
   assert.equal((await post("/approve", { action_id: "x", decision: "approved" }, customer)).status, 403);
-  assert.equal((await get("/admin/overview", customer)).status, 403);
+  assert.equal((await get("/franchise/overview", customer)).status, 403);
   assert.equal((await get("/outlets/OUT-01/owner", customer)).status, 403);
   assert.equal((await get("/outlets/OUT-02/availability", customer)).status, 403, "a customer sees only their outlet");
   assert.equal((await get("/outlets/OUT-01/availability", customer)).status, 200);
   assert.equal((await get("/outlets/OUT-01/availability", "")).status, 401);
   assert.equal((await get("/outlets/OUT-01/availability", customer + "x")).status, 401, "a tampered token is refused");
-  assert.equal((await get("/admin/overview", owner)).status, 403);
-  assert.equal((await post("/approve", { action_id: "x", decision: "approved" }, admin)).status, 403, "only the owner decides");
-  const ownerOf1 = issueToken("owner", ["OUT-01"]);
+  const ownerOf1 = issueToken("admin", ["OUT-01"]);
+  assert.equal((await get("/franchise/overview", ownerOf1)).status, 403, "the franchise view is the super admin's");
+  assert.equal((await get("/users", ownerOf1)).status, 403, "only the super admin manages people");
   assert.equal((await post("/run", { outlet_id: "OUT-02", as_of: "2026-10-18", question: "Should I switch to ToU?" }, ownerOf1)).status, 403);
   assert.equal((await get("/outlets/OUT-02/owner", ownerOf1)).status, 403);
 });
@@ -100,7 +111,7 @@ test("run → approve → verify over HTTP, and the run's evidence is readable",
   assert.ok(d4.weekly[3].value > d4.weekly[0].value * 1.15 && d4.weekly[5].value < d4.weekly[3].value, "the fault weeks stand out and the service brings it down");
   assert.deepEqual(d4.serviced_on, ["2026-10-06"]);
 
-  const overview = await (await get(`/admin/overview?as_of=2026-10-18`, admin)).json();
+  const overview = await (await get(`/franchise/overview?as_of=2026-10-18`, admin)).json();
   assert.equal(overview.outlets.length, 3);
   const out01 = overview.outlets.find((o: any) => o.outlet_id === "OUT-01");
   const split = out01.split;
@@ -110,7 +121,7 @@ test("run → approve → verify over HTTP, and the run's evidence is readable",
   assert.ok(overview.verified_savings_rm_per_month > 0);
   assert.ok(overview.flagged_machines.some((f: any) => f.machine_id === "OUT-01-D4" && /verified/.test(f.status)));
   assert.ok(overview.run_log.length >= 2);
-  const csv = await (await get(`/admin/scope2.csv?as_of=2026-10-18`, admin)).text();
+  const csv = await (await get(`/franchise/scope2.csv?as_of=2026-10-18`, admin)).text();
   assert.match(csv.split("\n")[0], /^outlet_id,name,period,grid_kwh/);
   assert.equal(csv.trim().split("\n").length, 4);
 });
@@ -121,6 +132,77 @@ test("customer view: a promo shows only after the owner approves it", async () =
   assert.equal((await (await get("/outlets/OUT-01/availability?as_of=2026-09-13", customer)).json()).promos.length, 0, "not before approval");
   await post("/approve", { action_id: promo.actions[0].id, decision: "approved" });
   assert.equal((await (await get("/outlets/OUT-01/availability?as_of=2026-09-13", customer)).json()).promos[0].slot, promo.actions[0].target);
+});
+
+test("accounts: sign-in with a hashed password, sign-up, lockout after five wrong passwords", async () => {
+  const ok = await post("/login", { email: "OWNER@smartflux.demo", password: "smartflux-demo" }, "");
+  assert.equal(ok.status, 200);
+  const s = await ok.json();
+  assert.equal(s.role, "superadmin");
+  assert.deepEqual(s.outlets, ["OUT-01", "OUT-02", "OUT-03"]);
+  assert.equal((await (await get("/me", s.token)).json()).email, "owner@smartflux.demo");
+  assert.equal((await post("/login", { email: "owner@smartflux.demo", password: "wrong-password" }, "")).status, 401);
+  assert.equal((await post("/login", { email: "nobody@x.com", password: "smartflux-demo" }, "")).status, 401, "same answer for an unknown email");
+
+  const up = await post("/signup", { name: "Siti", email: "siti@example.com", password: "longenough" }, "");
+  assert.equal(up.status, 201);
+  assert.equal((await up.json()).role, "customer", "sign-up always makes a customer");
+  assert.equal((await post("/signup", { name: "Siti", email: "SITI@example.com", password: "longenough" }, "")).status, 409);
+  assert.equal((await post("/signup", { name: "Short", email: "short@example.com", password: "123" }, "")).status, 400);
+  assert.equal((await post("/signup", { name: "Sneaky", email: "sneaky@example.com", password: "longenough", role: "superadmin" }, "")).status === 201 &&
+    (await (await post("/login", { email: "sneaky@example.com", password: "longenough" }, "")).json()).role, "customer", "a role in the sign-up body is ignored");
+
+  for (let i = 0; i < 5; i++) await post("/login", { email: "customer@smartflux.demo", password: "guess-" + i }, "");
+  assert.equal((await post("/login", { email: "customer@smartflux.demo", password: "smartflux-demo" }, "")).status, 429, "locked after five wrong passwords");
+
+  const { DatabaseSync } = await import("node:sqlite");
+  const hash = (new DatabaseSync(cfg.usersDb).prepare("SELECT password_hash FROM users WHERE email = 'siti@example.com'").get() as any).password_hash;
+  assert.match(hash, /^scrypt\$/);
+  assert.ok(!hash.includes("longenough"), "only the hash is stored");
+});
+
+test("people: the super admin adds an admin for one franchise outlet; changes apply to live tokens", async () => {
+  const boss = (await (await post("/login", { email: "owner@smartflux.demo", password: "smartflux-demo" }, "")).json()).token;
+  const add = await post("/users", { name: "Kumar", email: "kumar@franchise.my", role: "admin", outlets: ["OUT-02"], password: "franchise-2" }, boss);
+  assert.equal(add.status, 201);
+  const kumar = await add.json();
+  assert.equal((await post("/users", { name: "X", email: "x@franchise.my", role: "admin", outlets: [] }, boss)).status, 400, "an admin needs an outlet");
+  assert.equal((await post("/users", { name: "X", email: "x@franchise.my", role: "admin", outlets: ["OUT-99"] }, boss)).status, 400);
+
+  const k = (await (await post("/login", { email: "kumar@franchise.my", password: "franchise-2" }, "")).json()).token;
+  assert.equal((await get("/outlets/OUT-02/owner?as_of=2026-10-18", k)).status, 200);
+  assert.equal((await get("/outlets/OUT-01/owner?as_of=2026-10-18", k)).status, 403, "only the outlet they were given");
+  assert.equal((await get("/users", k)).status, 403);
+
+  const moved = await fetch(`${base()}/users/${kumar.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", ...auth(boss) }, body: JSON.stringify({ outlets: ["OUT-01"] }) });
+  assert.deepEqual((await moved.json()).outlets, ["OUT-01"]);
+  assert.equal((await get("/outlets/OUT-02/owner?as_of=2026-10-18", k)).status, 403, "the old token loses OUT-02 at once");
+
+  const me = (await (await get("/me", boss)).json());
+  assert.equal((await fetch(`${base()}/users/${me.uid}`, { method: "DELETE", headers: auth(boss) })).status, 400, "no deleting yourself");
+  assert.equal((await fetch(`${base()}/users/${me.uid}`, { method: "PATCH", headers: { "Content-Type": "application/json", ...auth(boss) }, body: JSON.stringify({ role: "admin", outlets: ["OUT-01"] }) })).status, 400);
+  assert.equal((await fetch(`${base()}/users/${kumar.id}`, { method: "DELETE", headers: auth(boss) })).status, 200);
+  assert.equal((await get("/outlets/OUT-01/owner?as_of=2026-10-18", k)).status, 401, "a removed account's token stops working");
+});
+
+test("Google sign-in: state cookie checked, claims checked, new emails become customers, staff accounts link", async () => {
+  assert.equal((await (await get("/auth/config", "")).json()).google, true);
+  const start = await fetch(`${base()}/auth/google`, { redirect: "manual" });
+  assert.equal(start.status, 302);
+  const to = new URL(start.headers.get("location")!), state = to.searchParams.get("state")!;
+  assert.equal(to.searchParams.get("client_id"), GOOGLE.GOOGLE_CLIENT_ID);
+  assert.match(start.headers.get("set-cookie")!, /HttpOnly/);
+  const callback = (code: string, cookieState = state) =>
+    fetch(`${base()}/auth/google/callback?code=${code}&state=${state}`, { redirect: "manual", headers: { Cookie: `sf_oauth_state=${cookieState}` } });
+  const token = (r: Response) => new URLSearchParams(new URL(r.headers.get("location")!, base()).hash.slice(1)).get("token");
+
+  assert.equal(token(await callback("good", "forged")), null, "a callback this browser didn't start is refused");
+  assert.equal(token(await callback("other-app")), null, "a token for another app is refused");
+  const fresh = token(await callback("good"))!;
+  const me = await (await get("/me", fresh)).json();
+  assert.deepEqual([me.email, me.role], ["new.person@gmail.com", "customer"]);
+  const staff = await (await get("/me", token(await callback("staff"))!)).json();
+  assert.deepEqual([staff.email, staff.role, staff.outlets], ["ipoh@smartflux.demo", "admin", ["OUT-01"]], "links to the account the super admin made");
 });
 
 test("the scheduler briefs every outlet on Monday 08:00 Malaysia time, once", async () => {

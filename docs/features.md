@@ -234,18 +234,22 @@ No bottom nav (three screens only)
 
 ### A.5 Roles and access (RBAC)
 
-One login picks the role; the server checks the role on every route, and the UI only hides what the server already refuses.
+Accounts live in SQLite (`data/users.db`) with scrypt-hashed passwords; people sign in with email and password or with Google. The account's role decides the screens; the server re-reads the account on every request, checks the role and outlet scope on every route, and the UI only hides what the server already refuses.
 
-| Data / action | Customer | Owner | Admin |
+- **Super admin**: the business owner. Every outlet, the franchise dashboard (`/franchise`), the outlet app, and the People screen (`/people`) to add, edit and remove accounts.
+- **Admin**: a franchise manager. The outlet app for the outlets a super admin gave them.
+- **Customer**: signs up with email or Google and browses every outlet. Scanning an outlet's QR code works as a guest for that outlet, without an account.
+
+| Data / action | Customer | Admin | Super admin |
 | --- | --- | --- | --- |
-| Machine availability (own outlet) | ✓ | ✓ | ✓ |
-| Active promo | ✓ | ✓ | ✓ |
-| Report a problem (own outlet) | ✓ | ✓ | ✕ |
+| Machine availability, approved promos | ✓ (guest: the scanned outlet) | own outlets | all outlets |
+| Report a problem | ✓ | own outlets | all outlets |
 | Energy, RM, machine efficiency, briefings | ✕ | own outlets | all outlets |
 | Ask the agent (`POST /run`) | ✕ | own outlets | all outlets |
-| Approve / reject actions | ✕ | own outlets | ✕ (view only) |
-| Evidence, run log | ✕ | own runs | all runs |
-| Scope 2 export, broadcast banner | ✕ | ✕ | ✓ |
+| Approve / reject actions | ✕ | own outlets | all outlets |
+| Evidence, run log | ✕ | own outlets | all outlets |
+| Franchise dashboard, Scope 2 export | ✕ | ✕ | ✓ |
+| Add, edit, remove people | ✕ | ✕ | ✓ (never their own role or account) |
 
 ---
 

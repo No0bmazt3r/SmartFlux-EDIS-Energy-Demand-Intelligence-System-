@@ -2,6 +2,6 @@
 export default {
   params: [],
   static: true,
-  lightning: `SELECT outlet_id, name FROM smartflux_pg.outlets ORDER BY outlet_id`,
-  sqlite: `SELECT outlet_id, name FROM outlets ORDER BY outlet_id`,
+  lightning: `SELECT outlet_id, name, state FROM smartflux_pg.outlets ORDER BY outlet_id`,
+  sqlite: `SELECT outlet_id, name, state FROM outlets ORDER BY outlet_id`,
 };

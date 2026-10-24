@@ -178,7 +178,7 @@ Payments and subscriptions; real authentication (demo login only); multi-tenancy
 | FR-72 | `GET /runs/:id` returns run state and log events; `GET /admin/overview` returns the Admin web data |
 | FR-73 | `pnpm agent --input <file>` and `pnpm agent --briefing --as-of <date>` print log events and the result |
 | FR-74 | Invalid requests return `400` with a message; missing live config returns a clear error suggesting `SAMPLE_MODE=true` |
-| FR-75 | Role-based access: demo login issues a role (`customer`, `owner`, `admin`) and an outlet scope; one middleware checks both on every route and returns `403` otherwise. Matrix in [features.md §A.5](features.md#a5-roles-and-access-rbac). `risk.test.ts`-style test: a customer calling `/run`, `/approve` or `/admin/overview` gets `403` |
+| FR-75 | Role-based access: accounts (`customer`, `admin`, `superadmin`) in SQLite with scrypt-hashed passwords or Google sign-in; the token is checked against the account on every route (role and outlet scope, `403` otherwise; a removed account gets `401`). Five wrong passwords lock an email for 15 minutes. Matrix in [features.md §A.5](features.md#a5-roles-and-access-rbac). Tested in `server.test.ts` |
 | FR-76 | `GET /outlets/:id/availability?as_of=` returns machine status and active promo only (customer-safe fields) |
 
 ## 7. Non-functional requirements

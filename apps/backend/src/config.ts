@@ -25,6 +25,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     dataDir: env.DATA_DIR ?? "data/sample",
     logDir: env.LOG_DIR ?? "logs",
     hmemDir: env.HMEM_DIR ?? "data/hmem",
+    usersDb: env.USERS_DB ?? "data/users.db",
     port: Number(env.PORT ?? 8000),
     caps: {
       toolCalls: Number(env.MAX_TOOL_CALLS ?? 30),

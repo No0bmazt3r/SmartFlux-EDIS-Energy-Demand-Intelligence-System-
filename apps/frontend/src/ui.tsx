@@ -1,6 +1,6 @@
 // Shared components (design-system.md §6). Status and risk always carry an icon and text, never colour alone.
-import { useState, type ReactNode } from "react";
-import { getLang, linkProps, navigate, setPref, usePrefs, usePath, WINDOW, type Lang } from "./api.ts";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { getLang, linkProps, navigate, setPref, usePrefs, usePath, SESSIONS, WINDOW, type Lang } from "./api.ts";
 
 // UI chrome in English and Malay. Agent answers come back in the asked language from the backend.
 const DICT = {
@@ -56,6 +56,16 @@ const DICT = {
   tEnergy: ["Energy plan", "Pelan tenaga"], tTariff: ["Tariff", "Tarif"], tFault: ["Machine fault", "Kerosakan mesin"], tBill: ["Bill", "Bil"],
   tVerify: ["Did it work?", "Adakah ia berkesan?"], tPromo: ["Promo", "Promosi"], tEsg: ["Emissions", "Pelepasan"], tBriefing: ["Weekly briefing", "Taklimat mingguan"],
   noSavingsYet: ["No verified savings yet. Approved advice is checked about 2 weeks after it's done.", "Belum ada penjimatan disahkan. Nasihat yang diluluskan disemak kira-kira 2 minggu selepas dilaksanakan."],
+  liveMachines: ["Live outlet machines", "Mesin premis secara langsung"], available: ["Available", "Ada"], busy: ["Busy", "Sibuk"], ready: ["Ready", "Sedia"],
+  mLeft: ["m left", "m lagi"], from: ["From", "Dari"], outlets: ["Outlets", "Premis"], account: ["Account", "Akaun"], select: ["Select", "Pilih"],
+  current: ["Current outlet", "Premis semasa"], happyHour: ["Off-peak happy hour", "Waktu gembira luar puncak"], remaining: ["remaining", "lagi"],
+  cycleOf: ["of a", "daripada kitaran"], minCycle: ["min cycle", "min"], guest: ["Guest", "Tetamu"], hello: ["Hello", "Hai"],
+  createAccount: ["Create an account", "Cipta akaun"], guestNote: ["You're browsing this outlet as a guest. An account lets you see every outlet.", "Anda melayari premis ini sebagai tetamu. Akaun membolehkan anda melihat semua premis."],
+  language: ["Language", "Bahasa"], demoDate: ["Demo date", "Tarikh demo"], maintShort: ["Maintenance", "Penyelenggaraan"],
+  machineDetail: ["Machine detail", "Butiran mesin"], perCycleRange: ["per cycle", "setiap kitaran"], reportIt: ["Report a problem", "Laporkan masalah"],
+  machinesFree: ["machines free", "mesin kosong"], hq: ["Franchise dashboard", "Papan pemuka francais"],
+  chooseDate: ["Choose date", "Pilih tarikh"], prevMonth: ["Previous month", "Bulan sebelumnya"], nextMonth: ["Next month", "Bulan seterusnya"],
+  sessions: ["Demo sessions", "Sesi demo"], outlet: ["Outlet", "Premis"],
   aService: ["Service", "Servis"], aPromo: ["Run promo", "Adakan promosi"], aTou: ["Switch to ToU", "Tukar ke ToU"], aQuote: ["Request solar quote", "Minta sebut harga solar"],
 } satisfies Record<string, [string, string]>;
 export type T = ReturnType<typeof useT>;
@@ -195,21 +205,110 @@ export function useToast() {
   return { show, node: msg && <div className="toast" role="status">{msg}</div> };
 }
 
+// A popover that closes on Escape or a click outside, and opens toward whichever side has room.
+function usePopover<T extends HTMLElement>() {
+  const [open, setOpen] = useState(false), [end, setEnd] = useState(false);
+  const ref = useRef<HTMLDivElement>(null), trigger = useRef<T>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [open]);
+  const toggle = () => { const r = ref.current?.getBoundingClientRect(); setEnd(!!r && r.left + 300 > innerWidth); setOpen(!open); };
+  const close = () => { setOpen(false); trigger.current?.focus(); };
+  return { open, end, ref, trigger, toggle, close };
+}
+
+// Dropdown (ARIA listbox): arrows, Home/End and Enter move and choose; Escape closes; typing a letter jumps.
+export function Dropdown({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (v: string) => void }) {
+  const p = usePopover<HTMLButtonElement>();
+  const [active, setActive] = useState(0);
+  const list = useRef<HTMLUListElement>(null), id = `dd-${label.replace(/\W/g, "")}`;
+  const current = options.find((o) => o.value === value) ?? options[0];
+  useEffect(() => { if (p.open) { setActive(Math.max(0, options.indexOf(current))); list.current?.focus(); } }, [p.open]);
+  const choose = (i: number) => { onChange(options[i].value); p.close(); };
+  const key = (e: KeyboardEvent) => {
+    const n = options.length, go = (i: number) => { e.preventDefault(); setActive((i + n) % n); };
+    if (e.key === "ArrowDown") go(active + 1); else if (e.key === "ArrowUp") go(active - 1);
+    else if (e.key === "Home") go(0); else if (e.key === "End") go(n - 1);
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(active); }
+    else if (e.key === "Escape" || e.key === "Tab") p.close();
+    else if (e.key.length === 1) { const i = options.findIndex((o) => o.label.toLowerCase().startsWith(e.key.toLowerCase())); if (i >= 0) setActive(i); }
+  };
+  return (
+    <div className="picker grow" ref={p.ref}>
+      <button ref={p.trigger} type="button" className="select picker-btn" aria-haspopup="listbox" aria-expanded={p.open} aria-label={`${label}: ${current?.label}`} onClick={p.toggle}
+        onKeyDown={(e) => { if (e.key === "ArrowDown" && !p.open) { e.preventDefault(); p.toggle(); } }}>
+        <span className="grow ellipsis">{current?.label}</span><Icon name="expand_more" className={p.open ? "flip" : ""} />
+      </button>
+      {p.open && <ul ref={list} className={`pop menu ${p.end ? "end" : ""}`} role="listbox" tabIndex={-1} aria-label={label} aria-activedescendant={`${id}-${active}`} onKeyDown={key}>
+        {options.map((o, i) => <li key={o.value} id={`${id}-${i}`} role="option" aria-selected={o.value === value} className={i === active ? "active" : ""}
+          onPointerEnter={() => setActive(i)} onClick={() => choose(i)}><span className="grow">{o.label}</span>{o.value === value && <Icon name="check" className="sm" />}</li>)}
+      </ul>}
+    </div>
+  );
+}
+
+// Date picker for the demo's "as of" date: a month grid limited to the data window, the three demo sessions one tap
+// away, and the grid keyboard pattern (arrows by day and week, Page Up/Down by month, Enter to choose).
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+const shift = (d: string, days: number) => iso(new Date(Date.parse(`${d}T00:00:00Z`) + days * 86400000));
+const clamp = (d: string) => (d < WINDOW.start ? WINDOW.start : d > WINDOW.end ? WINDOW.end : d);
+export function DatePicker({ value, onChange }: { value: string; onChange: (d: string) => void }) {
+  const t = useT(), { lang } = usePrefs(), p = usePopover<HTMLButtonElement>();
+  const [focus, setFocus] = useState(value);
+  const grid = useRef<HTMLDivElement>(null);
+  const loc = lang === "ms" ? "ms-MY" : "en-GB";
+  const fmt = (d: string, o: Intl.DateTimeFormatOptions) => new Date(`${d}T00:00:00Z`).toLocaleDateString(loc, { timeZone: "UTC", ...o });
+  useEffect(() => { if (p.open) setFocus(value); }, [p.open]);
+  useEffect(() => { if (p.open) grid.current?.querySelector<HTMLButtonElement>(`[data-d="${focus}"]`)?.focus(); }, [focus, p.open]);
+  const choose = (d: string) => { onChange(d); p.close(); };
+  // Monday-first grid for the focused month.
+  const first = `${focus.slice(0, 7)}-01`, lead = (new Date(`${first}T00:00:00Z`).getUTCDay() + 6) % 7;
+  const days = Array.from({ length: 42 }, (_, i) => shift(first, i - lead));
+  const month = (n: number) => { const d = new Date(`${focus}T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + n); return clamp(iso(d)); };
+  const key = (e: KeyboardEvent) => {
+    const step: Record<string, () => string> = { ArrowLeft: () => shift(focus, -1), ArrowRight: () => shift(focus, 1), ArrowUp: () => shift(focus, -7), ArrowDown: () => shift(focus, 7),
+      PageUp: () => month(-1), PageDown: () => month(1), Home: () => WINDOW.start, End: () => WINDOW.end };
+    if (step[e.key]) { e.preventDefault(); setFocus(clamp(step[e.key]())); }
+    else if (e.key === "Escape") p.close();
+  };
+  return (
+    <div className="picker" ref={p.ref}>
+      <button ref={p.trigger} type="button" className="select picker-btn" aria-haspopup="dialog" aria-expanded={p.open} aria-label={`${t("asOf")} ${fmt(value, { day: "numeric", month: "long", year: "numeric" })}. ${t("chooseDate")}`} onClick={p.toggle}>
+        <Icon name="calendar_today" className="sm muted" /><span className="num">{fmt(value, { day: "numeric", month: "short", year: "numeric" })}</span>
+      </button>
+      {p.open && <div className={`pop cal ${p.end ? "end" : ""}`} role="dialog" aria-label={t("chooseDate")} onKeyDown={key}>
+        <div className="row between">
+          <button type="button" className="icon-btn" aria-label={t("prevMonth")} disabled={focus.slice(0, 7) <= WINDOW.start.slice(0, 7)} onClick={() => setFocus(month(-1))}><Icon name="chevron_left" /></button>
+          <span className="h3" aria-live="polite">{fmt(focus, { month: "long", year: "numeric" })}</span>
+          <button type="button" className="icon-btn" aria-label={t("nextMonth")} disabled={focus.slice(0, 7) >= WINDOW.end.slice(0, 7)} onClick={() => setFocus(month(1))}><Icon name="chevron_right" /></button>
+        </div>
+        <div className="cal-grid" role="grid" ref={grid}>
+          {days.slice(0, 7).map((d) => <span key={d} className="dow" aria-hidden>{fmt(d, { weekday: "narrow" })}</span>)}
+          {days.map((d) => {
+            const out = d < WINDOW.start || d > WINDOW.end, other = d.slice(0, 7) !== focus.slice(0, 7);
+            return <button key={d} type="button" data-d={d} tabIndex={d === focus ? 0 : -1} disabled={out} aria-pressed={d === value} aria-label={fmt(d, { weekday: "long", day: "numeric", month: "long" })}
+              className={`day ${other ? "other" : ""} ${SESSIONS.includes(d) ? "session" : ""}`} onClick={() => choose(d)}>{Number(d.slice(8))}</button>;
+          })}
+        </div>
+        <div className="stack tight"><span className="label muted">{t("sessions")}</span>
+          <div className="row wrap">{SESSIONS.map((d) => <button key={d} type="button" className="chip-btn" aria-pressed={d === value} onClick={() => choose(d)}>{fmt(d, { day: "numeric", month: "short" })}</button>)}</div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
 // Demo controls: the "as of" date (sessions 13 Sep → 4 Oct → 18 Oct), language, sign out.
 export function DemoControls({ outlets }: { outlets?: { id: string; name: string }[] }) {
   const p = usePrefs(), t = useT();
   return (
     <>
-      {outlets && outlets.length > 1 && (
-        <label className="row"><span className="sr-only">Outlet</span>
-          <select className="select" value={p.outlet ?? outlets[0].id} onChange={(e) => setPref("outlet", e.target.value)}>
-            {outlets.map((o) => <option key={o.id} value={o.id}>{o.id} {o.name}</option>)}
-          </select>
-        </label>
-      )}
-      <label className="row"><span className="sr-only">{t("asOf")}</span>
-        <input className="select" type="date" min={WINDOW.start} max={WINDOW.end} value={p.asOf} onChange={(e) => e.target.value && setPref("asOf", e.target.value)} />
-      </label>
+      {outlets && outlets.length > 1 && <Dropdown label={t("outlet")} value={p.outlet ?? outlets[0].id} onChange={(v) => setPref("outlet", v)}
+        options={outlets.map((o) => ({ value: o.id, label: `${o.id} ${o.name}` }))} />}
+      <DatePicker value={p.asOf} onChange={(d) => setPref("asOf", d)} />
       <div className="seg" role="group" aria-label="Language">
         {(["en", "ms"] as Lang[]).map((l) => <button key={l} aria-pressed={p.lang === l} onClick={() => setPref("lang", l)}>{l === "en" ? "EN" : "BM"}</button>)}
       </div>
@@ -222,8 +321,8 @@ export function TopBar({ title, back, children }: { title?: string; back?: strin
   return (
     <header className="topbar">
       {back ? <a className="back" aria-label="Back" {...linkProps(back)}><Icon name="arrow_back" /></a> : null}
-      {title ? <h1 className="grow" style={{ fontSize: 22, lineHeight: "28px" }}>{title}</h1>
-        : <h1 className="brand-h"><a className="brand" {...linkProps("/")}><Icon name="bolt" className="save" />SmartFlux</a></h1>}
+      {title ? <h1 className="grow row" style={{ fontSize: 22, lineHeight: "28px" }}>{!back && <span className="app-tile"><Icon name="local_laundry_service" /></span>}{title}</h1>
+        : <h1 className="brand-h"><a className="brand" {...linkProps("/")}><span className="app-tile"><Icon name="local_laundry_service" /></span>SmartFlux</a></h1>}
       {children && <div className="controls">{children}</div>}
     </header>
   );
