@@ -30,8 +30,8 @@ Impact is 30 points and breaks ties. Judges' guidance says a team with a real us
 5. Are your dryers gas or electric? Who refills the gas?
 6. Tell me about the last time a machine had a problem. How did you find out? What did it cost?
 7. What payment system do you use? Can you download a record of each wash and dry?
-8. If an app told you "dryer 4 is wasting RM180 a month, service it", would you act? What would you need to see first?
-9. If it then told you "the service saved RM164 a month", would that change how you trust it?
+8. If an app told you "dryer 4 is wasting RM50 a month, service it", would you act? What would you need to see first?
+9. If it then told you "the service saved RM65 a month", would that change how you trust it?
 10. What would a tool like this be worth to you per month?
 11. Can we quote one sentence from you (first name or "an Ipoh laundromat owner")?
 
@@ -43,8 +43,8 @@ Impact is 30 points and breaks ties. Judges' guidance says a team with a real us
 5. Mesin pengering guna gas atau elektrik?
 6. Bila kali terakhir mesin rosak atau bermasalah? Macam mana tahu? Berapa kosnya?
 7. Sistem bayaran apa yang digunakan? Boleh muat turun rekod setiap kitaran?
-8. Kalau aplikasi beritahu "pengering 4 membazir RM180 sebulan, sila servis", adakah anda akan bertindak? Apa yang anda perlu lihat dulu?
-9. Kalau kemudian ia beritahu "servis itu jimat RM164 sebulan", adakah anda lebih percaya?
+8. Kalau aplikasi beritahu "pengering 4 membazir RM50 sebulan, sila servis", adakah anda akan bertindak? Apa yang anda perlu lihat dulu?
+9. Kalau kemudian ia beritahu "servis itu jimat RM65 sebulan", adakah anda lebih percaya?
 10. Berapa nilai alat seperti ini kepada anda sebulan?
 11. Boleh kami petik satu ayat daripada anda (nama pertama atau "seorang pemilik dobi di Ipoh")?
 

@@ -24,7 +24,7 @@ SmartFlux EDIS is an agent for Malaysian self-service laundromat owners. It deci
 | | |
 | --- | --- |
 | User | Laundromat owner (Owner app, mobile) and franchise operator (Admin web, desktop) |
-| Headline value | Solar sized on the real load, about RM507/month for the example outlet; faults found and **verified** in RM |
+| Headline value | Solar sized on the real load, RM502.75/month for the example outlet; faults found and **verified** in RM |
 | Agents | Scout → Planner ↔ Investigator ↔ Skeptic → Reporter, with H-MEM memory |
 | Sponsors | Zetaris (all data), Meterless H-MEM (engine) + intent routing and risk gating, Meterless Nightshift → NVIDIA Nemotron (all LLM calls) |
 | Runs without credentials | `SAMPLE_MODE=true`: the real logic on cached data |

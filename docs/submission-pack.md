@@ -59,13 +59,13 @@ Design: [design-system.md](design-system.md) colours and fonts; one idea per sli
 >
 > **Meterless (build and power).** We implemented the **H-MEM** Meterless Engine from its IMPLEMENT prompt. **H-MEM** stores each machine's baseline, every recommendation, the owner's approvals and rejections, and measured outcomes; it powers machine health and advice verification across restarts (`memory.test.ts`). Intent routing (modelled on Scout Intent; the engine spec was not available) classifies every request into intents and a risk level, and blocks operational and financial actions until the owner approves (`routing.test.ts`, `risk.test.ts`). **Meterless Nightshift** is the only AI provider: every model call goes through one OpenAI-compatible client pointed at the Nightshift Runtime.
 >
-> **NVIDIA.** Nightshift routes to two pinned NVIDIA Nemotron lanes: Nemotron Lightning for Scout, Planner and Investigator (many short tool-calling turns) and Nemotron Super for the Skeptic and Reporter (causal judgment, double-count detection, English and Malay reports). The model is logged on every call.
+> **NVIDIA.** Nightshift routes to two pinned NVIDIA Nemotron lanes: the fast lane (Nemotron Lightning) for Scout and Planner (intent, and hypotheses chosen with H-MEM context) and the deep lane (Nemotron Super) for the Skeptic and Reporter (causal judgment, double-count detection, English and Malay reports). The model is logged on every call. The Investigator runs no model: it runs the query templates and calculators, so the LLM never computes a ringgit figure.
 >
 > **AI coding tool.** Built with Claude Code. (Add a Cursor paragraph only if a team member actually used Cursor and we enter the Cursor award.)
 >
 > **What was unique.** No money claim reaches the owner until the Skeptic has re-derived it from Zetaris, and the Skeptic rejects savings summed across interacting decisions. Solar sizing re-decides the tariff on the remaining grid load. H-MEM lets the agent check whether its own advice worked.
 
-Fill in after building: [exact Nemotron route names], [test output lines], [whether the Scout Intent engine or the fallback was used].
+Facts for the form: intent routing is the documented fallback, not the Scout Intent engine (its spec was not in the resource pack); `pnpm test` 45/45 pass; `pnpm eval` 24/24 checks pass on seed 1 and the held-out seed 2; benchmark 30 outlets, fault recall 21/21, 0 false flags. Still to fill after the first live run: [exact Nemotron route names].
 
 ## 5. README outline
 
@@ -91,10 +91,10 @@ Declare in the form and in `PRE_EXISTING.md`:
 
 | Component | Before 22 Oct 00:00 UTC | Built in the window |
 | --- | --- | --- |
-| Monorepo scaffold (pnpm, Express 5, React 18 + Vite) | Yes | Restructured |
-| React dashboard shell | Yes (mock data, hardcoded forecasts) | Reworked into Owner app and Admin web; mock data and hardcoded numbers removed |
-| Gemini chatbot, ForecastService | Yes | Deleted |
-| Everything else (agents, engines, calculators, templates, adapters, data generator, Zetaris setup, evaluation, tests, logs) | No | All new |
+| Monorepo scaffold (pnpm, Express 5, React 18 + Vite) | Yes | Not reused: a new pnpm workspace; the backend uses `node:http`, not Express |
+| React dashboard shell | Yes (mock data, hardcoded forecasts) | Not reused: the Customer, Owner and Admin app was written fresh (React 19) |
+| Gemini chatbot, ForecastService | Yes | Not reused |
+| Everything in this repository (agents, engines, calculators, templates, adapters, app, data generator, Zetaris setup, evaluation, tests, logs) | No | All new |
 
 Record the prototype's last pre-window commit hash here: `[hash]`.
 

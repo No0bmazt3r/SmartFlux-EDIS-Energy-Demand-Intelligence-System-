@@ -1,6 +1,6 @@
 {
-  "run_id": "r-2652a595",
-  "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
+  "run_id": "r-cc3e9c30",
+  "mode": "sample (rules reasoner, no LLM)",
   "outlet_id": "OUT-01",
   "as_of": "2026-10-18",
   "decisions": [
@@ -56,7 +56,7 @@
   ],
   "actions": [
     {
-      "id": "r-2652a595-a1",
+      "id": "r-cc3e9c30-a1",
       "type": "switch_tariff",
       "target": "OUT-01",
       "reason": "ToU saves about RM7.6/month",

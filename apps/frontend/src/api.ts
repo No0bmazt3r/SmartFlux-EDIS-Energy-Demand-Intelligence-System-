@@ -17,6 +17,7 @@ const state = {
   lang: store.get<Lang>("lang", "en"),
   outlet: store.get<string | null>("outlet", null),
 };
+export const getLang = () => state.lang; // for plain helpers (date formatting); components re-render via usePrefs
 export function setPref<K extends keyof typeof state>(k: K, v: (typeof state)[K]) {
   state[k] = v;
   store.set(k, v);

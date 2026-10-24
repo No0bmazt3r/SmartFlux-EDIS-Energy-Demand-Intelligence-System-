@@ -80,6 +80,9 @@ const TEXT = {
     solarCost: (c: number, d: number) => `Installed cost RM${c} per kWp, derate ${d} (installer quotes to confirm)`,
     exports: "Exported solar valued at RM0 (credit terms vary; confirm under Solar ATAP)",
     radiation: "Generation from real hourly radiation at the outlet (Open-Meteo)",
+    actSolar: (k: number, x: number) => `${k} kWp saves about RM${x}/month`, actTouJoint: "ToU is cheaper for this load",
+    actTou: (x: number) => `ToU saves about RM${x}/month`, actPromo: (n: string) => `moves about ${n} dryer cycles a week off-peak`,
+    actService: (m: string, x: number) => `${m} wastes about RM${x}/month`,
   },
   ms: {
     switch: "Tukar ke tarif ToU", switch_with_caution: "Tukar ke ToU, dengan berhati-hati", stay: "Kekal dengan tarif rata semasa",
@@ -144,10 +147,13 @@ const TEXT = {
     solarCost: (c: number, d: number) => `Kos pemasangan RM${c} setiap kWp, derate ${d} (sahkan dengan sebut harga)`,
     exports: "Tenaga solar yang dieksport dinilai RM0 (terma kredit berbeza)",
     radiation: "Penjanaan daripada sinaran sebenar setiap jam di premis (Open-Meteo)",
+    actSolar: (k: number, x: number) => `${k} kWp menjimatkan kira-kira RM${x}/bulan`, actTouJoint: "ToU lebih murah untuk penggunaan ini",
+    actTou: (x: number) => `ToU menjimatkan kira-kira RM${x}/bulan`, actPromo: (n: string) => `memindahkan kira-kira ${n} kitaran pengering seminggu ke luar waktu puncak`,
+    actService: (m: string, x: number) => `${m} membazir kira-kira RM${x}/bulan`,
   },
 };
 
-const range = (w: { from: string; to: string }) => `${fmt(w.from)}–${fmt(new Date(Date.parse(w.to) - 86400000).toISOString().slice(0, 10))}`;
+const range = (w: { from: string; to: string }, lang: Lang) => `${fmt(w.from, lang)}–${fmt(addDays(w.to, -1), lang)}`;
 
 function tariffCard(claim: Claim, lang: Lang): Decision {
   const t = TEXT[lang], r = claim.data as TouResult;
@@ -175,7 +181,7 @@ function faultCard(claim: Claim, ruledOut: string[], lang: Lang): Decision {
       ...(f.customer_reports?.length ? [t.reports(f.customer_reports.length, [...new Set(f.customer_reports)].join(", ").replace(/_/g, " "))] : []),
     ],
     ruled_out: ruledOut,
-    assumptions: [t.baseline(range(f.windows.baseline), range(f.windows.current)), gas ? t.lpg(f.lpg) : t.flat(f.rate), t.synthetic],
+    assumptions: [t.baseline(range(f.windows.baseline, lang), range(f.windows.current, lang)), gas ? t.lpg(f.lpg) : t.flat(f.rate), t.synthetic],
   };
 }
 
@@ -219,7 +225,7 @@ export function reporter(state: RunState, ctx: Ctx) {
   // Every proposed action is remembered with its prediction; advice the owner already declined is not re-proposed.
   const propose = (type: string, target: string, reason: string, predicted?: number) => {
     const declined = priorRejection(state, ctx, type, target);
-    if (declined) return state.decisions.at(-1)?.assumptions.unshift(t.declined(type, fmt(declined.as_of)));
+    if (declined) return state.decisions.at(-1)?.assumptions.unshift(t.declined(type, fmt(declined.as_of, state.lang)));
     const action = { id: `${state.run_id}-a${state.actions.length + 1}`, type, target, reason, risk: ACTION_RISK[type], status: gate(type) === "auto" ? "approved" as const : "awaiting_approval" as const };
     state.actions.push(action);
     rememberAdvice(state, ctx, action, predicted);
@@ -232,7 +238,7 @@ export function reporter(state: RunState, ctx: Ctx) {
     state.decisions.push({
       type: "bill_explanation", verdict: t.bill(sign(bill.data.delta_pct)), confidence: causes.length ? "high" : "medium",
       evidence: [t.billEv(bill.data.kwh_per_day.baseline, bill.data.kwh_per_day.current), ...causes],
-      ruled_out: ruledOut, assumptions: [t.baseline(range(bill.data.windows.baseline), range(bill.data.windows.current)), t.synthetic],
+      ruled_out: ruledOut, assumptions: [t.baseline(range(bill.data.windows.baseline, state.lang), range(bill.data.windows.current, state.lang)), t.synthetic],
     });
   }
   for (const claim of approved) {
@@ -240,17 +246,17 @@ export function reporter(state: RunState, ctx: Ctx) {
       const card = energyCard(claim, state.claims.filter((c) => c.hypothesis_id === claim.hypothesis_id && c.status === "rejected"), state.lang);
       state.decisions.push(card);
       const best = claim.data.joint?.best.option ?? (claim.data.grid.verdict === "stay" ? "flat" : "tou");
-      if (best.startsWith("solar")) propose("request_solar_quote", `${state.outlet_id} ${claim.data.kwp} kWp`, `${claim.data.kwp} kWp saves about RM${card.rm_per_month}/month`, card.rm_per_month);
-      if (best.endsWith("tou")) propose("switch_tariff", state.outlet_id, "ToU is cheaper for this load");
+      if (best.startsWith("solar")) propose("request_solar_quote", `${state.outlet_id} ${claim.data.kwp} kWp`, t.actSolar(claim.data.kwp, card.rm_per_month!), card.rm_per_month);
+      if (best.endsWith("tou")) propose("switch_tariff", state.outlet_id, t.actTouJoint);
     } else if (claim.kind === "tou") {
       state.decisions.push(tariffCard(claim, state.lang));
       const r = claim.data as TouResult;
-      if (r.verdict !== "stay") propose("switch_tariff", state.outlet_id, `ToU saves about RM${rm(r.saving_per_month)}/month`, r.saving_per_month);
+      if (r.verdict !== "stay") propose("switch_tariff", state.outlet_id, t.actTou(rm(r.saving_per_month)), r.saving_per_month);
     } else if (claim.kind === "shift") {
       const d = claim.data;
       state.decisions.push({ type: "load_shift", verdict: t.promo(d.slot.day, d.slot.hour), rm_per_month: rm(d.saving_rm_per_month), confidence: "medium",
         evidence: t.promoEv(d.peak_dryer_cycles_per_week, d.shiftable_cycles_per_week, d.slot.idle_share * 100), ruled_out: [], assumptions: [...t.promoNotes(d.promo_response), t.synthetic] });
-      propose("run_promo", `${d.slot.day} ${d.slot.hour}:00`, `moves about ${d.shiftable_cycles_per_week.toFixed(1)} dryer cycles a week off-peak`, d.saving_rm_per_month);
+      propose("run_promo", `${d.slot.day} ${d.slot.hour}:00`, t.actPromo(d.shiftable_cycles_per_week.toFixed(1)), d.saving_rm_per_month);
     } else if (claim.kind === "verify" && claim.data.promo) {
       const d = claim.data, r = d.result;
       state.decisions.push({ type: "verification", verdict: t.promoResult[r.verdict as keyof typeof t.promoResult](d.name, r.offpeak_share_change_pts), confidence: r.verdict === "verified" ? "high" : "medium",
@@ -262,7 +268,7 @@ export function reporter(state: RunState, ctx: Ctx) {
       const ev = d.serviced_on ? [
         t.predicted(rm(mv.predicted_rm_per_month), rm(mv.realised_rm_per_month), Math.round(mv.share_of_prediction * 100)),
         t.level(d.name, d.readings.machine.pre.value, d.readings.machine.post.value, d.readings.peers.pre.value, d.readings.peers.post.value, gas ? "min" : "kWh"),
-        t.band(rm(mv.band_rm_per_month)), t.servicedOn(fmt(d.serviced_on), mv.post_days), t.peersNote,
+        t.band(rm(mv.band_rm_per_month)), t.servicedOn(fmt(d.serviced_on, state.lang), mv.post_days), t.peersNote,
       ] : [t.notServiced(d.name)];
       state.decisions.push({
         type: "verification", verdict: t.mv[mv.verdict as keyof typeof t.mv](d.name, rm(mv.realised_rm_per_month)), rm_per_month: mv.verdict === "verified" ? rm(mv.realised_rm_per_month) : undefined,
@@ -279,10 +285,10 @@ export function reporter(state: RunState, ctx: Ctx) {
         ruled_out: [], assumptions: [t.synthetic] });
     } else if (claim.kind === "fault" && claim.data.none) {
       state.decisions.push({ type: "machine_fault", verdict: t.noFault, confidence: "high", evidence: [t.noFaultEv(claim.data.faults.length), ...(claim.data.unconfirmed_reports?.length ? [t.reportsUnconfirmed(claim.data.unconfirmed_reports.join(", "))] : [])], ruled_out: [],
-        assumptions: [t.baseline(range(claim.data.windows.baseline), range(claim.data.windows.current)), t.synthetic] });
+        assumptions: [t.baseline(range(claim.data.windows.baseline, state.lang), range(claim.data.windows.current, state.lang)), t.synthetic] });
     } else if (claim.kind === "fault") {
       state.decisions.push(faultCard(claim, ruledOut, state.lang));
-      propose("schedule_service", claim.data.machine_id, `${claim.data.name} wastes about RM${rm(claim.data.waste_rm_per_month)}/month`, claim.data.waste_rm_per_month);
+      propose("schedule_service", claim.data.machine_id, t.actService(claim.data.name, rm(claim.data.waste_rm_per_month)), claim.data.waste_rm_per_month);
     }
   }
   if (state.briefing) {

@@ -113,7 +113,7 @@ Score each criterion within its band. Anchors come from the official criteria an
 | --- | --- | --- | --- |
 | T1 | Can I run it without your keys? | Yes. `SAMPLE_MODE=true` runs the full loop on cached data with rule-based twins of each agent | README; clean-clone script |
 | T2 | Isn't sample mode just replaying answers? | No. Change the outlet, `as_of` or seed and the answer changes; nothing reads `output_examples/` | Example 03 vs 06; seed 2 |
-| T3 | Where does one agent change another's behaviour? | The Skeptic sends work back; for example it rejected "RM521" and forced a joint recomputation | `logs/` example 06 |
+| T3 | Where does one agent change another's behaviour? | The Skeptic sends work back; for example it rejected "RM510.35" and forced a joint recomputation | `logs/` example 06 |
 | T4 | Does the LLM do the maths? | Never. It picks templates and explains; calculators compute every number | `calc/*.test.ts`; `calc.*` events |
 | T5 | What if Zetaris dies mid-run? | Retry, then the same template runs locally; logged as `fallback`, run marked `mixed` | Failure demo; logs |
 | T6 | How do you know it's accurate? | 30-outlet benchmark: verdict accuracy, fault recall, false flags, verification error | `eval/benchmark.md` |
@@ -127,7 +127,7 @@ Score each criterion within its band. Anchors come from the official criteria an
 | B1 | Who exactly is this for? | Owners of 1–3 self-service laundromats in Malaysia, often absentee | Owner quote; personas in [PRD](prd.md) |
 | B2 | Have you talked to one? | [Fill from [user-research.md](user-research.md); never invent] | Interview notes |
 | B3 | Where does the cycle data come from in real life? | Cashless payment and telemetry systems already used in Malaysian laundromats (for example payNwash); CSV export first | [proposal §25](proposal.md#25-sources) |
-| B4 | Is RM14/month worth anything? | That's why we lead with the joint decision: solar sized to the real load saves about RM507/month for the example outlet, and we show when ToU stops paying | Energy plan card |
+| B4 | Is RM7.60/month worth anything? | That's why we lead with the joint decision: solar sized to the real load saves about RM503/month for the example outlet, and we show when ToU stops paying | Energy plan card |
 | B5 | Aren't solar installers already doing this? | They size from the bill. We size from half-hourly load and real irradiance, and re-decide the tariff after solar | Joint example |
 | B6 | Many dryers are gas. Doesn't that break it? | Gas dryers are monitored by cycle minutes; we never claim electric savings from a gas burner | G3 at OUT-02 |
 | B7 | How do you know the advice worked? | We measure it: before/after against peers, reported as realised RM with a band | Verification card |
@@ -173,7 +173,7 @@ Gates failed (from §3): ______
 
 | Criterion | Max | Self-score | Why | What would cost points |
 | --- | --- | --- | --- | --- |
-| Impact | 30 | 28 | Joint solar/ToU decision worth about RM507/month; verified fault savings; gas dryers handled; Scope 2; data source exists | No real owner conversation (−3 to −4) |
+| Impact | 30 | 28 | Joint solar/ToU decision worth about RM503/month; verified fault savings; gas dryers handled; Scope 2; data source exists | No real owner conversation (−3 to −4) |
 | Technical | 20 | 19 | Loops, caps, fallbacks, real sample mode, tests, benchmark, Docker | Template parity bugs; benchmark misses unexplained |
 | Innovation | 15 | 14 | Payment-log disaggregation; solar re-deciding ToU; Skeptic catching double counts; self-verifying advice | Judges unfamiliar with NILM may not see the novelty unless the deck explains it in one line |
 | Demo | 15 | 14 | Twist, memory across restart, Skeptic rejection, verified outcome, sample mode on camera | Running over 4 minutes; too many scenes |

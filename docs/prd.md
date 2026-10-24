@@ -31,7 +31,7 @@ Every answer shows its evidence. A Skeptic agent re-checks every money claim aga
 | The owner sees one number: the monthly TNB bill | No idea which machine, hour or tariff drives the cost |
 | ToU is opt-in since July 2025, peak is weekdays 14:00–22:00 | Owners fear switching and paying more |
 | Solar installers size systems from the bill (Solar ATAP since 1 Jan 2026) | Systems are sized without knowing when the load happens; the interaction with ToU is ignored |
-| A dryer with a clogged vent or weak heater keeps running | Wastes about RM180/month until it breaks; nobody notices |
+| A dryer with a clogged vent or weak heater keeps running | Wastes RM48–85/month in our sample outlets until it breaks; nobody notices |
 | Nobody checks whether a fix worked | Owners cannot tell good advice from bad |
 | Larger customers and lenders ask SMEs for emissions figures | Owners have no figures ready |
 
@@ -123,7 +123,7 @@ Payments and subscriptions; real authentication (demo login only); multi-tenancy
 | FR-03 | Query data only through Zetaris (live) or local SQLite (sample) via templates | No other data access path exists in the code |
 | FR-04 | Compute all money and statistics in deterministic code | Every RM figure in output traces to a `calc.*` log event |
 | FR-05 | Skeptic verifies each claim with its own query and can block it | At least one `needs_revision` event in example 02 and 06 logs; Reporter receives only approved claims |
-| FR-06 | Reject double-counted savings across interacting decisions | Example 06 log shows the RM521 sum rejected; output recommends solar + flat |
+| FR-06 | Reject double-counted savings across interacting decisions | Example 06 log shows the RM510.35 sum rejected; output recommends solar + flat |
 | FR-07 | Decide solar size, ToU, and the combination jointly | Matches [proposal §24.3](proposal.md#243-solar--tou-joint-example-out-01) on the sample data |
 | FR-08 | Detect faults for electric dryers (kWh) and gas dryers (minutes) | O3 and O11 pass on both seeds |
 | FR-09 | Gate operational and financial actions behind owner approval | `risk.test.ts`: a tariff switch or solar request never auto-executes |

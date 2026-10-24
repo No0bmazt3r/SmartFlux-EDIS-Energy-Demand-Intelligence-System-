@@ -17,4 +17,4 @@ export function compareWindows(asOf: string): { baseline: Range; current: Range 
 }
 
 export const days = (r: Range) => (Date.parse(r.to) - Date.parse(r.from)) / 86400000;
-export const fmt = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+export const fmt = (d: string, lang: "en" | "ms" = "en") => new Date(`${d}T00:00:00Z`).toLocaleDateString(lang === "ms" ? "ms-MY" : "en-GB", { day: "numeric", month: "short", timeZone: "UTC" });

@@ -94,10 +94,17 @@ test("run → approve → verify over HTTP, and the run's evidence is readable",
   assert.deepEqual(home.machines.find((m: any) => m.machine_id === "OUT-01-D2").customer_reports, [{ reason: "not_heating", as_of: "2026-10-18" }]);
   assert.equal(home.machines.find((m: any) => m.machine_id === "OUT-01-D4").health, "serviced_verified");
   assert.ok(home.machines.find((m: any) => m.machine_id === "OUT-01-D4").normal.kwh_per_cycle > 0);
+  const d4 = home.machines.find((m: any) => m.machine_id === "OUT-01-D4");
+  assert.equal(d4.weekly.length, 6);
+  assert.ok(d4.weekly.every((w: any) => w.unit === "kWh" && w.value > 0), "a kWh-per-cycle reading for every week");
+  assert.ok(d4.weekly[3].value > d4.weekly[0].value * 1.15 && d4.weekly[5].value < d4.weekly[3].value, "the fault weeks stand out and the service brings it down");
+  assert.deepEqual(d4.serviced_on, ["2026-10-06"]);
 
   const overview = await (await get(`/admin/overview?as_of=2026-10-18`, admin)).json();
   assert.equal(overview.outlets.length, 3);
   const out01 = overview.outlets.find((o: any) => o.outlet_id === "OUT-01");
+  const split = out01.split;
+  assert.ok(split.washers_kwh > 0 && split.dryers_kwh > 0 && Math.abs(split.washers_kwh + split.dryers_kwh + split.base_kwh - split.total_kwh) < 1e-6);
   assert.ok(out01.kpis.kwh_month_to_date > 0 && out01.kpis.revenue_rm_month_to_date > 0 && out01.weekly.length === 6);
   assert.equal(overview.advice_scoreboard.find((a: any) => a.target === "OUT-01-D4").verified.verdict, "verified");
   assert.ok(overview.verified_savings_rm_per_month > 0);

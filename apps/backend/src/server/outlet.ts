@@ -6,7 +6,7 @@ import type { Config } from "../config.ts";
 import { openHmem, type MemoryRecord } from "../engines/hmem/index.ts";
 import { WINDOW } from "../orchestrator/state.ts";
 import { addDays } from "../orchestrator/windows.ts";
-import { adminOverview, dataQuery, readRuns } from "./admin.ts";
+import { adminOverview, dataQuery, fitRange, readRuns } from "./admin.ts";
 
 export const REPORT_REASONS = ["wont_start", "not_heating", "too_long", "other"] as const;
 const minutesBetween = (from: string, to: string) => {
@@ -70,6 +70,18 @@ export async function ownerView(cfg: Config, db: SampleDb, outlet: string, asOf:
       customer_reports: reports.filter((r) => r.data.machine_id === m.machine_id).map((r) => ({ reason: r.data.reason, as_of: r.as_of })),
     };
   });
+  // Week-by-week reading per machine (weeks start Mon 7 Sep; a partial last week counts from 3 days), plus service dates.
+  const machineRows = await q("machine_list", { outlet }) as any[];
+  const weeks: { week: number; from: string; fit: Awaited<ReturnType<typeof fitRange>> }[] = [];
+  for (let from = WINDOW.start, w = 1; from <= asOf; from = addDays(from, 7), w++) {
+    const to = addDays(from, 7) <= addDays(asOf, 1) ? addDays(from, 7) : addDays(asOf, 1);
+    if ((Date.parse(to) - Date.parse(from)) / 86400000 >= 3) weeks.push({ week: w, from, fit: await fitRange(q, cfg, asOf, outlet, from, to, machineRows) });
+  }
+  const services = await q("services_range", { outlet, from: WINDOW.start, to: addDays(asOf, 1) });
+  for (const m of machines as any[]) {
+    m.weekly = weeks.map((w) => ({ week: w.week, from: w.from, ...(w.fit?.readings[m.machine_id] ?? { value: null }) }));
+    m.serviced_on = services.filter((s) => s.machine_id === m.machine_id).map((s) => s.serviced_on);
+  }
   const briefing = readRuns(cfg.logDir, 500).find((r) => r.outlet_id === outlet && r.briefing && r.as_of <= asOf) ?? null;
   return {
     as_of: asOf, outlet: o.outlets[0], rates, machines, briefing, advice: o.advice_scoreboard,

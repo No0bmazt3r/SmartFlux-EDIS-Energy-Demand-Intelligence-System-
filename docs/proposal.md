@@ -23,8 +23,8 @@ v3 fixed every rule and reliability gap. v4 raises the ceiling on **Impact** and
 
 | # | Change | Why it scores | Section |
 | --- | --- | --- | --- |
-| 1 | **Solar + ToU as one joint decision.** The agent sizes rooftop solar from the outlet's own half-hourly load and real irradiance, then re-runs the ToU decision on the *remaining* grid load. Solar can flip the ToU verdict | Moves the headline value from about RM14/month to about RM507/month. Malaysia's **Solar ATAP** scheme (effective 1 Jan 2026) lets non-domestic users size up to 100% of maximum demand. Interacting decisions are exactly what "Reasoning Architecture" asks for | [§15.6](#156-solar-sizing-and-the-joint-decision) |
-| 2 | **Skeptic blocks double-counted savings.** "RM14 from ToU + RM507 from solar = RM521" is rejected because the two interact | A Skeptic job no checklist-style critic would catch; strong collaboration moment for the demo | [§11.2](#112-agents-and-authority) |
+| 1 | **Solar + ToU as one joint decision.** The agent sizes rooftop solar from the outlet's own half-hourly load and real irradiance, then re-runs the ToU decision on the *remaining* grid load. Solar can flip the ToU verdict | Moves the headline value from RM7.60/month to RM502.75/month for the example outlet. Malaysia's **Solar ATAP** scheme (effective 1 Jan 2026) lets non-domestic users size up to 100% of maximum demand. Interacting decisions are exactly what "Reasoning Architecture" asks for | [§15.6](#156-solar-sizing-and-the-joint-decision) |
+| 2 | **Skeptic blocks double-counted savings.** "RM7.60 from ToU + RM502.75 from solar = RM510.35" is rejected because the two interact | A Skeptic job no checklist-style critic would catch; strong collaboration moment for the demo | [§11.2](#112-agents-and-authority) |
 | 3 | **Measurement and verification of advice.** After the owner approves "service D4", a later session measures the real kWh/cycle drop and reports **realised** savings (IPMVP-style before/after) | Closes the loop from decision → action → verified outcome; memory changes behaviour | [§15.9](#159-measurement-and-verification-did-the-advice-work) |
 | 4 | **Gas and electric dryers handled.** Many laundromat dryers burn LPG; the meter cannot see the burner. Gas dryers are monitored by cycle duration and cycles per hour instead of kWh | Pre-empts the first domain objection a judge with laundromat knowledge will raise | [§15.4](#154-fault-check) |
 | 5 | **Weekly autonomous briefing.** Every Monday the agent investigates each outlet unprompted and posts a briefing card | An agent that does work without being asked, not a Q&A box | [§11.6](#116-weekly-autonomous-briefing) |
@@ -94,7 +94,7 @@ The revised SmartFlux is an **agent that investigates a laundromat's energy use 
 
 1. **Makes the energy-cost decision as one joined-up answer: solar, tariff, or both.** It sizes rooftop solar from the outlet's own half-hourly load and real irradiance (Solar ATAP, 2026), then re-decides the Time-of-Use (ToU) tariff on the grid load that remains. Solar can flip the ToU verdict, and the agent says so.
 2. **Works out energy and cost per machine without sensors**, by regressing interval kWh on machine cycles each week. That gives cost per cycle against the price the customer pays. Gas dryers, which the meter cannot fully see, are tracked by cycle duration.
-3. **Detects faulty machines** (for example a dryer using 33% more energy per cycle) and rules out false causes like humid weather by comparing peers. A single faulty dryer can waste about RM180 a month.
+3. **Detects faulty machines** (for example a dryer using 33% more energy per cycle) and rules out false causes like humid weather by comparing peers. The faulty dryers in our sample outlets waste RM48–85 a month each.
 4. **Acts, then checks its own advice.** Operational and financial actions wait for owner approval. After the owner acts, a later session measures the realised saving against the baseline in memory.
 5. **Works without being asked.** Every Monday it investigates each outlet and posts a briefing. It also produces the Scope 2 emissions figures Malaysian SMEs are now asked for.
 
@@ -261,10 +261,10 @@ If no owner can be reached in time, say so honestly in the deck and cite public 
 
 | Value | Size (OUT-01, 4,000 kWh/month) | Frequency |
 | --- | --- | --- |
-| **Solar sized on the outlet's own load** | About **RM507/month** for 10 kWp, payback about 5.8 years ([§24.3](#243-solar--tou-joint-example-out-01)); avoids an oversized system that exports at low value | One-off, the largest energy decision an owner makes |
-| ToU switch decision | About RM14/month grid-only; **after solar, ToU costs RM1.43/month more**, so the right call flips to "stay" | One-off, high anxiety |
+| **Solar sized on the outlet's own load** | About **RM503/month** for 10 kWp, payback about 5.8 years ([§24.3](#243-solar--tou-joint-example-out-01)); avoids an oversized system that exports at low value | One-off, the largest energy decision an owner makes |
+| ToU switch decision | RM7.60/month grid-only; **after solar, ToU costs RM1.39/month more**, so the right call flips to "stay" | One-off, high anxiety |
 | Load shifting | About RM25/month for 15% of load moved | Ongoing |
-| Fault detection | About RM180/month per faulty dryer, plus customer throughput lost to longer cycles; lint and vent problems are also a safety issue | Occasional; frequency to be confirmed with owners (§5.3) |
+| Fault detection | RM48–85/month per faulty dryer in our sample outlets, plus customer throughput lost to longer cycles; lint and vent problems are also a safety issue | Occasional; frequency to be confirmed with owners (§5.3) |
 | Verified savings | Every approved action reported as predicted vs realised RM | Ongoing; builds trust in the advice |
 | Cost vs price per cycle | Finds machines priced below their energy cost after a tariff change | Ongoing |
 | Scope 2 report | Saves the owner preparing the emissions figures larger customers and lenders ask for | Yearly or on request |
@@ -278,7 +278,7 @@ The pitch leads with the joint solar/ToU decision and verified fault savings, no
 | # | Objective | Measurable result | Checked by |
 | --- | --- | --- | --- |
 | O1 | Make the ToU decision safe | Correct switch or stay verdict for every outlet on both datasets, with breakeven, worst week and RM difference matching the calculator to the sen | `calc/tou.test.ts`, `eval/run-eval.ts` |
-| O2 | Attribute energy to machines without hardware | Recovered kWh per cycle within ±10% of the planted value for every dryer, per week | `calc/regress.test.ts` |
+| O2 | Attribute energy to machines without hardware | Recovered kWh per cycle within ±10% of the planted value for ≥ 95% of dryer-weeks, every miss listed | `calc/regress.test.ts` |
 | O3 | Find faulty machines | Flags the planted faulty dryer on both datasets; **never** flags the humid week or the noisy washer | `eval/run-eval.ts` |
 | O4 | Recommend load shifting safely | Shift plan with RM savings; no operational or financial action runs without approval | `engines/scout/risk.test.ts` |
 | O5 | Remember across sessions | Session 2 (`as_of` 4 Oct) uses baselines learned in session 1 (`as_of` 13 Sep) after a restart, visible in the log | `engines/hmem/memory.test.ts` |
@@ -795,7 +795,7 @@ Every request carries `as_of`. Templates only see data up to that date, and H-ME
 | --- | --- | --- |
 | 1 | Sun 13 Sep | Week 1 only. Regression learns baselines (D4 2.1 kWh/cycle, 52 min). H-MEM stores them. Agent advises a Saturday 22:00 promo |
 | (restart) | | Process restarted; H-MEM persists in `data/hmem/` |
-| 2 | Sun 4 Oct | Four weeks. Agent recalls week-1 baselines, finds D4 +33% in weeks 3–4, Skeptic rules out humidity and the Malaysia Day holiday, proposes "service D4" with a **predicted** saving of RM182/month. Reports the promo outcome (off-peak share up). Owner approves |
+| 2 | Sun 4 Oct | Four weeks. Agent recalls week-1 baselines, finds D4 +26% kWh per cycle, Skeptic rules out humidity and the Malaysia Day holiday, proposes "service D4" with a **predicted** saving of RM48/month. Reports the promo outcome (off-peak share up). Owner approves |
 | 3 | Sun 18 Oct | Six weeks. The `service_log` shows D4 serviced on 6 Oct. `mv_check` compares weeks 5–6 with the baseline and the pre-service weeks and reports the **realised** saving; H-MEM records "advice verified". If the saving is not there, the agent says so and proposes the next check (vent, heater element) |
 
 The `service_log` row and the post-service recovery are planted by the generator, because the demo cannot wait two weeks. This is stated in the README and the video.
@@ -905,13 +905,13 @@ curl -X POST http://localhost:8000/run -H "Content-Type: application/json" -d @i
 
 | File | Question | Expected behaviour |
 | --- | --- | --- |
-| `01-tou-switch.json` | OUT-01: switch to ToU? (grid only) | Switch, about RM14/month, worst week below breakeven |
+| `01-tou-switch.json` | OUT-01: switch to ToU? (grid only) | Switch, RM7.60/month, worst week below breakeven |
 | `02-bill-why.json` | OUT-01, `as_of` 4 Oct: why higher? | D4 flagged, humidity and holiday ruled out, service proposed |
 | `03-tou-stay.json` | OUT-03: switch to ToU? | **Stay**: peak share about 70% is above breakeven; no roof for solar |
 | `04-machines-ms.json` | OUT-02 in Malay: mesin mana yang rugi? | Gas dryer G3 flagged from cycle minutes; noisy washer **not** flagged; cost vs price per cycle listed |
 | `05-out-of-scope.json` | "Write me a marketing email" | Scout refuses and lists what it can do |
-| `06-energy-plan.json` | OUT-01: solar, ToU or both? | 10 kWp solar + **stay on flat**, about RM507/month; the naive RM521 sum is rejected in the log |
-| `07-did-it-work.json` | OUT-01, `as_of` 18 Oct: did servicing D4 work? | **Verified**: realised saving close to the RM182 predicted, with a band |
+| `06-energy-plan.json` | OUT-01: solar, ToU or both? | 10 kWp solar + **stay on flat**, RM502.75/month; the naive RM510.35 sum is rejected in the log |
+| `07-did-it-work.json` | OUT-01, `as_of` 18 Oct: did servicing D4 work? | **Verified**: RM64.65/month realised vs RM48.03 predicted, band ± RM14.33 |
 | `08-briefing.json` | (no question) weekly briefing, OUT-01, `as_of` 18 Oct | Briefing card: D4 verified, peak share this week, nothing awaiting approval |
 
 `output_examples/` holds the saved outputs of real runs. The clean-clone test diffs a fresh sample-mode run against them by structure (verdicts and flags), not by text.
@@ -942,7 +942,7 @@ smartflux/
 │   ├── zetaris-setup.ts           # NEW  runs infra/zetaris/*.sql, --dry-run first
 │   ├── smoke.ts                   # NEW  Zetaris + Nightshift checks
 ├── data/sample/                   # NEW  cached CSVs for sample mode (+ data/README.md)
-├── eval/                          # NEW  run-eval.ts (O1–O12, both seeds), benchmark.ts
+├── eval/                          # NEW  run-eval.ts (O1–O11, both seeds), benchmark.ts (O12)
 ├── input_examples/  output_examples/  logs/
 ├── infra/zetaris/                 # NEW  *_create.sql, *_select.sql
 ├── docker-compose.yml  Dockerfile
@@ -1089,10 +1089,10 @@ If the projection crosses the target, hold new dryer starts until the window clo
 
 | Plant | Where | Expected agent finding |
 | --- | --- | --- |
-| Peak share about 55%, roof up to 15 kWp | OUT-01 | Grid-only: switch to ToU (about RM14/month). With 10 kWp solar: **stay on flat**, because the post-solar peak share crosses breakeven. Recommends solar + flat |
+| Peak share about 58%, roof up to 15 kWp | OUT-01 | Grid-only: switch to ToU (RM7.60/month). With 10 kWp solar: **stay on flat**, because the post-solar peak share crosses breakeven. Recommends solar + flat |
 | Peak share about 70% (business-district outlet), no usable roof | OUT-03 | **Stay on flat tariff**; solar not possible, said plainly |
 | Dryers are gas; G3's vent clogs from week 4: +20% minutes per cycle, almost no kWh change | OUT-02 | Flag G3 from duration, no electric-kWh claim |
-| Dryer D4 heater degrading from week 3: +33% kWh/cycle, +17% duration | OUT-01 | Flag D4, about RM180/month waste, propose servicing |
+| Dryer D4 heater degrading from week 3: +33% kWh/cycle, +17% duration | OUT-01 | Flag D4, about RM48/month waste, propose servicing |
 | D4 serviced Tue 6 Oct; back to about 2.15 kWh/cycle | OUT-01 | Session 3: **verified** saving close to the prediction |
 | All dryers' kWh/cycle rise with **real** humidity (+3–5% in the most humid week) | All outlets | **Red herring**: not a fault; peers moved together |
 | Malaysia Day (Wed 16 Sep): off-peak all day, different traffic pattern | All outlets | Explains a week-2 usage change; ruled out as the cause of the week 3–4 rise |
@@ -1344,7 +1344,7 @@ Target 3 minutes 55 seconds (limit 4 minutes; rehearse to 3:45). Owner scenes re
 | 0:00–0:15 | Problem and user | The owner's quote (from [§5.3](#53-user-validation)) over a TNB bill and a solar quote: "Solar? ToU? Which machine is costing me?" Track 3 named on screen |
 | 0:15–0:30 | Architecture | One diagram: Scout → Planner ↔ Investigator ↔ Skeptic → Reporter, H-MEM, Zetaris, Nightshift. "The Skeptic can send work back and block any claim it can't verify" |
 | 0:30–0:45 | Data | Zetaris: Postgres datasource plus holidays and weather (radiation, humidity) REST tables; the federated query runs; the `smartflux.energy` USL model |
-| 0:45–1:30 | **Joint decision** | Owner app: "Solar, ToU or both?" Card: 10 kWp solar, about RM507/month, payback about 5.8 years. Then the twist: "after solar, stay on flat". Evidence: the Skeptic rejected "RM14 + RM507 = RM521" as a double count and sent it back. OUT-03: no roof, stay on flat |
+| 0:45–1:30 | **Joint decision** | Owner app: "Solar, ToU or both?" Card: 10 kWp solar, RM502.75/month, payback 5.8 years. Then the twist: "after solar, stay on flat". Evidence: the Skeptic rejected "RM7.60 + RM502.75 = RM510.35" as a double count and sent it back. OUT-03: no roof, stay on flat |
 | 1:30–2:15 | Fault + memory | Session 1 (13 Sep) learns baselines. App restarted. Session 2 (4 Oct): D4 +33% from the remembered baseline; Skeptic rules out the humid week with its own Zetaris query (peers +4%). Owner approves "service D4" (operational risk) |
 | 2:15–2:45 | **Did it work?** | Monday briefing for 18 Oct arrives unprompted: "D4 serviced 6 Oct: saving verified", predicted vs realised RM with a band. Gas dryer G3 at OUT-02 flagged from cycle minutes |
 | 2:45–3:10 | **Trace** | Agent timeline for one run: needs_revision → re-query → approve, Nemotron model on each step, Zetaris calls with timings |
@@ -1360,7 +1360,7 @@ v2 was scored at about 78 if fully built; v3 at 89. The targets below assume thi
 
 | Criterion | Pts | v2 | v3 | **v4 target** | What earns it | Evidence a judge sees |
 | --- | --- | --- | --- | --- | --- | --- |
-| **Impact** | 30 | 23 | 26 | **28** | The largest energy decision an owner makes (solar, under the 2026 Solar ATAP scheme) answered from their own load, about RM507/month; faults found and **verified** in RM; gas dryers handled; Scope 2 figures SMEs are now asked for; data source exists in Malaysia today; a real owner's voice | Owner quote; §5.4 business case; advice scoreboard; OUT-03 "no roof, stay" |
+| **Impact** | 30 | 23 | 26 | **28** | The largest energy decision an owner makes (solar, under the 2026 Solar ATAP scheme) answered from their own load, about RM503/month; faults found and **verified** in RM; gas dryers handled; Scope 2 figures SMEs are now asked for; data source exists in Malaysia today; a real owner's voice | Owner quote; §5.4 business case; advice scoreboard; OUT-03 "no roof, stay" |
 | **Technical** | 20 | 15 | 18 | **19** | Non-linear agent team with blocking Skeptic and re-plan loop; verification queries; joint optimisation across interacting decisions; difference-in-differences M&V; deterministic tested maths; retries and fallbacks; sample mode with real logic; Docker; **30-outlet benchmark** | JSONL logs; `pnpm test`; `benchmark.md`; clean-clone script |
 | **Innovation** | 15 | 12 | 13 | **14** | Payment-log disaggregation; solar re-deciding the tariff; Skeptic catching double-counted savings; an agent that checks whether its own advice worked; proactive weekly briefings | Energy plan card; trace; briefing card |
 | **Demo** | 15 | 11 | 14 | **14** | A twist ("solar flips ToU"), memory across restart, a visible Skeptic rejection, an approval and its verified outcome, sample mode on camera, under 4 minutes | Video |

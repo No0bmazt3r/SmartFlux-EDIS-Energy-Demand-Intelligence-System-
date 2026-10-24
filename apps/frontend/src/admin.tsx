@@ -5,7 +5,8 @@ import { DemoControls, Failed, Icon, Loading, ModeBadge, StatusBadge, day, rm, s
 import { Evidence } from "./owner.tsx";
 
 type Outlet = { outlet_id: string; name: string; kpis: Record<string, number>; weekly: { week: number; peak_kwh: number; offpeak_kwh: number }[];
-  tariff: { peak_share: number; breakeven: number; verdict: string; tou_saving_rm_per_month: number } };
+  tariff: { peak_share: number; breakeven: number; verdict: string; tou_saving_rm_per_month: number };
+  split: { washers_kwh: number; dryers_kwh: number; base_kwh: number; total_kwh: number } | null };
 type Overview = { as_of: string; outlets: Outlet[]; verified_savings_rm_per_month: number;
   flagged_machines: { outlet_id: string; machine_id: string; verdict?: string; evidence?: string; rm_per_month?: number; status: string; run_id: string }[];
   advice_scoreboard: { action_id: string; outlet_id: string; type: string; target: string; predicted_rm_per_month: number | null; status: string; verified: { verdict: string; realised_rm_per_month: number } | null }[];
@@ -44,6 +45,32 @@ function EnergyChart({ outlets }: { outlets: Outlet[] }) {
       )}
       <div className="row wrap sm"><span className="row"><svg width="12" height="12" aria-hidden><rect width="12" height="12" rx="2" fill="var(--chart-peak)" /></svg>Peak (top)</span>
         <span className="row"><svg width="12" height="12" aria-hidden><rect width="12" height="12" rx="2" fill="var(--chart-offpeak)" /></svg>Off-peak</span></div>
+    </section>
+  );
+}
+
+// W-07: where each outlet's energy goes, from the agent's regression (base = what machines don't explain).
+const PARTS = [["washers_kwh", "Washers", "var(--primary-soft)"], ["dryers_kwh", "Dryers", "var(--tertiary)"], ["base_kwh", "Base load", "var(--chart-baseline)"]] as const;
+function SplitChart({ outlets }: { outlets: Outlet[] }) {
+  const rows = outlets.filter((o) => o.split);
+  const share = (o: Outlet, k: (typeof PARTS)[number][0]) => (o.split![k] / o.split!.total_kwh) * 100;
+  const top = [...rows].sort((a, b) => share(b, "dryers_kwh") - share(a, "dryers_kwh"))[0];
+  return (
+    <section className="card span-4"><h3>Washers vs dryers</h3>
+      {top && <p className="sm">Dryers use the largest share at {top.outlet_id} ({share(top, "dryers_kwh").toFixed(0)}% of the month's kWh).</p>}
+      {rows.map((o) => (
+        <div key={o.outlet_id} className="stack tight">
+          <span className="sm">{o.outlet_id} {o.name}</span>
+          <div className="row" style={{ gap: 2, height: 16 }} aria-hidden>
+            {PARTS.map(([k, , c]) => <span key={k} style={{ width: `${share(o, k)}%`, height: "100%", background: c, borderRadius: 3 }} />)}
+          </div>
+          <span className="mono muted">{PARTS.map(([k, l]) => `${l} ${share(o, k).toFixed(0)}%`).join(" · ")}</span>
+        </div>
+      ))}
+      <div className="sr-only"><table><caption>kWh by machine type, month to date</caption><thead><tr><th>Outlet</th>{PARTS.map(([, l]) => <th key={l}>{l} kWh</th>)}</tr></thead>
+        <tbody>{rows.map((o) => <tr key={o.outlet_id}><td>{o.outlet_id}</td>{PARTS.map(([k]) => <td key={k}>{o.split![k].toFixed(0)}</td>)}</tr>)}</tbody></table></div>
+      <div className="row wrap sm">{PARTS.map(([, l, c]) => <span key={l} className="row"><svg width="12" height="12" aria-hidden><rect width="12" height="12" rx="2" fill={c} /></svg>{l}</span>)}</div>
+      <p className="sm muted">From the same regression the agent uses to check machines.</p>
     </section>
   );
 }
@@ -91,7 +118,7 @@ function Dashboard() {
               <span className="sm grow">{day(x.as_of)} · {x.outlet_id} · {x.kind}<br /><span className="muted">{x.verdicts[0] ?? x.question}</span></span><ModeBadge mode={x.mode} /></a>
           )) : <p className="sm muted">No runs yet.</p>}
         </section>
-        <section className="card span-12"><h3>Outlets</h3>
+        <section className="card span-8"><h3>Outlets</h3>
           <div className="table-wrap"><table><thead><tr><th>Outlet</th><th className="n">kWh (month)</th><th className="n">Peak share</th><th>Tariff verdict</th><th>Energy plan</th><th className="n">Flags</th></tr></thead>
             <tbody>{o.outlets.map((x) => (
               <tr key={x.outlet_id}><td>{x.outlet_id} {x.name}</td><td className="n">{Math.round(x.kpis.kwh_month_to_date).toLocaleString()}</td><td className="n">{(x.tariff.peak_share * 100).toFixed(1)}%</td>
@@ -99,6 +126,7 @@ function Dashboard() {
                 <td className="n">{o.flagged_machines.filter((f) => f.outlet_id === x.outlet_id && !f.status.startsWith("verified")).length}</td></tr>
             ))}</tbody></table></div>
         </section>
+        <SplitChart outlets={o.outlets} />
       </div>
     </div>
   );

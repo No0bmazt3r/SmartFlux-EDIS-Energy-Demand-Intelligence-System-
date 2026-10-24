@@ -23,7 +23,7 @@
   color-scheme: dark;
 }
 body { background: var(--bg); color: var(--text); font: 400 16px/24px var(--font-body); }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+:focus-visible, input:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
 /* Base */
@@ -58,7 +58,7 @@ ul { margin: 0; padding-left: 20px; }
 /* Mobile shell */
 .app { max-width: 480px; margin: 0 auto; padding: 0 16px 120px; min-height: 100vh; }
 .topbar { position: sticky; top: 0; z-index: 5; background: var(--bg); display: flex; align-items: center; gap: 8px; padding: 12px 0; flex-wrap: wrap; }
-.brand { font: 800 20px/28px var(--font-head); flex: 1; display: flex; align-items: center; gap: 8px; color: var(--text); text-decoration: none; }
+.brand { font: 800 20px/28px var(--font-head); flex: 1; display: flex; align-items: center; min-height: 44px; gap: 8px; color: var(--text); text-decoration: none; }
 .back { width: 44px; height: 44px; border-radius: var(--r-full); display: grid; place-items: center; background: var(--surface-2); border: 0; cursor: pointer; text-decoration: none; color: var(--text); }
 
 /* Cards */
@@ -88,10 +88,10 @@ ul { margin: 0; padding-left: 20px; }
 .badge .icon { font-size: 18px; }
 .ok { color: var(--success); } .bad { color: var(--danger); } .warn { color: var(--warning); } .info { color: var(--primary-text); } .peak { color: var(--secondary); }
 .filter { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
-.filter button { min-height: 36px; padding: 0 14px; border-radius: var(--r-sm); border: 1px solid var(--outline); background: transparent; cursor: pointer; white-space: nowrap; }
+.filter button { min-height: 44px; padding: 0 14px; border-radius: var(--r-sm); border: 1px solid var(--outline); background: transparent; cursor: pointer; white-space: nowrap; }
 .filter button[aria-pressed="true"] { background: var(--primary-soft); color: #1F102C; border-color: var(--primary-soft); }
 .seg { display: inline-flex; background: var(--surface-2); border-radius: var(--r-sm); padding: 2px; }
-.seg button { min-height: 36px; min-width: 44px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; font: 500 13px/16px var(--font-mono); }
+.seg button { min-height: 44px; min-width: 44px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; font: 500 13px/16px var(--font-mono); }
 .seg button[aria-pressed="true"] { background: var(--primary-soft); color: #1F102C; }
 .select, .input { min-height: 44px; background: var(--surface-2); border: 1px solid var(--outline); border-radius: var(--r-sm); color: var(--text); padding: 0 12px; font: inherit; }
 .input { width: 100%; }
@@ -104,9 +104,9 @@ textarea.input { padding: 12px; min-height: 88px; resize: vertical; }
 
 /* Bottom nav + FAB */
 .nav { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 6px; background: var(--surface-2); border-radius: var(--r-full); z-index: 10; box-shadow: 0 8px 24px rgb(0 0 0 / .4); }
-.nav a { position: relative; width: 64px; height: 52px; border-radius: var(--r-full); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); text-decoration: none; font: 500 11px/14px var(--font-body); gap: 2px; }
+.nav a { position: relative; min-width: 72px; padding: 0 6px; height: 52px; border-radius: var(--r-full); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); text-decoration: none; font: 500 13px/16px var(--font-body); gap: 2px; }
 .nav a[aria-current="page"] { background: var(--primary-soft); color: #1F102C; }
-.nav .count { position: absolute; top: 2px; right: 10px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--secondary); color: var(--text-on-accent); font: 600 11px/18px var(--font-mono); text-align: center; }
+.nav .count { position: absolute; top: 2px; right: 10px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--secondary); color: var(--text-on-accent); font: 600 12px/18px var(--font-mono); text-align: center; }
 .fab { position: fixed; right: max(16px, calc(50% - 224px)); bottom: 92px; width: 48px; height: 48px; border-radius: var(--r-md); background: var(--tertiary-700); color: #0F061E; display: grid; place-items: center; z-index: 9; text-decoration: none; }
 
 /* Machines */

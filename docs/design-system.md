@@ -110,7 +110,7 @@ All three are on Google Fonts under the SIL Open Font License.
 
 | Token | Size / line height | Family, weight | Example |
 | --- | --- | --- | --- |
-| `display` | 40 / 48 | Jakarta 800 | RM507/month on the Energy plan |
+| `display` | 40 / 48 | Jakarta 800 | RM502.75/month on the Energy plan |
 | `h1` | 28 / 36 | Jakarta 700 | Screen title |
 | `h2` | 22 / 28 | Jakarta 700 | Card verdict |
 | `h3` | 18 / 24 | Jakarta 600 | Section title |
@@ -225,13 +225,13 @@ Rules: label series directly where possible instead of a legend; 2 px `--surface
 │ SmartFlux        OUT-01  ▾  │   │ ← Energy plan               │   │ ← Evidence     run r-7f3a   │
 │ ┌─────────────────────────┐ │   │ [ENERGY PLAN]               │   │ Scout → Planner      ✓     │
 │ │ MON 19 OCT · BRIEFING   │ │   │ Solar 10 kWp + stay on flat │   │ Planner → Investigator ✓   │
-│ │ • D4 fix verified RM164 │ │   │ RM507 /month                │   │ Investigator: zetaris 412ms│
+│ │ • D4 fix verified RM65  │ │   │ RM502.75 /month             │   │ Investigator: zetaris 412ms│
 │ │ • Peak share 55% (−2)   │ │   │ payback 5.8 yrs   ● high    │   │▌Skeptic: Sent back         │
-│ │ • Nothing to approve    │ │   │ ─────────────────────────── │   │▌ "RM521 double-counts"     │
+│ │ • Nothing to approve    │ │   │ ─────────────────────────── │   │▌ "RM510.35 double-counts"  │
 │ │ [ Open ]                │ │   │ ToU before solar: switch    │   │ Investigator: joint ✓      │
 │ └─────────────────────────┘ │   │ ToU after solar:  stay      │   │ Skeptic → Reporter ✓       │
 │ This month  3,980 kWh       │   │ Peak share 54.8% → 64.7%    │   │ ─────────────────────────── │
-│ RM2,018  ▓▓▓▓▓▓▓░░ proj.    │   │ Ruled out: "RM521 total"    │   │ SQL  [copy]                 │
+│ RM1,080  ▓▓▓▓▓▓▓░░ proj.    │   │ Ruled out: "RM510.35 total" │   │ SQL  [copy]                 │
 │ ┌──────────┐ ┌──────────┐   │   │ Assumptions ▾               │   │ SELECT ... FROM lightning.. │
 │ │ ⚠ G3 +20%│ │ ✓ D4 fixed│  │   │ [ Request solar quote ]     │   │ Models: nemotron-lightning, │
 │ └──────────┘ └──────────┘   │   │ [ Show evidence ]           │   │ nemotron-super              │
@@ -246,7 +246,7 @@ Rules: label series directly where possible instead of a legend; 2 px `--surface
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
 │ SmartFlux Admin            as of 18 Oct 2026            [Export Scope 2 CSV]   admin ▾       │
 ├───────────────┬───────────────┬───────────────┬───────────────┬──────────────────────────────┤
-│ Load 11.9 MWh │ Cost RM6,040  │ Revenue RM18k │ Margin 66%    │ Verified savings RM164/mo    │
+│ Load 4.6 MWh  │ Cost RM2,340  │ Revenue RM26k │ Margin 91%    │ Verified savings RM65/mo     │
 ├───────────────┴───────────────┴───────────────┴──────────────┬┴──────────────────────────────┤
 │ Peak vs off-peak kWh by outlet, by week (stacked bars)        │ Advice scoreboard             │
 │                                                               │ OUT-01 D4 service  182 → 164 ✓│

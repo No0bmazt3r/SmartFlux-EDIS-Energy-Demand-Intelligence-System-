@@ -68,14 +68,14 @@ Top to bottom:
 1. **Top bar:** "SmartFlux", outlet switcher chip `OUT-01 Ipoh ▾`, language toggle `EN | BM`
 2. **Briefing card** (purple gradient `#5A189A → #3C096C`):
    - Label `MON 19 OCT · WEEKLY BRIEFING`
-   - 3 bullets: "Dryer D4 fix verified: saving RM164/month" · "Peak share this week 55% (−2 pts)" · "Nothing waiting for approval"
+   - 3 bullets: "Servicing D4 saved RM64.65/month" · "No dryer is wasting energy" · "Nothing waiting for approval"
    - Button **Open**
 3. **This month:** big number `3,980 kWh` · `RM2,018 so far` · progress bar to projected bill `RM2,027`
 4. **Alerts** (horizontal cards, 2 visible):
-   - ⚠ "Gas dryer G3 cycles +20% longer" → opens decision
+   - ⚠ "Gas dryer G3 cycles +24% longer" → opens decision
    - ✓ "D4 serviced — saving verified"
-5. **Energy plan teaser card:** "Solar could save RM507/month" → opens Energy plan
-6. **Verified savings:** "RM164/month saved from past advice"
+5. **Energy plan teaser card:** "Solar could save RM503/month" → opens Energy plan
+6. **Verified savings:** "RM64.65/month saved from past advice"
 7. **Floating button (FAB):** Ask (sparkle icon)
 8. **Bottom nav:** Home (active) · Ask · Machines · Approvals (badge "1")
 
@@ -90,13 +90,13 @@ States: loading skeleton cards; empty state for a new outlet ("Your first briefi
 #### Screen M-04: Energy plan — Must (the headline screen of the demo)
 
 1. Chip `ENERGY PLAN` · verdict headline: **"Install 10 kWp solar, stay on your current tariff"**
-2. Big saving: `RM507 /month` (peach) · `Payback ≈ 5.8 years` · confidence badge `● High`
+2. Big saving: `RM502.75 /month` (peach) · `Payback ≈ 5.8 years` · confidence badge `● High`
 3. **Solar options** (segmented control or small table): 5 / 10 / 15 kWp with monthly saving, payback, % of solar used on site. 10 kWp marked "Recommended"
 4. **Tariff before vs after solar** (two mini cards side by side):
-   - Without solar: "Switch to ToU — saves RM14"
-   - With solar: "Stay on flat — ToU would cost RM1.43 more"
+   - Without solar: "Switch to ToU — saves RM7.60"
+   - With solar: "Stay on flat — ToU would cost RM1.39 more"
    - One-line why: "Solar removes mostly off-peak usage, so your peak share rises from 54.8% to 64.7%, above the 63.6% break-even."
-5. **Ruled out:** "Adding both savings (RM521) — they overlap" with a ✕ icon
+5. **Ruled out:** "Adding both savings (RM510.35) — they overlap" with a ✕ icon
 6. **Assumptions** (collapsible): system cost RM3,500/kWp, export valued at RM0, tariff rates used, weather data source
 7. Buttons: **Request solar quote (10 kWp)** (orange, goes to Approvals as a financial action) · **Show evidence**
 
@@ -126,7 +126,7 @@ Shown after asking (2–60 seconds):
 
 Example (fault):
 - Chip `MACHINE FAULT` · headline **"Service dryer D4"**
-- `RM182 /month wasted` (orange) · confidence `● High`
+- `RM48.03 /month wasted` (orange) · confidence `● High`
 - **Why:** "Uses 2.8 kWh per cycle vs its normal 2.1 (+33%). Cycles 17% longer. Other dryers only +4%."
 - **Ruled out:** "Humid week — other dryers barely changed" · "Malaysia Day traffic — happened before the rise"
 - **Proposed action:** "Schedule servicing" + risk badge `OPERATIONAL` → **Go to approval**
@@ -138,7 +138,7 @@ Other card types to design (same layout): Tariff, Energy plan, Verification ("Di
 
 - Header: run time, outlet, mode badge (`LIVE` or `SAMPLE`)
 - **Agent timeline** (vertical): each row = agent name (mono) → target agent, what it did, status badge, AI model chip
-  - Highlight a "Sent back" row with an orange left bar: "Skeptic: 'RM521 adds two overlapping savings' → sent back to Investigator"
+  - Highlight a "Sent back" row with an orange left bar: "Skeptic: 'RM510.35 adds two overlapping savings' → sent back to Investigator"
 - **Data checked:** SQL query block (mono, copy button), rows returned, time taken
 - **Numbers:** calculator inputs → outputs table
 - **Models used:** Nemotron Lightning, Nemotron Super
@@ -154,8 +154,8 @@ Other card types to design (same layout): Tariff, Energy plan, Verification ("Di
 #### Screen M-10: Did it work? (verification card) — Must
 
 - Chip `VERIFIED` (green check)
-- **"Servicing D4 saved RM164/month"**
-- Predicted RM182 vs actual RM164 (bar comparison) · "90% of prediction"
+- **"Servicing D4 saved RM64.65/month"**
+- Predicted RM48.03 vs actual RM64.65 (bar comparison) · "135% of prediction"
 - Small chart: D4 energy per cycle by week (weeks 1–6) with a dashed "normal" line and a marker "Serviced 6 Oct"
 - Note: "Compared against your other dryers so weather doesn't skew it."
 
@@ -293,7 +293,7 @@ Five tiles, each: label (mono, muted), big number (Jakarta), small trend.
 | Energy cost | `RM6,040` |
 | Revenue | `RM18,200` |
 | Margin | `66%` |
-| Verified savings | `RM164/month` (peach) |
+| Verified savings | `RM64.65/month` (peach) |
 
 #### W-02: Outlet energy chart — Must
 
@@ -314,10 +314,10 @@ Row click → decision evidence.
 #### W-04: Advice scoreboard — Must
 
 List of approved actions:
-- "OUT-01 · Service D4 — predicted RM182 → verified RM164 ✓"
+- "OUT-01 · Service D4 — predicted RM48 → verified RM65 ✓"
 - "OUT-01 · Sat 22:00 promo — off-peak share +6 pts ✓"
 - "OUT-02 · Service G3 — not yet (needs 2 weeks)"
-Total line: "Verified so far: RM164/month"
+Total line: "Verified so far: RM64.65/month"
 
 #### W-05: Run log — Must
 
@@ -330,7 +330,7 @@ Total line: "Verified so far: RM164/month"
 
 | Outlet | kWh/month | Peak share | Tariff verdict | Solar | Flags |
 | --- | --- | --- | --- | --- | --- |
-| OUT-01 Ipoh | 4,000 | 54.8% | Stay flat (after solar) | 10 kWp, RM507/mo | 0 |
+| OUT-01 Ipoh | 3,500 | 58.3% | Stay flat (after solar) | 10 kWp, RM503/mo | 0 |
 | OUT-02 Shah Alam | … | … | … | … | 1 |
 | OUT-03 Johor Bahru | … | ~70% | Stay flat | No roof | 0 |
 
@@ -369,10 +369,10 @@ Briefing card · Decision card (6 variants) · Risk badge (read-only, advisory, 
 | --- | --- |
 | Outlets | OUT-01 Ipoh · OUT-02 Shah Alam · OUT-03 Johor Bahru |
 | OUT-01 month | 4,000 kWh, RM2,027 on flat tariff, peak share 54.8% |
-| Solar (OUT-01) | 10 kWp, RM507/month, payback ≈ 5.8 years |
-| Tariff after solar | Stay on flat (ToU would cost RM1.43 more) |
-| Fault | Dryer D4: 2.8 vs 2.1 kWh/cycle (+33%), RM182/month |
-| Verified | D4 service saved RM164/month (90% of prediction) |
+| Solar (OUT-01) | 10 kWp, RM502.75/month, payback 5.8 years |
+| Tariff after solar | Stay on flat (ToU would cost RM1.39 more) |
+| Fault | Dryer D4: 2.70 vs 2.15 kWh/cycle (+26%), RM48.03/month |
+| Verified | D4 service saved RM64.65/month (135% of prediction) |
 | Gas dryer | G3 at OUT-02: cycles +20% longer |
 | Dates | Briefing Mon 19 Oct 2026; service 6 Oct; data 7 Sep – 18 Oct |
 | Models | Nemotron Lightning, Nemotron Super |
@@ -382,19 +382,19 @@ Briefing card · Decision card (6 variants) · Risk badge (read-only, advisory, 
 Paste one at a time; attach the palette board image for style.
 
 **Owner Home**
-> Mobile app home screen, dark theme, background #0F061E, cards #1C1230 with 16px radius, primary purple #9D4EDD, orange #FF9100 accents, peach #FFC880 for savings. Fonts: Plus Jakarta Sans headlines, Inter body, JetBrains Mono labels. App "SmartFlux" for a laundromat owner. Top bar with outlet switcher chip "OUT-01 Ipoh" and EN/BM toggle. Purple gradient briefing card "MON 19 OCT · WEEKLY BRIEFING" with three bullets and an Open button. "This month 3,980 kWh, RM2,018" with progress bar. Two alert cards: "Gas dryer G3 cycles +20% longer" with warning icon, "D4 serviced — saving verified" with check icon. Card "Solar could save RM507/month". Floating sparkle Ask button. Floating pill bottom nav: Home, Ask, Machines, Approvals with badge 1.
+> Mobile app home screen, dark theme, background #0F061E, cards #1C1230 with 16px radius, primary purple #9D4EDD, orange #FF9100 accents, peach #FFC880 for savings. Fonts: Plus Jakarta Sans headlines, Inter body, JetBrains Mono labels. App "SmartFlux" for a laundromat owner. Top bar with outlet switcher chip "OUT-01 Ipoh" and EN/BM toggle. Purple gradient briefing card "MON 19 OCT · WEEKLY BRIEFING" with three bullets and an Open button. "This month 2,131 kWh, RM1,080" with progress bar. Two alert cards: "Gas dryer G3 cycles +24% longer" with warning icon, "D4 serviced — saving verified" with check icon. Card "Solar could save RM503/month". Floating sparkle Ask button. Floating pill bottom nav: Home, Ask, Machines, Approvals with badge 1.
 
 **Energy plan**
-> Mobile screen "Energy plan", same dark style. Chip "ENERGY PLAN", headline "Install 10 kWp solar, stay on your current tariff", large peach "RM507/month", "Payback ≈ 5.8 years", High confidence badge. Segmented options 5 / 10 / 15 kWp with 10 marked Recommended. Two side-by-side mini cards: "Without solar: switch to ToU, saves RM14" and "With solar: stay on flat, ToU costs RM1.43 more". Ruled-out row with X icon: "Adding both savings (RM521) — they overlap". Collapsible Assumptions. Orange button "Request solar quote", text link "Show evidence".
+> Mobile screen "Energy plan", same dark style. Chip "ENERGY PLAN", headline "Install 10 kWp solar, stay on your current tariff", large peach "RM502.75/month", "Payback ≈ 5.8 years", High confidence badge. Segmented options 5 / 10 / 15 kWp with 10 marked Recommended. Two side-by-side mini cards: "Without solar: switch to ToU, saves RM7.60" and "With solar: stay on flat, ToU costs RM1.39 more". Ruled-out row with X icon: "Adding both savings (RM510.35) — they overlap". Collapsible Assumptions. Orange button "Request solar quote", text link "Show evidence".
 
 **Evidence**
-> Mobile screen "Evidence", same dark style. Header with run time and a LIVE badge. Vertical agent timeline rows in monospace: "Scout → Planner ✓", "Planner → Investigator ✓", "Investigator · Zetaris query 412 ms ✓", a highlighted row with orange left bar "Skeptic: RM521 adds overlapping savings → sent back", "Investigator: joint calculation ✓", "Skeptic → Reporter ✓". Below: SQL code block with copy button, a numbers table, model chips "Nemotron Lightning", "Nemotron Super".
+> Mobile screen "Evidence", same dark style. Header with run time and a LIVE badge. Vertical agent timeline rows in monospace: "Scout → Planner ✓", "Planner → Investigator ✓", "Investigator · Zetaris query 412 ms ✓", a highlighted row with orange left bar "Skeptic: RM510.35 adds overlapping savings → sent back", "Investigator: joint calculation ✓", "Skeptic → Reporter ✓". Below: SQL code block with copy button, a numbers table, model chips "Nemotron Lightning", "Nemotron Super".
 
 **Approvals**
-> Mobile screen "Approvals", same dark style. Tabs Pending (1) and History. Card "Service dryer D4", reason text, "Predicted saving RM182/month", OPERATIONAL badge with wrench icon, orange Approve button and outlined Reject button. History list with Verified (green check) and Not yet (hourglass) badges.
+> Mobile screen "Approvals", same dark style. Tabs Pending (1) and History. Card "Service dryer D4", reason text, "Predicted saving RM48.03/month", OPERATIONAL badge with wrench icon, orange Approve button and outlined Reject button. History list with Verified (green check) and Not yet (hourglass) badges.
 
 **Customer machines**
 > Mobile screen "Machines near me", same dark style. Header "SmartFlux · OUT-01 Ipoh", small "Updated 18 Oct, 19:30" and SAMPLE badge, EN/BM toggle. Peach promo banner "Sat 22:00: RM1 off dryers". Summary "4 washers free · 2 dryers free". Filter chips All, Washers, Dryers, Free now. Two-column grid of machine tiles: "W1 Washer, FREE, RM5" with green check; "D1 Dryer, IN USE · 12 min left" with orange clock; "D4 Dryer, UNDER MAINTENANCE" greyed with wrench icon. No bottom nav.
 
 **Admin dashboard**
-> Desktop admin dashboard 1440px, dark theme #0F061E, cards #1C1230, purple #9D4EDD, orange #FF9100, peach #FFC880, Plus Jakarta Sans / Inter / JetBrains Mono. Top bar "SmartFlux Admin", date picker "as of 18 Oct 2026", button "Export Scope 2 CSV". Row of 5 KPI tiles: Total load 11.9 MWh, Energy cost RM6,040, Revenue RM18,200, Margin 66%, Verified savings RM164/month. Left: stacked bar chart of peak (orange) vs off-peak (purple) kWh per outlet per week for 3 outlets. Right: "Advice scoreboard" list with predicted vs verified savings. Below: "Flagged machines" table (outlet, machine, type, heat source, change, RM/month, status) and "Run log" table with Open links.
+> Desktop admin dashboard 1440px, dark theme #0F061E, cards #1C1230, purple #9D4EDD, orange #FF9100, peach #FFC880, Plus Jakarta Sans / Inter / JetBrains Mono. Top bar "SmartFlux Admin", date picker "as of 18 Oct 2026", button "Export Scope 2 CSV". Row of 5 KPI tiles: Total load 4.6 MWh, Energy cost RM2,340, Revenue RM26,345, Margin 91%, Verified savings RM65/month. Left: stacked bar chart of peak (orange) vs off-peak (purple) kWh per outlet per week for 3 outlets. Right: "Advice scoreboard" list with predicted vs verified savings. Below: "Flagged machines" table (outlet, machine, type, heat source, change, RM/month, status) and "Run log" table with Open links.

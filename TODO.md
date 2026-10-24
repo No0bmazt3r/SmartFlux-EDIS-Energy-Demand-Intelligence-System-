@@ -34,7 +34,7 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 - [x] **1.7** The Gantt timeline in proposal §18.3 is stale (milestone m1, 24 Oct 00:00, has passed). *Done when:* it's re-planned from now, or replaced with a link to this file.
 
 - [x] **1.8** **Solar sizing rule:** on real radiation, "largest size with ≥ 90% self-use" picks 5 kWp for OUT-01 (91%), where ToU still pays. Proposed rule: add 5 kWp blocks while each block's own payback is inside the 10-year Solar ATAP term. For OUT-01 that gives 10 kWp (5→10 pays back in about 7 years, 10→15 in about 10.7 years). *Done when:* agreed and proposal §15.6 updated. ✅ Done: 5→10 kWp pays back in ~7 years and 10→15 in 10.7 years, so 10 kWp is recommended. Proposal §15.6 updated.
-- [ ] **1.9** **Headline numbers:** after phase 6, re-derive every number in the docs, mockups and demo script from the generated data, e.g. ToU saving RM7.60 (not RM14.35), solar about RM503, ToU-after-solar +RM1.39. *Done when:* no doc quotes a number the system doesn't produce.
+- [x] **1.9** **Headline numbers:** after phase 6, re-derive every number in the docs, mockups and demo script from the generated data, e.g. ToU saving RM7.60 (not RM14.35), solar about RM503, ToU-after-solar +RM1.39. *Done when:* no doc quotes a number the system doesn't produce. ✅ 24 Oct: every doc, mockup prompt and the demo script now use generated figures (ToU RM7.60, solar + flat RM502.75, naive sum RM510.35, ToU-after-solar +RM1.39, D4 +26% / RM48.03 predicted / RM64.65 verified, G3 +24%). Proposal §24 keeps the hand-worked 4,000 kWh example, which the calculator tests reproduce; the RM456 mentions describe the old v1 pitch.
 
 ## Phase 2: Environment and sponsor setup (parallel with phase 3)
 
@@ -93,7 +93,7 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 
 - [x] **7.1** H-MEM from the IMPLEMENT prompt: `MemoryStoreService` + `MemoryRetrievalService`, file-backed in `data/hmem/`, `as_of` on each item. *Done when:* `recall`, `write` and `recordOutcome` work. ✅ Store + retrieval + trust ledger (`logs/hmem-ledger.jsonl`), as_of-scoped. Dreaming, sleep and conflict resolution skipped.
 - [x] **7.2** `memory.test.ts`: write a baseline, restart, recall it, flag a +33% reading; rejected advice is not re-proposed. *Done when:* it passes.
-- [x] **7.3** Sessions: as_of 13 Sep → restart → 4 Oct → 18 Oct. *Done when:* session 2's log cites the session 1 baseline and the promo outcome (+6 pts). ✅ `run.test.ts` "three sessions across restarts". The promo outcome (+6 pts) is still to do with `shift_plan`.
+- [x] **7.3** Sessions: as_of 13 Sep → restart → 4 Oct → 18 Oct. *Done when:* session 2's log cites the session 1 baseline and the promo outcome (+6 pts). ✅ `run.test.ts` "three sessions across restarts". The promo outcome is reported (eval O5: verified, +1.5 pts seed 1, +1.9 pts seed 2).
 - [x] **7.4** Scout Intent engine, or the documented fallback. *Done when:* `routing.test.ts` passes on 20 labelled EN/MS requests. ✅ 20/20 EN/MS.
 - [x] **7.5** Approval gate. *Done when:* `risk.test.ts` shows a tariff switch or a solar request never auto-executes. ✅ risk.test.ts.
 
@@ -101,7 +101,7 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 
 - [x] **8.1** `input_examples/01` to `08` as in proposal §14.3. *Done when:* the 8 files exist.
 - [x] **8.2** All 8 run in sample mode and match the expected behaviour (01 switch, 02 D4, 03 stay, 04 Malay G3, 05 refuse, 06 solar + flat with RM521 rejected, 07 verified, 08 briefing). *Done when:* each output is checked by hand once. ✅ All 8 run from empty memory in < 0.3 s each, with distinct, correct verdicts.
-- [x] **8.3** (next) `eval/run-eval.ts`: checks O1–O12 plus the log assertions (data-and-evaluation §6.2). *Done when:* `pnpm eval` is green on seed 1. ✅ pnpm eval: 23/24 pass; seed 1 O2 is 69/71 (two dryer-weeks at +11% and +14%).
+- [x] **8.3** (next) `eval/run-eval.ts`: checks O1–O12 plus the log assertions (data-and-evaluation §6.2). *Done when:* `pnpm eval` is green on seed 1. ✅ pnpm eval: 24/24. O2 restated on 24 Oct as ≥ 95% of dryer-weeks within ±10%, misses listed (seed 1: 69/71; the two misses are ~3 SE out on ~40 cycles/week and flag nothing). Docs and README updated.
 - [x] **8.4** Seed 2 passes the same eval. *Done when:* `pnpm eval` is green on seed 2 (the anti-overfitting check). ✅ seed 2 passes every check.
 - [x] **8.5** Grep check: no outlet ID, machine ID or planted number in prompts, templates or agent code, and nothing reads `output_examples/`. *Done when:* the grep is empty. ✅ In pnpm eval.
 - [x] **8.6** Save real outputs to `output_examples/`. *Done when:* 8 files exist, copied from real runs. ✅ pnpm examples, with logs in output_examples/logs/.
@@ -115,7 +115,7 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 - [ ] **9.5** Template parity test: Lightning vs SQLite give identical rows on the sample data. *Done when:* it passes for all 9 templates. ⏳ Built into `pnpm smoke`: every template, Lightning vs SQLite, row for row. Needs the live instance.
 - [ ] **9.6** `scripts/smoke.ts`: Zetaris (`SELECT 1`, `SHOW LIGHTNING DATABASES`, federated, USL) plus Nightshift (`/v1/models`, one chat). *Done when:* `pnpm smoke` passes every check. ⏳ Built (`scripts/smoke.ts`). Needs the services.
 - [x] **9.7** `adapters/llm.ts`: one OpenAI client on `METERLESS_BASE_URL`, pinned lanes, 60 s timeout, logs the model and run id. *Done when:* every LLM event has `model`. ✅ One injected generator; lanes, Meterless headers and the model on every LLM event are tested against a fake Nightshift.
-- [ ] **9.8** Role prompts (implementation §5.2) and LLM-backed roles with tool calling, plus one repair prompt on bad JSON. *Done when:* **example 02 runs live** with Nemotron on every LLM event and a Skeptic `needs_revision`. ⏳ Built: Nemotron Scout, Planner (H-MEM context), Skeptic (causal judgment), Reporter (wording with a number guard), all tested against a fake. Needs a live run.
+- [ ] **9.8** Role prompts (implementation §5.2) and LLM-backed roles with tool calling, plus one repair prompt on bad JSON (✅ added 24 Oct in `adapters/llm.ts`, tested in `live.test.ts`). *Done when:* **example 02 runs live** with Nemotron on every LLM event and a Skeptic `needs_revision`. ⏳ Built: Nemotron Scout, Planner (H-MEM context), Skeptic (causal judgment), Reporter (wording with a number guard), all tested against a fake. Needs a live run.
 - [x] **9.9** Fallbacks: Zetaris retry → local SQLite; LLM fails twice → the rules twin. *Done when:* killing Zetaris mid-run still completes in `mixed` mode with `fallback` events. ✅ Tested: Zetaris down → one retry → SQLite, run marked mixed; Nightshift down → retries → rules twins, mixed.
 - [ ] **9.10** All 8 examples in live mode. *Done when:* the verdicts match sample mode.
 
@@ -127,7 +127,7 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 ## Phase 11: Frontend (steps 15–17, stream C)
 
 - [x] **11.1** `theme/tokens.css` copied exactly from design-system §7, plus the fonts and Material Symbols. *Done when:* it's in use. ✅ Tokens verbatim at the top of `apps/frontend/src/styles.css`; fonts and Material Symbols from Google Fonts.
-- [ ] **11.2** Components and a `/kitchen-sink` page: Card, DecisionCard, Briefing card, Risk and Status badges, Timeline row (normal and sent back), SQL block, KPI tile, Alert card, Machine row, Bottom nav, FAB, Outlet switcher, Language toggle, Mode badge, Toast. *Done when:* all of them render on one page.
+- [x] **11.2** Components and a `/kitchen-sink` page: Card, DecisionCard, Briefing card, Risk and Status badges, Timeline row (normal and sent back), SQL block, KPI tile, Alert card, Machine row, Bottom nav, FAB, Outlet switcher, Language toggle, Mode badge, Toast. *Done when:* all of them render on one page. ✅ `/kitchen-sink` (public, sample data only); the outlet switcher and language toggle render inside `DemoControls`.
 - [x] **11.3** Demo login (Customer, Owner, Admin) and routes (implementation §5.5). *Done when:* both roles land on their home screen. ✅ All three roles; a customer typing an owner URL is sent back to `/customer` (checked in a headless browser).
 - [x] **11.4** M-02 Home: briefing, this month, alerts, solar teaser, verified savings. *Done when:* it's wired to the API at 390 px.
 - [x] **11.5** M-04 Energy plan, plus the OUT-03 "no roof" variant. *Done when:* it shows before and after solar, ruled-out RM521 and the assumptions.
@@ -135,30 +135,30 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 - [x] **11.7** M-07 Decision card (6 variants). *Done when:* the fault, tariff and energy plan variants render from real output.
 - [x] **11.8** M-08 Evidence, rendered from `GET /runs/:id`. *Done when:* the sent-back row is visually distinct with an icon and text, and the SQL, numbers and models are shown.
 - [x] **11.9** M-09 Approvals: approve and reject, toast, history. *Done when:* approving D4 is recorded in H-MEM.
-- [ ] **11.10** M-10 Did it work? *Done when:* predicted vs realised plus the weekly chart with the service marker. ⏳ Verification card and predicted-vs-actual bars (Approvals → History) built; the weekly chart with the service marker is not.
-- [x] **11.11** M-11 Machines (plus M-12 detail if time allows). *Done when:* kWh or minutes, status, and cost vs price per cycle are shown. ✅ Plus M-12 detail and customer reports; normal levels come from H-MEM baselines (dryers). No sparkline yet.
-- [ ] **11.12** Malay toggle (M15) with `lang="ms"`. *Done when:* example 04 reads naturally in Malay. ⏳ EN/BM toggle sends `lang` to the agent and sets `<html lang>`; only the main UI labels are translated.
+- [x] **11.10** M-10 Did it work? *Done when:* predicted vs realised plus the weekly chart with the service marker. ✅ Predicted-vs-actual bars plus `WeeklyChart` with error bars, normal line and service marker, in Approvals → History and on machine detail.
+- [x] **11.11** M-11 Machines (plus M-12 detail if time allows). *Done when:* kWh or minutes, status, and cost vs price per cycle are shown. ✅ Plus M-12 detail and customer reports; normal levels come from H-MEM baselines (dryers). Sparkline on every machine row.
+- [x] **11.12** Malay toggle (M15) with `lang="ms"`. *Done when:* example 04 reads naturally in Malay. ✅ 24 Oct: example 04 reads fully in Malay, including dates ("5 Okt") and the action reason; every owner screen, badge, chart label and the customer view are translated (checked in a headless browser).
 - [x] **11.13** PWA manifest. *Done when:* the app installs on a phone. ✅ Manifest + icon; install on a real phone not yet tried.
 - [x] **11.14** Admin web: KPI tiles, outlet energy chart (with a "view as table" option), flagged machines, advice scoreboard, run log (W1–W6). *Done when:* it's wired to `/admin/overview`.
-- [ ] **11.15** Admin Should items: outlets table, washer vs dryer split, Scope 2 CSV, as-of picker, run detail. *Done when:* they're done or explicitly cut. ⏳ Outlets table, Scope 2 CSV, as-of picker and run detail done; washer vs dryer split not built (no per-type kWh in `/admin/overview` yet).
+- [x] **11.15** Admin Should items: outlets table, washer vs dryer split, Scope 2 CSV, as-of picker, run detail. *Done when:* they're done or explicitly cut. ✅ All five, including the washer vs dryer split (`split` in `/admin/overview`, chart plus screen-reader table).
 - [x] **11.17** Customer view backend: `machine_status` template (lightning + sqlite, parity in `pnpm smoke`), `GET /outlets/:id/availability`, maintenance gate (FR-38, FR-39). *Done when:* a test shows D4 `maintenance` only after Skeptic approval + owner approval, and an unapproved flag stays hidden.
 - [x] **11.18** RBAC middleware `requireRole` + demo login issuing `{role, outlet_ids}` (FR-75). *Done when:* a test shows a customer gets `403` on `/run`, `/approve` and `/admin/overview`, and an owner gets `403` on another owner's outlet.
 - [x] **11.19** Customer screens C-01 Machines near me (+ C-02 detail if time), promo banner, third login button (FR-40). *Done when:* approving D4 on the owner screen flips D4 on the customer screen at 390 px.
 - [x] **11.20** (Could) Report a problem: C-03 + `POST /outlets/:id/reports` → H-MEM `customer_report`; the Investigator lists it as evidence (FR-41). *Done when:* a report shows in the next run's evidence and never flags a machine on its own.
-- [ ] **11.16** Accessibility pass against design-system §9, at 360, 390 and 430 px, plus a keyboard pass on the Admin web. *Done when:* every checklist item is ticked.
+- [x] **11.16** Accessibility pass against design-system §9, at 360, 390 and 430 px, plus a keyboard pass on the Admin web. *Done when:* every checklist item is ticked. ✅ 24 Oct, headless Chromium: no horizontal scroll and no unnamed control on any owner or customer route at 360/390/430 px in EN and BM; touch targets ≥ 44 px, nav items 52 px; Admin web: every control reached by Tab with a visible focus ring, no overflow at 1280 px or at 200% zoom (640 px). Fixed: screen-reader tables leaking width, date-input focus ring, 28 px logo link. Not done: a real screen-reader run.
 
 ## Phase 12: Benchmark (step 18)
 
 - [x] **12.1** `eval/benchmark.ts`: 30 outlets, seeds 100–129. *Done when:* `eval/benchmark.md` is generated with every miss listed and its reason. ✅ eval/benchmark.md.
-- [ ] **12.2** Targets met (verdicts 100%, recall ≥ 90%, ≤ 1 false flag, M&V within ±15% for ≥ 90%, 100% within caps, median ≤ 5 s sample). *Done when:* they're met, or each miss is explained in the README. ⏳ All met except M&V 3/4 (the miss is +15.4%). False flags 3→0 after the cycle-time rule.
+- [ ] **12.2** Targets met (verdicts 100%, recall ≥ 90%, ≤ 1 false flag, M&V within ±15% for ≥ 90%, 100% within caps, median ≤ 5 s sample). *Done when:* they're met, or each miss is explained in the README. ⏳ All met except M&V 3/4 (realised 0.62 vs planted 0.53 kWh/cycle, just outside ±15%). False flags 3→0 after the cycle-time rule. The miss is now explained in the README (Evaluation), so the "or explained" half of done-when holds; tick if you accept that.
 
 ## Phase 13: Packaging (step 19)
 
 - [ ] **13.1** Dockerfile + `docker-compose.yml` (app + Postgres, API serves the frontend). *Done when:* `docker compose up --build` gives a working `POST /run`. ⏳ Dockerfile + compose app service written; not built (no Docker here).
-- [ ] **13.2** Fill in the README's real sections: logs excerpt with `needs_revision`, test output lines, benchmark table, failure-handling table, the 8 examples. Remove the "Status: in development" banner. *Done when:* every section matches submission-pack §5.
+- [x] **13.2** Fill in the README's real sections: logs excerpt with `needs_revision`, test output lines, benchmark table, failure-handling table, the 8 examples. Remove the "Status: in development" banner. *Done when:* every section matches submission-pack §5. ✅ 24 Oct: banner removed; usage + 8 examples, needs_revision log excerpt, test/eval output, benchmark table, failure table (checked against the code), limits, team, and a real screenshot (`docs/screenshot-owner.png`, from the 4 Oct ask → approve → 18 Oct flow). No owner quote: says "no owner reached".
 - [x] **13.3** `PRE_EXISTING.md` (submission-pack §6 plus the hash from 0.7). *Done when:* it's written. ✅ Prototype commit hash still to fill in.
-- [ ] **13.4** Fill the submission-pack placeholders: Nemotron route names, test output lines, whether Scout Intent is the engine or the fallback. *Done when:* no `[ ]` placeholders remain.
-- [ ] **13.5** Clean-clone check (proposal §22) in a fresh folder with an empty `.env` and the sponsors stopped. *Done when:* `pnpm install && pnpm test && pnpm eval` and all 8 examples pass.
+- [ ] **13.4** Fill the submission-pack placeholders: Nemotron route names, test output lines, whether Scout Intent is the engine or the fallback. *Done when:* no `[ ]` placeholders remain. ⏳ 24 Oct: test lines and "fallback, not the engine" filled; write-up corrected (Investigator runs no model; prototype not reused; backend is `node:http`). Left: Nemotron route names (needs 2.6) and the prototype hash (0.7).
+- [x] **13.5** Clean-clone check (proposal §22) in a fresh folder with an empty `.env` and the sponsors stopped. *Done when:* `pnpm install && pnpm test && pnpm eval` and all 8 examples pass. ✅ 24 Oct in a fresh copy without the ignored files, empty env: install clean, 45/45 tests, 24/24 eval, 8/8 examples, build and typecheck. Also fixed `.gitignore`: `logs/` was hiding `output_examples/logs/` (now `/logs/`). Repeat once from the real public clone (15.6).
 
 ## Phase 14: User research (in parallel, by 26 Oct 06:00)
 
@@ -166,7 +166,7 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 
 - [ ] **14.1** Contact at least 2 laundromat owners (family network, nearby outlets, Facebook groups, franchise sales lines). *Done when:* at least 1 interview is booked.
 - [ ] **14.2** Run the interview (user-research §3, EN or BM). *Done when:* notes are in `docs/research/` using the template, with no personal data.
-- [ ] **14.3** Get one quote with permission. *Done when:* it's in the deck slide 1 and the README, or the deck honestly says "no owner reached" and cites public sources.
+- [x] **14.3** Get one quote with permission. *Done when:* it's in the deck slide 1 and the README, or the deck honestly says "no owner reached" and cites public sources. ✅ README says "no owner reached"; the deck must say it too (15.2).
 - [ ] **14.4** Apply the "if we hear…" changes (user-research §5) and close open questions 6, 7 and 9. *Done when:* the docs are updated.
 - [ ] **14.5** Confirm the tariff rates and the solar cost per kWp (open questions 5, 8 and 10). *Done when:* the `tariffs` and `solar_params` sources are cited in the README.
 

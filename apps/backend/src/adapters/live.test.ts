@@ -28,10 +28,11 @@ async function serve(handler: (req: IncomingMessage, json: any) => { status?: nu
 // Fake Nightshift: answers each role the way a well-behaved Nemotron would, and records what it was sent.
 const seen: { headers: IncomingMessage["headers"]; body: any }[] = [];
 const MODEL = "nvidia/nemotron-test";
-const nightshift = (opts: { fail?: boolean; badNumbers?: boolean } = {}) => serve((req, json) => {
+const nightshift = (opts: { fail?: boolean; badNumbers?: boolean; prose?: boolean } = {}) => serve((req, json) => {
   seen.push({ headers: req.headers, body: json });
   if (opts.fail) return { status: 503, json: { error: "overloaded" } };
-  const sys: string = json.messages[0].content, user: string = json.messages.at(-1).content;
+  if (opts.prose && json.messages.length === 2) return { json: { model: MODEL, choices: [{ message: { content: "Sure! Here is my answer." } }] } };
+  const sys: string = json.messages[0].content, user: string = json.messages[1].content;
   let content: unknown;
   if (sys.startsWith("You are Scout")) content = { intents: /bill|higher/i.test(user.split('"""')[1]) ? ["bill_investigation"] : ["tariff_decision"], lang: "en" };
   else if (sys.startsWith("You are Planner")) content = { add: ["humidity", "holiday"], reasons: { humidity: "September was humid", holiday: "Malaysia Day fell in the window" } };
@@ -72,6 +73,14 @@ test("Nightshift down: retries, then the rules twins answer and the run is marke
   assert.equal(res.decisions[0].verdict, "Switch to the ToU tariff");
   assert.ok(events(res.log).some((e) => e.status === "fallback" && e.agent_name === "Scout"));
   assert.ok(seen.length >= 3, "each call was retried before falling back");
+});
+
+test("Nightshift answers in prose: one repair prompt, then valid JSON, and the run stays live", async () => {
+  seen.length = 0;
+  const res = await run({ outlet_id: "OUT-01", as_of: "2026-10-18", question: "Should I switch to the ToU tariff?" }, liveLlm(await nightshift({ prose: true })), { echo: false });
+  assert.match(res.mode, /^live/);
+  assert.ok(seen.some((s) => /not a valid JSON object/.test(s.body.messages.at(-1).content) && s.body.messages.at(-2).role === "assistant"), "repair prompt sent with the bad reply");
+  assert.ok(!events(res.log).some((e) => e.status === "fallback"));
 });
 
 test("Reporter rewrites that change a number are rejected; the calculator's text stays", async () => {

@@ -1,6 +1,6 @@
 {
-  "run_id": "r-d07a834c",
-  "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
+  "run_id": "r-4a6143bc",
+  "mode": "sample (rules reasoner, no LLM)",
   "outlet_id": "OUT-01",
   "as_of": "2026-10-04",
   "decisions": [
@@ -19,6 +19,25 @@
       ],
       "assumptions": [
         "Normal level = the baseline week 7 Sept–13 Sept; compared with 21 Sept–4 Oct",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
+    },
+    {
+      "type": "tariff",
+      "verdict": "Switch to the ToU tariff",
+      "rm_per_month": 9.54,
+      "confidence": "high",
+      "evidence": [
+        "Peak share 56.8% vs break-even 63.6%",
+        "Worst week (week 4): 59.0% in peak",
+        "ToU RM1733.57/month vs flat RM1743.11/month"
+      ],
+      "ruled_out": [
+        "Staying on flat: costs RM9.54 more per month"
+      ],
+      "assumptions": [
+        "Rates used: peak RM0.5217, off-peak RM0.4808, flat RM0.5068 per kWh (all-in; confirm against TNB's schedule)",
+        "Solar not considered here; ask \"Solar, ToU or both?\" for the joint decision",
         "Sample data: business data is synthetic, weather and holidays are real"
       ]
     },
@@ -42,42 +61,23 @@
         "Flat rate used: RM0.5068 per kWh (all-in; confirm against TNB's schedule)",
         "Sample data: business data is synthetic, weather and holidays are real"
       ]
-    },
-    {
-      "type": "tariff",
-      "verdict": "Switch to the ToU tariff",
-      "rm_per_month": 9.54,
-      "confidence": "high",
-      "evidence": [
-        "Peak share 56.8% vs break-even 63.6%",
-        "Worst week (week 4): 59.0% in peak",
-        "ToU RM1733.57/month vs flat RM1743.11/month"
-      ],
-      "ruled_out": [
-        "Staying on flat: costs RM9.54 more per month"
-      ],
-      "assumptions": [
-        "Rates used: peak RM0.5217, off-peak RM0.4808, flat RM0.5068 per kWh (all-in; confirm against TNB's schedule)",
-        "Solar not considered here; ask \"Solar, ToU or both?\" for the joint decision",
-        "Sample data: business data is synthetic, weather and holidays are real"
-      ]
     }
   ],
   "actions": [
     {
-      "id": "r-d07a834c-a1",
-      "type": "schedule_service",
-      "target": "OUT-01-D4",
-      "reason": "D4 wastes about RM48.03/month",
-      "risk": "operational",
-      "status": "awaiting_approval"
-    },
-    {
-      "id": "r-d07a834c-a2",
+      "id": "r-4a6143bc-a1",
       "type": "switch_tariff",
       "target": "OUT-01",
       "reason": "ToU saves about RM9.54/month",
       "risk": "financial",
+      "status": "awaiting_approval"
+    },
+    {
+      "id": "r-4a6143bc-a2",
+      "type": "schedule_service",
+      "target": "OUT-01-D4",
+      "reason": "D4 wastes about RM48.03/month",
+      "risk": "operational",
       "status": "awaiting_approval"
     }
   ],

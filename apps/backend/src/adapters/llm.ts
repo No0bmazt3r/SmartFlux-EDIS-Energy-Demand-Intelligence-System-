@@ -21,10 +21,12 @@ export class LlmError extends Error {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+type Message = { role: "system" | "user" | "assistant"; content: string };
+const REPAIR = "That was not a valid JSON object. Reply with only the JSON object, nothing else.";
+
 export function createNightshift(cfg: LlmConfig): Generator {
   const timeout = cfg.timeoutMs ?? 60_000, maxRetries = cfg.retries ?? 2;
-  return async (prompt, opts) => {
-    const t0 = performance.now();
+  const call = async (messages: Message[], opts: GenerateOpts) => {
     for (let attempt = 0; ; attempt++) {
       try {
         const res = await fetch(`${cfg.baseUrl.replace(/\/$/, "")}/chat/completions`, {
@@ -34,9 +36,7 @@ export function createNightshift(cfg: LlmConfig): Generator {
             "meterless-app": cfg.app ?? "smartflux", "meterless-scope": "user",
           },
           body: JSON.stringify({
-            model: cfg.models[opts.lane],
-            messages: [...(opts.system ? [{ role: "system", content: opts.system }] : []), { role: "user", content: prompt }],
-            temperature: 0, max_tokens: opts.maxTokens ?? 800,
+            model: cfg.models[opts.lane], messages, temperature: 0, max_tokens: opts.maxTokens ?? 800,
             ...(opts.json && cfg.jsonMode !== false ? { response_format: { type: "json_object" } } : {}),
             ...(cfg.extraBody ?? {}),
           }),
@@ -46,7 +46,7 @@ export function createNightshift(cfg: LlmConfig): Generator {
         const body = await res.json();
         const text = body?.choices?.[0]?.message?.content;
         if (typeof text !== "string") throw new LlmError(`${cfg.provider ?? "Nightshift"} returned no message content`);
-        return { text, model: body.model ?? cfg.models[opts.lane], ms: Math.round(performance.now() - t0), retries: attempt };
+        return { text, model: (body.model ?? cfg.models[opts.lane]) as string, retries: attempt };
       } catch (e) {
         const status = (e as LlmError).status;
         const retriable = status === undefined || status === 429 || status >= 500; // network, timeout, rate limit, server
@@ -54,6 +54,17 @@ export function createNightshift(cfg: LlmConfig): Generator {
         await sleep(500 * 2 ** attempt);
       }
     }
+  };
+  return async (prompt, opts) => {
+    const t0 = performance.now();
+    const messages: Message[] = [...(opts.system ? [{ role: "system" as const, content: opts.system }] : []), { role: "user", content: prompt }];
+    let g = await call(messages, opts);
+    // One repair prompt on bad JSON; if that fails too, the caller's parse throws and the rules twin answers.
+    if (opts.json) try { parseJson(g.text); } catch {
+      const fixed = await call([...messages, { role: "assistant", content: g.text }, { role: "user", content: REPAIR }], opts);
+      g = { ...fixed, retries: g.retries + fixed.retries + 1 };
+    }
+    return { ...g, ms: Math.round(performance.now() - t0) };
   };
 }
 

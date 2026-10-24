@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { openSampleDb, type SampleDb } from "../adapters/local-sqlite.ts";
 import { createZetaris } from "../adapters/zetaris.ts";
 import { co2Calc } from "../calc/co2.ts";
+import { durationReading } from "../calc/fault.ts";
+import { regressMachines } from "../calc/regress.ts";
 import { ratesFromRows, touCalc, weeksFromRows } from "../calc/tou.ts";
 import type { Config } from "../config.ts";
 import { openHmem } from "../engines/hmem/index.ts";
@@ -28,6 +30,36 @@ export function dataQuery(cfg: Config, asOf: string, db: SampleDb) {
   };
 }
 
+type Q = ReturnType<typeof dataQuery>;
+type MachineRow = { machine_id: string; type: string; heat_source: string };
+// ponytail: in-process cache; the data window is historic, so a range never changes for a given as_of.
+const fits = new Map<string, ReturnType<typeof fitOnce>>();
+async function fitOnce(q: Q, outlet: string, from: string, to: string, machines: MachineRow[]) {
+  const p = { outlet, from: ts(from), to: ts(to) };
+  const iv = await q("interval_series", p), cy = await q("cycle_overlap", p);
+  if (!iv.length) return undefined;
+  const fit = regressMachines(iv as any, cy as any, machines.map((m) => m.machine_id));
+  const total = iv.reduce((s, r) => s + Number(r.kwh), 0);
+  const byType = (t: string) => fit.machines.filter((f) => machines.find((m) => m.machine_id === f.machine_id)?.type === t).reduce((s, f) => s + f.kwh_per_cycle * f.cycles, 0);
+  const washers = byType("washer"), dryers = byType("dryer");
+  return {
+    // Base = everything the machines don't explain (lights, aircon, standby), so the three parts add up to the meter.
+    split: { washers_kwh: washers, dryers_kwh: dryers, base_kwh: Math.max(0, total - washers - dryers), total_kwh: total },
+    // The agent's readings: kWh per cycle from the regression, median minutes per cycle for gas dryers (FR-08).
+    readings: Object.fromEntries(machines.map((m) => {
+      if (m.heat_source === "gas") { const d = durationReading(cy.filter((c) => c.machine_id === m.machine_id && c.started_at >= ts(from)) as any); return [m.machine_id, d.cycles ? { unit: "min", ...d } : null]; }
+      const e = fit.machines.find((x) => x.machine_id === m.machine_id);
+      return [m.machine_id, e && e.cycles ? { unit: "kWh", value: e.kwh_per_cycle, se: e.se, cycles: e.cycles } : null];
+    })) as Record<string, { unit: string; value: number; se: number; cycles: number } | null>,
+  };
+}
+// The same regression the agent runs, over one date range (Owner machine trends, Admin washer vs dryer split).
+export function fitRange(q: Q, cfg: Config, asOf: string, outlet: string, from: string, to: string, machines: MachineRow[]) {
+  const key = [cfg.dataDir, cfg.mode.data, asOf, outlet, from, to].join("|");
+  if (!fits.has(key)) fits.set(key, fitOnce(q, outlet, from, to, machines));
+  return fits.get(key)!;
+}
+
 // only: one outlet's slice (the Owner app); omitted for the franchise view.
 export async function adminOverview(cfg: Config, asOf: string, db: SampleDb = openSampleDb(cfg.dataDir), only?: string) {
   const q = dataQuery(cfg, asOf, db);
@@ -48,11 +80,14 @@ export async function adminOverview(cfg: Config, asOf: string, db: SampleDb = op
     const kwh = month.reduce((s, r) => s + Number(r.kwh), 0);
     const cost = kwh * rates.flat, rev = revenue.reduce((s, r) => s + Number(r.revenue_rm), 0);
     const tou = touCalc(weeksFromRows(weeks as any), rates);
+    const machines = await q("machine_list", { outlet: o.outlet_id }) as MachineRow[];
+    const split = (await fitRange(q, cfg, asOf, o.outlet_id, monthStart, end, machines))?.split ?? null;
     perOutlet.push({
       outlet_id: o.outlet_id, name: o.name,
       kpis: { kwh_month_to_date: kwh, cost_rm_month_to_date: cost, revenue_rm_month_to_date: rev, margin_share: rev ? (rev - cost) / rev : 0,
         projected_bill_rm: (cost / daysElapsed) * daysInMonth, cycles_month_to_date: revenue.reduce((s, r) => s + Number(r.cycles), 0) },
       weekly: weeksFromRows(weeks as any).map((w) => ({ week: w.week, peak_kwh: w.peak, offpeak_kwh: w.offpeak })),
+      split,
       tariff: { peak_share: tou.peak_share, breakeven: tou.breakeven, verdict: tou.verdict, tou_saving_rm_per_month: tou.saving_per_month },
       scope2: { ...co2Calc({ grid_kwh: kwh, grid_kg_per_kwh: grid }), kwh, factor_kg_per_kwh: grid, period: `${monthStart} to ${asOf}`,
         method: `Grid kWh from the meter × grid emission factor (${factors.find((f) => f.factor_id === "grid_peninsular")?.source}). Prepared for the SEDG GHG calculator; SmartFlux does not file reports.` },
