@@ -1,0 +1,69 @@
+{
+  "run_id": "r-2652a595",
+  "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
+  "outlet_id": "OUT-01",
+  "as_of": "2026-10-18",
+  "decisions": [
+    {
+      "type": "briefing",
+      "verdict": "Weekly briefing, Mon 19 Oct",
+      "confidence": "high",
+      "evidence": [
+        "Servicing D4 saved RM64.65/month",
+        "No dryer is wasting energy",
+        "Switch to the ToU tariff (RM7.6/month)",
+        "Peak share last week 61.5% (+0.8 pts)",
+        "4 actions waiting for your approval"
+      ],
+      "ruled_out": [],
+      "assumptions": [
+        "Prepared automatically by SmartFlux agents; no question was asked",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
+    },
+    {
+      "type": "machine_fault",
+      "verdict": "No dryer is wasting energy",
+      "confidence": "high",
+      "evidence": [
+        "All 6 dryers are within their normal range"
+      ],
+      "ruled_out": [],
+      "assumptions": [
+        "Normal level = the baseline week 7 Sept–13 Sept; compared with 5 Oct–18 Oct",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
+    },
+    {
+      "type": "tariff",
+      "verdict": "Switch to the ToU tariff",
+      "rm_per_month": 7.6,
+      "confidence": "high",
+      "evidence": [
+        "Peak share 58.3% vs break-even 63.6%",
+        "Worst week (week 6): 61.5% in peak",
+        "ToU RM1780.89/month vs flat RM1788.49/month"
+      ],
+      "ruled_out": [
+        "Staying on flat: costs RM7.6 more per month"
+      ],
+      "assumptions": [
+        "Rates used: peak RM0.5217, off-peak RM0.4808, flat RM0.5068 per kWh (all-in; confirm against TNB's schedule)",
+        "Solar not considered here; ask \"Solar, ToU or both?\" for the joint decision",
+        "Sample data: business data is synthetic, weather and holidays are real"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "r-2652a595-a1",
+      "type": "switch_tariff",
+      "target": "OUT-01",
+      "reason": "ToU saves about RM7.6/month",
+      "risk": "financial",
+      "status": "awaiting_approval"
+    }
+  ],
+  "unresolved": [],
+  "log": "output_examples/logs/08-briefing.jsonl"
+}

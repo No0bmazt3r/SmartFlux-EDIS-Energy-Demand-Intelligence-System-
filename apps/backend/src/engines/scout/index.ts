@@ -46,6 +46,21 @@ export function classify(text: string, lang?: Lang) {
   };
 }
 
+// Intents that need an explicit topic in the question. An LLM may infer "bill" or "tariff" from a paraphrase,
+// but must not add solar, promos, emissions or a follow-up the owner never mentioned: each extra intent costs
+// tool calls and can push the question actually asked past the cap. Intents the rules table finds are kept too,
+// so an explicit ask is never dropped. Returns what was dropped so the log shows the check.
+const EXPLICIT_ONLY: Intent[] = ["energy_plan", "load_shift_plan", "esg_summary", "advice_followup"];
+
+export function groundIntents(question: string, proposed: Intent[]) {
+  const ruled: Intent[] = classify(question).intents.filter((i) => i !== "out_of_scope");
+  const kept = proposed.filter((i) => !EXPLICIT_ONLY.includes(i) || ruled.includes(i));
+  const dropped = proposed.filter((i) => !kept.includes(i));
+  for (const i of ruled) if (!kept.includes(i)) kept.push(i);
+  if (kept.length > 1) kept.splice(0, kept.length, ...kept.filter((i) => i !== "out_of_scope"));
+  return { intents: kept.length ? kept : (["out_of_scope"] as Intent[]), dropped };
+}
+
 export function gate(actionType: string): "auto" | "await_approval" {
   const risk = ACTION_RISK[actionType];
   if (!risk) throw new Error(`Unknown action type ${actionType}`);

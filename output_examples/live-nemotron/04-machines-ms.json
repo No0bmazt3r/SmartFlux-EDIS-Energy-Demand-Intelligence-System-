@@ -1,0 +1,37 @@
+{
+  "run_id": "r-af23ad5e",
+  "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
+  "outlet_id": "OUT-02",
+  "as_of": "2026-10-18",
+  "decisions": [
+    {
+      "type": "machine_fault",
+      "verdict": "Servis pengering G3",
+      "rm_per_month": 84.79,
+      "confidence": "high",
+      "evidence": [
+        "Kitaran +24% lebih lama (51 → 63 minit)",
+        "Pengering gas: kitaran lebih lama menunjukkan masalah aliran udara, habuk atau penunu",
+        "Pengering lain jenis sama: +0%"
+      ],
+      "ruled_out": [],
+      "assumptions": [
+        "Tahap biasa = minggu asas 7 Sept–13 Sept; dibandingkan dengan 5 Oct–18 Oct",
+        "Kos LPG dianggap RM0.05 setiap minit pengering (sahkan dengan pembekal)",
+        "Data contoh: data perniagaan adalah sintetik, cuaca dan cuti adalah sebenar"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "r-af23ad5e-a1",
+      "type": "schedule_service",
+      "target": "OUT-02-G3",
+      "reason": "G3 wastes about RM84.79/month",
+      "risk": "operational",
+      "status": "awaiting_approval"
+    }
+  ],
+  "unresolved": [],
+  "log": "output_examples/logs/04-machines-ms.jsonl"
+}

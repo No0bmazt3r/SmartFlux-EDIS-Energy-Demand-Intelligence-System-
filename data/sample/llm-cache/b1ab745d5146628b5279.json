@@ -1,0 +1,11 @@
+{
+  "key": "b1ab745d5146628b5279",
+  "provider": "nvidia",
+  "lane": "deep",
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "system": "You are Reporter. You only reword; numbers come from calculators and must not change. Answer with JSON only.",
+  "prompt": "Rewrite these decision cards for a busy laundromat owner in English: short, plain, no jargon.\nKeep every number exactly as written, add no new numbers, keep the same number of evidence lines.\n[{\"verdict\":\"Energy use +5% per day vs the baseline week\",\"evidence\":[\"116 → 122 kWh per day\"]},{\"verdict\":\"No dryer is wasting energy\",\"evidence\":[\"All 6 dryers are within their normal range\"]},{\"verdict\":\"Servicing D4 saved RM64.65/month\",\"evidence\":[\"Predicted RM48.03 vs actual RM64.65 (135% of prediction)\",\"D4: 2.73 → 2.14 kWh per cycle; other dryers 2.08 → 2.17\",\"Uncertainty band ± RM14.33/month\",\"Serviced 6 Oct; 12 days of data since\",\"Compared against your other dryers, so weather and customer numbers don't skew it\"]}]\n\nReturn JSON {\"cards\": [{\"verdict\": \"...\", \"evidence\": [\"...\"]}]} in the same order.",
+  "text": "{\"cards\": [{\"verdict\": \"Energy use up 5% per day vs last week\", \"evidence\": [\"116 to 122 kWh per day\"]}, {\"verdict\": \"No dryer is wasting energy\", \"evidence\": [\"All 6 dryers are within their normal range\"]}, {\"verdict\": \"Servicing D4 saved RM64.65/month\", \"evidence\": [\"Predicted RM48.03 vs actual RM64.65 (135% of prediction)\", \"D4: 2.73 to 2.14 kWh per cycle; other dryers 2.08 to 2.17\", \"Uncertainty band ± RM14.33/month\", \"Serviced 6 Oct; 12 days of data since\", \"Compared against your other dryers, so weather and customer numbers don't skew it\"]}]}",
+  "ms": 2692,
+  "recorded_at": "2026-10-24T09:56:34.116Z"
+}

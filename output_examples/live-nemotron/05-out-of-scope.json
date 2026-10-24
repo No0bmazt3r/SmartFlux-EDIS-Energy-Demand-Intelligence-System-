@@ -1,0 +1,11 @@
+{
+  "run_id": "r-cb5b4a06",
+  "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
+  "outlet_id": "OUT-01",
+  "as_of": "2026-10-18",
+  "decisions": [],
+  "actions": [],
+  "unresolved": [],
+  "log": "output_examples/logs/05-out-of-scope.jsonl",
+  "message": "I can't help with that. I can help with:\n- Solar, ToU or both: the joint energy decision\n- Should I switch to the ToU tariff?\n- Why was my bill higher?\n- Which machine is wasting money? (electric and gas dryers)\n- Did an approved fix actually save money?\n- When should heavy loads run (load shifting, promos)?\n- Scope 2 emissions figures"
+}

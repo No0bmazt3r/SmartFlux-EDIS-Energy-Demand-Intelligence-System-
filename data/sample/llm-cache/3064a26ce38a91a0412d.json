@@ -1,0 +1,11 @@
+{
+  "key": "3064a26ce38a91a0412d",
+  "provider": "nvidia",
+  "lane": "deep",
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "system": "You are Reporter. You only reword; numbers come from calculators and must not change. Answer with JSON only.",
+  "prompt": "Rewrite these decision cards for a busy laundromat owner in Bahasa Melayu: short, plain, no jargon.\nKeep every number exactly as written, add no new numbers, keep the same number of evidence lines.\n[{\"verdict\":\"Servis pengering G3\",\"evidence\":[\"Kitaran +24% lebih lama (51 → 63 minit)\",\"Pengering gas: kitaran lebih lama menunjukkan masalah aliran udara, habuk atau penunu\",\"Pengering lain jenis sama: +0%\"]}]\n\nReturn JSON {\"cards\": [{\"verdict\": \"...\", \"evidence\": [\"...\"]}]} in the same order.",
+  "text": "{\"cards\": [{\"verdict\": \"Servis pengering G3\", \"evidence\": [\"Kitaran +24% lebih lama (51 → 63 minit)\", \"Pengering gas: kitaran lebih lama menunjukkan masalah aliran udara, habuk atau penunu\", \"Pengering lain jenis sama: +0%\"]}]}",
+  "ms": 1346,
+  "recorded_at": "2026-10-24T09:56:22.873Z"
+}

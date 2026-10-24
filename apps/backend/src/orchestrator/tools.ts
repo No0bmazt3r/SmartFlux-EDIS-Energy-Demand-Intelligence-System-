@@ -48,7 +48,7 @@ export async function tryLlm<T>(ctx: Ctx, agent: string, action: string, fn: () 
     return await fn();
   } catch (e) {
     ctx.degraded.add("llm");
-    ctx.emit({ agent_name: agent, action: `llm.${action}`, input_summary: "Nightshift call", output_summary: `fell back to the rules twin: ${(e as Error).message.slice(0, 200)}`, status: "fallback" });
+    ctx.emit({ agent_name: agent, action: `llm.${action}`, input_summary: "LLM call", output_summary: `fell back to the rules twin: ${(e as Error).message.slice(0, 200)}`, status: "fallback" });
     return undefined;
   }
 }
