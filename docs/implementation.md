@@ -13,15 +13,15 @@
 | Layer | Choice | Notes |
 | --- | --- | --- |
 | Runtime | Node **22.13+** (24 LTS fine) | `node:sqlite` built in |
-| Package manager | pnpm workspaces | Existing monorepo |
+| Package manager | pnpm workspaces | New workspace (the prototype is not reused) |
 | Backend | `node:http` (no framework), TypeScript, `tsx` for dev | Binds `0.0.0.0:8000` |
-| LLM client | `openai` SDK pointed at Nightshift | Only LLM dependency |
-| Live data | Zetaris REST (fetch) | JDBC as fallback |
+| LLM client | Plain `fetch` to Nightshift (OpenAI chat format) | No SDK dependency |
+| Live data | Zetaris REST (fetch) | Local SQLite as fallback, run marked `mixed` |
 | Source DB | Postgres 16 in Docker | Loaded by script |
 | Sample DB | `node:sqlite` | No extra dependency |
 | Tests | `node:test` + `tsx` | No test framework to install |
 | Frontend | React 19, Vite, a ~30-line router in `src/api.ts` (no React Router) | PWA manifest; one app for the customer, owner and admin roles |
-| Charts | Recharts (or the prototype's existing chart library) | Use what is already installed |
+| Charts | Hand-written SVG (`WeeklyChart` in `src/ui.tsx`) | No chart dependency; a hidden table for screen readers |
 | Icons | Material Symbols Rounded | Matches the design reference |
 | Fonts | Plus Jakarta Sans, Inter, JetBrains Mono (Google Fonts) | See [design-system.md](design-system.md) |
 | Container | Dockerfile + `docker-compose.yml` | App + Postgres |
@@ -97,7 +97,7 @@ Each step ends with something that runs. Workstreams A (data), B (agent) and C (
 | 7 | `mv_check`, `margin_calc`, `shift_plan`, `co2_calc` + tests | A | [proposal §24.4](proposal.md#244-verification-example-d4) reproduced |
 | 8 | H-MEM (IMPLEMENT prompt), `as_of` sessions | B | `memory.test.ts`: recall after restart; rejected advice not re-proposed |
 | 9 | Scout Intent (IMPLEMENT prompt) + approval gate | B | 20-request routing test; financial actions never auto-run |
-| 10 | All 8 examples pass in sample mode; `run-eval.ts` | A+B | O1–O12 checks green for seed 1 |
+| 10 | All 8 examples pass in sample mode; `run-eval.ts` | A+B | O1–O11 checks green for seed 1 (O8 is the compliance checklist, O12 is `pnpm benchmark`) |
 | 11 | Zetaris live: install, Postgres, datasource, REST tables, views, USL, `smoke.ts` | A | Federated query and USL query return rows; template parity test passes |
 | 12 | Nightshift live: lanes, `llm.ts`, LLM-backed roles with tool calling | B | Example 02 live: Nemotron model on every LLM event; Skeptic `needs_revision` appears |
 | 13 | Fallbacks: retry → twin / local, per adapter | B | Kill Zetaris mid-run: run completes in `mixed` mode with `fallback` events |
@@ -184,7 +184,7 @@ Pure functions, one file each, each with a test that reproduces a worked example
 | Level | What | Command |
 | --- | --- | --- |
 | Unit | Calculators, guards, template parity, Scout routing and risk, H-MEM | `pnpm test` |
-| Objective checks | O1–O12 on seeds 1 and 2, sample mode (and live when up) | `pnpm eval` |
+| Objective checks | O1–O11 on seeds 1 and 2, sample mode (and live when up) | `pnpm eval` |
 | Benchmark | 30 generated outlets | `pnpm benchmark` |
 | Clean clone | Fresh clone, empty `.env`, sponsor services stopped | [proposal §22](proposal.md#22-submission-checklist) |
 | UI | Manual pass at 360, 390 and 430 px; keyboard pass on Admin web | Checklist in [design-system.md §9](design-system.md#9-accessibility-checklist) |

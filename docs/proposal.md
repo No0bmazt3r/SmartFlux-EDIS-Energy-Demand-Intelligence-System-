@@ -942,7 +942,7 @@ smartflux/
 │   ├── zetaris-setup.ts           # NEW  runs infra/zetaris/*.sql, --dry-run first
 │   ├── smoke.ts                   # NEW  Zetaris + Nightshift checks
 ├── data/sample/                   # NEW  cached CSVs for sample mode (+ data/README.md)
-├── eval/                          # NEW  run-eval.ts (O1–O12, both seeds), benchmark.ts
+├── eval/                          # NEW  run-eval.ts (O1–O11, both seeds), benchmark.ts (O12)
 ├── input_examples/  output_examples/  logs/
 ├── infra/zetaris/                 # NEW  *_create.sql, *_select.sql
 ├── docker-compose.yml  Dockerfile

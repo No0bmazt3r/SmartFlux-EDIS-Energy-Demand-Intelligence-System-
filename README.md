@@ -62,7 +62,12 @@ pnpm install
 pnpm agent --input input_examples/06-energy-plan.json     # prints every agent step (JSONL), then the result
 pnpm agent --approve <action_id>                          # record the owner's decision in H-MEM
 pnpm test                                                 # calculators, H-MEM, agents, live-path fakes
+pnpm eval                                                 # objective checks on seeds 1 and 2 → eval/report.md
+pnpm benchmark                                            # 30 generated outlets → eval/benchmark.md
+pnpm examples                                             # re-run the 8 examples → output_examples/
 ```
+
+No `.env` is needed for sample mode. On Windows, run it inside WSL2.
 
 ### Web app (customer, owner, admin)
 
@@ -101,7 +106,7 @@ Each side can go live on its own (`DATA_MODE=zetaris` or `LLM_MODE=nightshift`).
 **HTTP** (`pnpm start`, port 8000): sign in, then ask.
 
 ```bash
-TOKEN=$(curl -s localhost:8000/login -d '{"role":"owner"}' | jq -r .token)
+TOKEN=$(curl -s localhost:8000/login -d '{"role":"owner"}' | sed -E 's/.*"token":"([^"]+)".*/\1/')
 curl -s localhost:8000/run -H "authorization: Bearer $TOKEN" \
   -d '{"outlet_id":"OUT-01","as_of":"2026-10-18","question":"Solar, ToU or both?"}'
 curl -s localhost:8000/approve -H "authorization: Bearer $TOKEN" -d '{"action_id":"<id>","decision":"approved"}'

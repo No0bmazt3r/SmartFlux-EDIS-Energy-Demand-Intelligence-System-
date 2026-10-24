@@ -79,7 +79,7 @@ flowchart TB
     end
     CLI["CLI<br/>pnpm agent"]
 
-    subgraph App["SmartFlux backend (Node 22+, Express, TypeScript)"]
+    subgraph App["SmartFlux backend (Node 22+, node:http, TypeScript)"]
         API["HTTP API :8000"]
         ORCH["Orchestrator + agents"]
         CALC["Calculators"]
@@ -108,7 +108,7 @@ flowchart TB
 | --- | --- | --- |
 | Mobile app (owner + customer roles) | React 19, Vite, PWA manifest | Owner: briefings, ask, decisions, evidence, approvals, machines, energy plan. Customer: machine availability, active promo |
 | Admin web | React 19 (same app, `/admin` routes) | All-outlet overview, scoreboard, run log, Scope 2 export |
-| Backend | Node 22.13+, Express 5, TypeScript | API, orchestration, agents, calculators, adapters, logs, scheduler |
+| Backend | Node 22.13+, `node:http` (no framework), TypeScript | API, orchestration, agents, calculators, adapters, logs, scheduler |
 | H-MEM store | JSON files in `data/hmem/` | Persistent memory across restarts |
 | Sample DB | `node:sqlite` over `data/sample/*.csv` | Sample mode and fallback data path |
 | Postgres | Docker `postgres:16` | Synthetic source data for Zetaris |
@@ -264,11 +264,11 @@ type Decision = {
 
 | Environment | Layout |
 | --- | --- |
-| Team laptop (live) | WSL2: backend + frontend (`pnpm dev`) or `docker compose up` (app + Postgres). Zetaris stack in Docker. Nightshift on the Windows host, reached via mirrored networking or `host.docker.internal` |
-| Judge machine (sample) | `docker compose up` or `pnpm dev` with `SAMPLE_MODE=true`; nothing else |
+| Team laptop (live) | WSL2: `pnpm web:build && pnpm start` (or `pnpm start` + `pnpm web:dev` while editing the UI), or `docker compose up` (app + Postgres). Zetaris stack in Docker. Nightshift on the Windows host, reached via mirrored networking or `host.docker.internal` |
+| Judge machine (sample) | `pnpm install && pnpm web:build && pnpm start` with no `.env` (sample mode is the default), or `docker compose up`; nothing else |
 | Demo recording | Live mode on one team laptop; one segment in sample mode |
 
-Ports: app API 8000, web 5173 (dev) or served by the API in Docker, Zetaris UI 3000 / REST 8888 / JDBC 10000, Nightshift 8088.
+Ports: app API 8000 (also serves the built web app), web 5173 (Vite dev only), Zetaris UI 3000 / REST 8888 / JDBC 10000, Nightshift 8088.
 
 ## 10. Cross-cutting concepts
 
@@ -276,7 +276,7 @@ Ports: app API 8000, web 5173 (dev) or served by the API in Docker, Zetaris UI 3
 | --- | --- |
 | Logging | One `emit()`; JSONL per run; stdout; the UI reads logs, never a separate store |
 | Errors | Typed adapter errors → retry → fallback → structured error in the output; never a hang |
-| Access control | Demo login issues `{role, outlet_ids}`; one Express middleware `requireRole(roles)` checks role and outlet scope per route (`403` otherwise); customer routes return availability fields only. UI hides what the server already refuses ([features.md §A.5](features.md#a5-roles-and-access-rbac)) |
+| Access control | Demo login issues `{role, outlet_ids}`; `server.ts` checks the token's role and outlet scope on every route (`403` otherwise); customer routes return availability fields only. UI hides what the server already refuses ([features.md §A.5](features.md#a5-roles-and-access-rbac)) |
 | Security | Read-only SQL guard (SELECT/SHOW/DESCRIBE only, USL namespace only); secrets from env; no secrets in logs; NVIDIA key stays in Nightshift |
 | Time | Everything evaluated at `as_of`; the clock is never read inside agents |
 | Language | Scout detects English or Malay; Reporter writes in the request language; numbers are never translated by the LLM |
