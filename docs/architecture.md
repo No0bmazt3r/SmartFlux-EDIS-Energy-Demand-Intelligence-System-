@@ -182,10 +182,10 @@ sequenceDiagram
     I->>Z: solar_inputs (load + radiation + solar_params)
     I->>C: solar_calc → options, post-solar load
     I->>C: tou_calc(grid-only), tou_calc(post-solar)
-    I->>S: claims: "ToU saves RM14", "10 kWp saves RM507", "total RM521"
+    I->>S: claims: "ToU saves RM7.60", "10 kWp saves RM502.75", "total RM510.35"
     S->>Z: tou_split on post-solar profile (verification)
-    S-->>I: reject "total RM521": interacting decisions; recompute jointly
-    I->>C: joint_decision → solar + flat RM506.80
+    S-->>I: reject "total RM510.35": interacting decisions; recompute jointly
+    I->>C: joint_decision → solar + flat RM502.75
     I->>S: resubmit
     S-->>P: approve; ToU after solar = stay
 ```
@@ -199,12 +199,12 @@ sequenceDiagram
     participant H as H-MEM
     participant B as Weekly briefing (later)
     participant C as mv_check
-    O->>API: approve "service D4" (predicted RM182)
+    O->>API: approve "service D4" (predicted RM48.03)
     API->>H: record approval
     Note over B: Monday, as_of 18 Oct
     B->>H: recall actions awaiting verification
     B->>C: pre/post weeks for D4 and peers, service date
-    C-->>B: realised 0.63 kWh/cycle, RM164, verified
+    C-->>B: realised 0.59 kWh/cycle, RM64.65, verified
     B->>H: record outcome
     B-->>O: briefing card "D4 fix verified"
 ```

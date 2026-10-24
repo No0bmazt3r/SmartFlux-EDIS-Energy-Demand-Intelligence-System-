@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { api, navigate, setPref, usePath, usePrefs, useApi, type Role, type Session } from "./api.ts";
 import { AdminApp } from "./admin.tsx";
 import { CustomerApp } from "./customer.tsx";
+import { KitchenSink } from "./kitchen.tsx";
 import { OwnerApp } from "./owner.tsx";
 import { Failed, Icon } from "./ui.tsx";
 import "./styles.css";
@@ -52,11 +53,13 @@ function App() {
   const qr = new URLSearchParams(location.search).get("outlet");
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   useEffect(() => {
+    if (path.startsWith("/kitchen-sink")) return;
     // QR code at the outlet: /customer?outlet=OUT-01 signs a customer in for that outlet.
     if (qr && path.startsWith("/customer") && (session?.role !== "customer" || session.outlets[0] !== qr)) { signIn("customer", qr); return; }
     if (!session && !path.startsWith("/login")) navigate("/login", true);
     else if (session && !allowed(session.role, path)) navigate(HOME[session.role], true);
   }, [path, session, qr]);
+  if (path.startsWith("/kitchen-sink")) return <KitchenSink />; // public: components only, no data
   if (!session || path.startsWith("/login")) return <Login />;
   if (!allowed(session.role, path)) return null;
   return session.role === "customer" ? <CustomerApp /> : session.role === "admin" ? <AdminApp /> : <OwnerApp />;

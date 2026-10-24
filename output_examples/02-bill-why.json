@@ -1,5 +1,5 @@
 {
-  "run_id": "r-1d4824d3",
+  "run_id": "r-4a6143bc",
   "mode": "sample (rules reasoner, no LLM)",
   "outlet_id": "OUT-01",
   "as_of": "2026-10-04",
@@ -65,7 +65,7 @@
   ],
   "actions": [
     {
-      "id": "r-1d4824d3-a1",
+      "id": "r-4a6143bc-a1",
       "type": "switch_tariff",
       "target": "OUT-01",
       "reason": "ToU saves about RM9.54/month",
@@ -73,7 +73,7 @@
       "status": "awaiting_approval"
     },
     {
-      "id": "r-1d4824d3-a2",
+      "id": "r-4a6143bc-a2",
       "type": "schedule_service",
       "target": "OUT-01-D4",
       "reason": "D4 wastes about RM48.03/month",

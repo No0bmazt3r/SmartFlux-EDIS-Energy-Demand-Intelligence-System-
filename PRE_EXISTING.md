@@ -24,10 +24,11 @@ Last commit before the window: `[hash — to fill in from the prototype reposito
 | Data generator, Zetaris setup, smoke test, examples | `scripts/` |
 | Evaluation and benchmark | `eval/` |
 | Postgres loader and Zetaris SQL | `infra/` |
+| Customer, Owner and Admin web app (React 19 + Vite), written fresh, not taken from the prototype | `apps/frontend/` |
 | Design docs | `docs/` |
 
-If any prototype component (for example parts of the React shell) is later reused in `apps/frontend`, it will be listed here with what was changed.
+No prototype component is reused in `apps/frontend`.
 
 ## Third-party code and data
 
-No third-party code is copied into the repository. Dependencies are dev tools only (`tsx`, `typescript`, `@types/node`); the runtime uses Node's standard library (`node:http`, `node:sqlite`, `fetch`). Data: Open-Meteo archive weather (CC BY 4.0) and Malaysian public holiday dates; all business data is synthetic. The H-MEM engine is implemented from Meterless's published engine guide.
+No third-party code is copied into the repository. The backend has no runtime dependencies: it uses Node's standard library (`node:http`, `node:sqlite`, `fetch`), with `tsx` and `typescript` as dev tools. The frontend depends on React and React DOM (MIT), built with Vite; fonts and Material Symbols load from Google Fonts (OFL / Apache 2.0). Data: Open-Meteo archive weather (CC BY 4.0) and Malaysian public holiday dates; all business data is synthetic. The H-MEM engine is implemented from Meterless's published engine guide.

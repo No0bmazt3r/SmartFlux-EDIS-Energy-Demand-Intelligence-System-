@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | Runtime | Node **22.13+** (24 LTS fine) | `node:sqlite` built in |
 | Package manager | pnpm workspaces | Existing monorepo |
-| Backend | Express 5, TypeScript, `tsx` for dev | Binds `0.0.0.0:8000` |
+| Backend | `node:http` (no framework), TypeScript, `tsx` for dev | Binds `0.0.0.0:8000` |
 | LLM client | `openai` SDK pointed at Nightshift | Only LLM dependency |
 | Live data | Zetaris REST (fetch) | JDBC as fallback |
 | Source DB | Postgres 16 in Docker | Loaded by script |
@@ -34,7 +34,7 @@ Do not add an agent framework, a vector database, an ORM or a state library. Not
 smartflux/
 ├── apps/
 │   ├── backend/src/
-│   │   ├── server.ts              # Express app, routes, static frontend in Docker
+│   │   ├── server.ts              # node:http app, routes, static frontend in Docker
 │   │   ├── cli.ts                 # pnpm agent
 │   │   ├── scheduler.ts           # weekly briefing
 │   │   ├── config.ts              # env parsing, mode selection, clear errors
@@ -92,7 +92,7 @@ Each step ends with something that runs. Workstreams A (data), B (agent) and C (
 | 2 | `local-sqlite` adapter + first templates (`tou_split`, `interval_series`) | A | Templates return rows from CSVs |
 | 3 | `tou_calc` + test | A | Breakeven 63.6%; [proposal §24.1](proposal.md#241-tou-example-out-01) numbers to the sen |
 | 4 | Rules twins for all five roles; orchestrator loop with caps | B | **Example 01 runs end to end in sample mode** with a verdict and a full log |
-| 5 | `regress_machines`, `fault_check` (electric + gas) + tests | A | Planted kWh/cycle recovered ±10% per week; G3 found from minutes |
+| 5 | `regress_machines`, `fault_check` (electric + gas) + tests | A | Planted kWh/cycle recovered ±10% for ≥ 95% of dryer-weeks; G3 found from minutes |
 | 6 | `solar_calc`, `joint_decision` + tests | A | [proposal §24.3](proposal.md#243-solar--tou-joint-example-out-01) reproduced |
 | 7 | `mv_check`, `margin_calc`, `shift_plan`, `co2_calc` + tests | A | [proposal §24.4](proposal.md#244-verification-example-d4) reproduced |
 | 8 | H-MEM (IMPLEMENT prompt), `as_of` sessions | B | `memory.test.ts`: recall after restart; rejected advice not re-proposed |

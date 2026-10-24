@@ -1,5 +1,5 @@
 {
-  "run_id": "r-a55c8888",
+  "run_id": "r-cc3e9c30",
   "mode": "sample (rules reasoner, no LLM)",
   "outlet_id": "OUT-01",
   "as_of": "2026-10-18",
@@ -56,7 +56,7 @@
   ],
   "actions": [
     {
-      "id": "r-a55c8888-a1",
+      "id": "r-cc3e9c30-a1",
       "type": "switch_tariff",
       "target": "OUT-01",
       "reason": "ToU saves about RM7.6/month",

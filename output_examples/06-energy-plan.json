@@ -1,5 +1,5 @@
 {
-  "run_id": "r-d56a2696",
+  "run_id": "r-547c2a63",
   "mode": "sample (rules reasoner, no LLM)",
   "outlet_id": "OUT-01",
   "as_of": "2026-10-18",
@@ -32,7 +32,7 @@
   ],
   "actions": [
     {
-      "id": "r-d56a2696-a1",
+      "id": "r-547c2a63-a1",
       "type": "request_solar_quote",
       "target": "OUT-01 10 kWp",
       "reason": "10 kWp saves about RM502.75/month",
