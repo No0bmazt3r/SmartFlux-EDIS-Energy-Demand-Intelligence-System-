@@ -106,8 +106,8 @@ flowchart TB
 
 | Container | Technology | Responsibility |
 | --- | --- | --- |
-| Mobile app (owner + customer roles) | React 18, Vite, PWA manifest | Owner: briefings, ask, decisions, evidence, approvals, machines, energy plan. Customer: machine availability, active promo |
-| Admin web | React 18 (same app, `/admin` routes) | All-outlet overview, scoreboard, run log, Scope 2 export |
+| Mobile app (owner + customer roles) | React 19, Vite, PWA manifest | Owner: briefings, ask, decisions, evidence, approvals, machines, energy plan. Customer: machine availability, active promo |
+| Admin web | React 19 (same app, `/admin` routes) | All-outlet overview, scoreboard, run log, Scope 2 export |
 | Backend | Node 22.13+, Express 5, TypeScript | API, orchestration, agents, calculators, adapters, logs, scheduler |
 | H-MEM store | JSON files in `data/hmem/` | Persistent memory across restarts |
 | Sample DB | `node:sqlite` over `data/sample/*.csv` | Sample mode and fallback data path |

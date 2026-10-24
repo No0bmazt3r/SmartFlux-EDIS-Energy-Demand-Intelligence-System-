@@ -1,0 +1,12 @@
+{
+  "name": "SmartFlux",
+  "short_name": "SmartFlux",
+  "description": "Know what to save, and prove it worked.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F061E",
+  "theme_color": "#0F061E",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -40,6 +40,7 @@ const PARAMS: Record<string, Record<string, string | number>> = {
   cycle_revenue: { outlet: "OUT-01", from: "2026-10-01 00:00:00", to: "2026-10-19 00:00:00" },
   emission_factors: {},
   outlet_list: {},
+  machine_status: { outlet: "OUT-01", at: "2026-10-18 19:30:00" },
 };
 const canon = (rows: Record<string, unknown>[]) => rows
   .map((r) => JSON.stringify(Object.keys(r).sort().map((k) => [k, typeof r[k] === "number" ? Math.round((r[k] as number) * 1e4) / 1e4 : String(r[k])])))

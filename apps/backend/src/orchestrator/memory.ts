@@ -49,7 +49,7 @@ export function rememberAdvice(state: RunState, ctx: Ctx, action: ProposedAction
   ctx.hmem.write({
     content: `Advised: ${action.type} ${action.target}${predicted ? `, predicted saving RM${predicted.toFixed(2)}/month` : ""} (${action.reason})`,
     type: "procedural", layer: "working", as_of: state.as_of, tags: ["advice", action.type], entities: [state.outlet_id, action.target, action.id],
-    agentId: "Reporter", runId: state.run_id, data: { action_id: action.id, type: action.type, target: action.target, risk: action.risk, predicted_rm_per_month: predicted ?? null },
+    agentId: "Reporter", runId: state.run_id, data: { action_id: action.id, type: action.type, target: action.target, risk: action.risk, reason: action.reason, predicted_rm_per_month: predicted ?? null },
   });
 }
 

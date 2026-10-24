@@ -9,6 +9,8 @@
   "scripts": {
     "agent": "tsx apps/backend/src/cli.ts",
     "start": "tsx apps/backend/src/server.ts",
+    "web:dev": "pnpm --filter @smartflux/frontend dev",
+    "web:build": "pnpm --filter @smartflux/frontend build",
     "test": "node --import tsx --test \"apps/backend/src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit -p .",
     "zetaris:setup": "tsx scripts/zetaris-setup.ts",

@@ -126,25 +126,25 @@ Deadline: **27 Oct 2026, 23:45 UTC** (internal target 12:00 UTC). Cut order if b
 
 ## Phase 11: Frontend (steps 15–17, stream C)
 
-- [ ] **11.1** `theme/tokens.css` copied exactly from design-system §7, plus the fonts and Material Symbols. *Done when:* it's in use.
+- [x] **11.1** `theme/tokens.css` copied exactly from design-system §7, plus the fonts and Material Symbols. *Done when:* it's in use. ✅ Tokens verbatim at the top of `apps/frontend/src/styles.css`; fonts and Material Symbols from Google Fonts.
 - [ ] **11.2** Components and a `/kitchen-sink` page: Card, DecisionCard, Briefing card, Risk and Status badges, Timeline row (normal and sent back), SQL block, KPI tile, Alert card, Machine row, Bottom nav, FAB, Outlet switcher, Language toggle, Mode badge, Toast. *Done when:* all of them render on one page.
-- [ ] **11.3** Demo login (Owner, Admin) and routes (implementation §5.5). *Done when:* both roles land on their home screen.
-- [ ] **11.4** M-02 Home: briefing, this month, alerts, solar teaser, verified savings. *Done when:* it's wired to the API at 390 px.
-- [ ] **11.5** M-04 Energy plan, plus the OUT-03 "no roof" variant. *Done when:* it shows before and after solar, ruled-out RM521 and the assumptions.
-- [ ] **11.6** M-05 Ask and M-06 Agent working, including the "Skeptic asked for one more check" note. *Done when:* a question runs and the progress steps update.
-- [ ] **11.7** M-07 Decision card (6 variants). *Done when:* the fault, tariff and energy plan variants render from real output.
-- [ ] **11.8** M-08 Evidence, rendered from `GET /runs/:id`. *Done when:* the sent-back row is visually distinct with an icon and text, and the SQL, numbers and models are shown.
-- [ ] **11.9** M-09 Approvals: approve and reject, toast, history. *Done when:* approving D4 is recorded in H-MEM.
-- [ ] **11.10** M-10 Did it work? *Done when:* predicted vs realised plus the weekly chart with the service marker.
-- [ ] **11.11** M-11 Machines (plus M-12 detail if time allows). *Done when:* kWh or minutes, status, and cost vs price per cycle are shown.
-- [ ] **11.12** Malay toggle (M15) with `lang="ms"`. *Done when:* example 04 reads naturally in Malay.
-- [ ] **11.13** PWA manifest. *Done when:* the app installs on a phone.
-- [ ] **11.14** Admin web: KPI tiles, outlet energy chart (with a "view as table" option), flagged machines, advice scoreboard, run log (W1–W6). *Done when:* it's wired to `/admin/overview`.
-- [ ] **11.15** Admin Should items: outlets table, washer vs dryer split, Scope 2 CSV, as-of picker, run detail. *Done when:* they're done or explicitly cut.
-- [ ] **11.17** Customer view backend: `machine_status` template (lightning + sqlite, parity in `pnpm smoke`), `GET /outlets/:id/availability`, maintenance gate (FR-38, FR-39). *Done when:* a test shows D4 `maintenance` only after Skeptic approval + owner approval, and an unapproved flag stays hidden.
-- [ ] **11.18** RBAC middleware `requireRole` + demo login issuing `{role, outlet_ids}` (FR-75). *Done when:* a test shows a customer gets `403` on `/run`, `/approve` and `/admin/overview`, and an owner gets `403` on another owner's outlet.
-- [ ] **11.19** Customer screens C-01 Machines near me (+ C-02 detail if time), promo banner, third login button (FR-40). *Done when:* approving D4 on the owner screen flips D4 on the customer screen at 390 px.
-- [ ] **11.20** (Could) Report a problem: C-03 + `POST /outlets/:id/reports` → H-MEM `customer_report`; the Investigator lists it as evidence (FR-41). *Done when:* a report shows in the next run's evidence and never flags a machine on its own.
+- [x] **11.3** Demo login (Customer, Owner, Admin) and routes (implementation §5.5). *Done when:* both roles land on their home screen. ✅ All three roles; a customer typing an owner URL is sent back to `/customer` (checked in a headless browser).
+- [x] **11.4** M-02 Home: briefing, this month, alerts, solar teaser, verified savings. *Done when:* it's wired to the API at 390 px.
+- [x] **11.5** M-04 Energy plan, plus the OUT-03 "no roof" variant. *Done when:* it shows before and after solar, ruled-out RM521 and the assumptions.
+- [x] **11.6** M-05 Ask and M-06 Agent working, including the "Skeptic asked for one more check" note. *Done when:* a question runs and the progress steps update. ✅ Steps spin while `POST /run` works, then tick from the real log events (sample runs take < 1 s, so live progress isn't streamed).
+- [x] **11.7** M-07 Decision card (6 variants). *Done when:* the fault, tariff and energy plan variants render from real output.
+- [x] **11.8** M-08 Evidence, rendered from `GET /runs/:id`. *Done when:* the sent-back row is visually distinct with an icon and text, and the SQL, numbers and models are shown.
+- [x] **11.9** M-09 Approvals: approve and reject, toast, history. *Done when:* approving D4 is recorded in H-MEM.
+- [ ] **11.10** M-10 Did it work? *Done when:* predicted vs realised plus the weekly chart with the service marker. ⏳ Verification card and predicted-vs-actual bars (Approvals → History) built; the weekly chart with the service marker is not.
+- [x] **11.11** M-11 Machines (plus M-12 detail if time allows). *Done when:* kWh or minutes, status, and cost vs price per cycle are shown. ✅ Plus M-12 detail and customer reports; normal levels come from H-MEM baselines (dryers). No sparkline yet.
+- [ ] **11.12** Malay toggle (M15) with `lang="ms"`. *Done when:* example 04 reads naturally in Malay. ⏳ EN/BM toggle sends `lang` to the agent and sets `<html lang>`; only the main UI labels are translated.
+- [x] **11.13** PWA manifest. *Done when:* the app installs on a phone. ✅ Manifest + icon; install on a real phone not yet tried.
+- [x] **11.14** Admin web: KPI tiles, outlet energy chart (with a "view as table" option), flagged machines, advice scoreboard, run log (W1–W6). *Done when:* it's wired to `/admin/overview`.
+- [ ] **11.15** Admin Should items: outlets table, washer vs dryer split, Scope 2 CSV, as-of picker, run detail. *Done when:* they're done or explicitly cut. ⏳ Outlets table, Scope 2 CSV, as-of picker and run detail done; washer vs dryer split not built (no per-type kWh in `/admin/overview` yet).
+- [x] **11.17** Customer view backend: `machine_status` template (lightning + sqlite, parity in `pnpm smoke`), `GET /outlets/:id/availability`, maintenance gate (FR-38, FR-39). *Done when:* a test shows D4 `maintenance` only after Skeptic approval + owner approval, and an unapproved flag stays hidden.
+- [x] **11.18** RBAC middleware `requireRole` + demo login issuing `{role, outlet_ids}` (FR-75). *Done when:* a test shows a customer gets `403` on `/run`, `/approve` and `/admin/overview`, and an owner gets `403` on another owner's outlet.
+- [x] **11.19** Customer screens C-01 Machines near me (+ C-02 detail if time), promo banner, third login button (FR-40). *Done when:* approving D4 on the owner screen flips D4 on the customer screen at 390 px.
+- [x] **11.20** (Could) Report a problem: C-03 + `POST /outlets/:id/reports` → H-MEM `customer_report`; the Investigator lists it as evidence (FR-41). *Done when:* a report shows in the next run's evidence and never flags a machine on its own.
 - [ ] **11.16** Accessibility pass against design-system §9, at 360, 390 and 430 px, plus a keyboard pass on the Admin web. *Done when:* every checklist item is ticked.
 
 ## Phase 12: Benchmark (step 18)

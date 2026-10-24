@@ -204,14 +204,21 @@ async function investigateFault(state: RunState, ctx: Ctx, h: Hypothesis) {
   const a = await needWindows(state, ctx, h);
   if (!a) return;
   const flagged = a.faults.filter((f: any) => f.flagged);
+  // Customer reports (H-MEM) are supporting evidence only: cited next to a meter-based fault, never a flag on their own.
+  const reports = ctx.hmem.recall({ asOf: state.as_of, tags: ["customer_report"], entities: [state.outlet_id], topN: 50 }, AGENT).memories
+    .map((m) => m.memory).filter((m) => m.as_of >= a.windows.current.from);
+  if (reports.length) ctx.emit({ agent_name: "H-MEM", action: "hmem.recall", input_summary: `customer reports since ${fmt(a.windows.current.from)}`,
+    output_summary: reports.map((m) => m.content).join("; "), target_agent: AGENT });
+  const reportsFor = (id: string) => reports.filter((m) => m.data.machine_id === id).map((m) => m.data.reason as string);
   for (const f of flagged) {
     const r = a.readings.find((x: any) => x.machine_id === f.machine_id);
     claim(state, h, `${a.names[f.machine_id]} is faulty: ${f.metric} +${f.delta_pct.toFixed(0)}%`,
-      { ...f, name: a.names[f.machine_id], minutes: r.minutes, windows: a.windows, rate: a.rates.flat, lpg: a.lpg },
+      { ...f, name: a.names[f.machine_id], minutes: r.minutes, windows: a.windows, rate: a.rates.flat, lpg: a.lpg, customer_reports: reportsFor(f.machine_id) },
       [...a.evidence.regression, a.evidence.faults]);
   }
   if (!flagged.length)
-    claim(state, h, "No dryer is outside its normal range", { none: true, faults: a.faults, names: a.names, windows: a.windows }, [a.evidence.faults]);
+    claim(state, h, "No dryer is outside its normal range", { none: true, faults: a.faults, names: a.names, windows: a.windows,
+      unconfirmed_reports: [...new Set(reports.map((m) => a.names[m.data.machine_id]).filter(Boolean))] }, [a.evidence.faults]);
 }
 
 async function investigateHumidity(state: RunState, ctx: Ctx, h: Hypothesis) {

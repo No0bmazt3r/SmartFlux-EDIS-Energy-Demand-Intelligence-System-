@@ -19,13 +19,19 @@ export function readRuns(logDir: string, limit = 20) {
     .sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, limit);
 }
 
-export async function adminOverview(cfg: Config, asOf: string, db: SampleDb = openSampleDb(cfg.dataDir)) {
+// Templates for the screens: Zetaris when configured, the local copy if it fails (same path as the agent's tools).
+export function dataQuery(cfg: Config, asOf: string, db: SampleDb) {
   const z = cfg.zetaris && createZetaris(cfg.zetaris);
-  const q = async (name: string, params: Record<string, string | number>) => {
+  return async (name: string, params: Record<string, string | number>) => {
     if (z) try { const { t, bound, cap } = prepare(name, params, asOf); return checkCap(name, await z.query(t.lightning, bound, cap + 1), cap); } catch { /* local fallback */ }
     return querySqlite(db, name, params, asOf);
   };
-  const outlets = db.prepare("SELECT outlet_id, name FROM outlets ORDER BY outlet_id").all() as { outlet_id: string; name: string }[];
+}
+
+// only: one outlet's slice (the Owner app); omitted for the franchise view.
+export async function adminOverview(cfg: Config, asOf: string, db: SampleDb = openSampleDb(cfg.dataDir), only?: string) {
+  const q = dataQuery(cfg, asOf, db);
+  const outlets = (db.prepare("SELECT outlet_id, name FROM outlets ORDER BY outlet_id").all() as { outlet_id: string; name: string }[]).filter((o) => !only || o.outlet_id === only);
   const monthStart = `${asOf.slice(0, 7)}-01` < WINDOW.start ? WINDOW.start : `${asOf.slice(0, 7)}-01`;
   const end = addDays(asOf, 1);
   const daysElapsed = (Date.parse(end) - Date.parse(monthStart)) / 86400000;
@@ -54,25 +60,26 @@ export async function adminOverview(cfg: Config, asOf: string, db: SampleDb = op
   }
 
   // Advice scoreboard and flags from H-MEM: what was advised, what the owner decided, what was measured.
-  const memory = openHmem(cfg.hmemDir, cfg.logDir).all().filter((m) => m.as_of <= asOf);
+  const memory = openHmem(cfg.hmemDir, cfg.logDir).all().filter((m) => m.as_of <= asOf && (!only || m.entities.includes(only)));
   const advice = memory.filter((m) => m.tags.includes("advice")).map((a) => {
     const decision = memory.find((m) => m.tags.includes("decision") && m.data.action_id === a.data.action_id);
     const outcome = memory.filter((m) => m.tags.includes("outcome") && m.data.action_id === a.data.action_id).at(-1);
     return {
       action_id: a.data.action_id, outlet_id: a.entities[0], type: a.data.type, target: a.data.target, advised_as_of: a.as_of,
+      risk: a.data.risk, reason: a.data.reason ?? a.content.match(/\(([^()]*)\)$/)?.[1], run_id: a.runId,
       predicted_rm_per_month: a.data.predicted_rm_per_month, status: decision?.data.decision ?? "awaiting_approval",
       verified: outcome ? { verdict: outcome.data.verdict, realised_rm_per_month: outcome.data.realised_rm_per_month, band_rm_per_month: outcome.data.band_rm_per_month, as_of: outcome.as_of } : null,
     };
   });
-  const runs = readRuns(cfg.logDir, 20);
-  const latestPerOutlet = new Map<string, any>();
-  for (const r of runs) if (r.decisions?.some((d: any) => d.type === "machine_fault") && !latestPerOutlet.has(r.outlet_id)) latestPerOutlet.set(r.outlet_id, r);
-  const flagged = [...latestPerOutlet.values()].flatMap((r) => r.actions.filter((a: any) => a.type === "schedule_service").map((a: any) => {
-    const card = r.decisions.find((d: any) => d.type === "machine_fault" && d.verdict.includes(a.target.split("-").pop()));
-    const tracked = advice.find((x) => x.action_id === a.id);
-    return { outlet_id: r.outlet_id, machine_id: a.target, verdict: card?.verdict, evidence: card?.evidence[0], rm_per_month: card?.rm_per_month,
-      status: tracked?.verified ? `verified: ${tracked.verified.verdict}` : tracked?.status ?? "awaiting_approval", run_id: r.run_id };
-  }));
+  const runs = readRuns(cfg.logDir, only ? 200 : 20).filter((r) => !only || r.outlet_id === only).slice(0, 20);
+  // Every service the agent proposed up to as_of (from H-MEM), with the fault card of the run that proposed it.
+  const allRuns = readRuns(cfg.logDir, 1000);
+  const flagged = advice.filter((a) => a.type === "schedule_service").map((a) => {
+    const r = allRuns.find((x) => x.run_id === a.run_id);
+    const card = r?.decisions.find((d: any) => d.type === "machine_fault" && d.verdict.includes(a.target.split("-").pop()));
+    return { outlet_id: a.outlet_id, machine_id: a.target, verdict: card?.verdict, evidence: card?.evidence[0], rm_per_month: card?.rm_per_month ?? a.predicted_rm_per_month,
+      status: a.verified ? `verified: ${a.verified.verdict}` : a.status, run_id: a.run_id };
+  });
 
   return {
     as_of: asOf, outlets: perOutlet, flagged_machines: flagged, advice_scoreboard: advice,

@@ -20,7 +20,7 @@
 | Source DB | Postgres 16 in Docker | Loaded by script |
 | Sample DB | `node:sqlite` | No extra dependency |
 | Tests | `node:test` + `tsx` | No test framework to install |
-| Frontend | React 18, Vite, React Router | Existing; add PWA manifest |
+| Frontend | React 19, Vite, a ~30-line router in `src/api.ts` (no React Router) | PWA manifest; one app for the customer, owner and admin roles |
 | Charts | Recharts (or the prototype's existing chart library) | Use what is already installed |
 | Icons | Material Symbols Rounded | Matches the design reference |
 | Fonts | Plus Jakarta Sans, Inter, JetBrains Mono (Google Fonts) | See [design-system.md](design-system.md) |
@@ -173,8 +173,10 @@ Pure functions, one file each, each with a test that reproduces a worked example
 ### 5.5 Frontend
 
 - Tokens in `theme/tokens.css` exactly as [design-system.md §7](design-system.md#7-tokens-css).
-- Owner app routes: `/`, `/plan`, `/ask`, `/decision/:runId/:i`, `/evidence/:runId`, `/approvals`, `/machines`.
-- Admin routes: `/admin`.
+- Owner app routes: `/`, `/plan`, `/ask`, `/result/:runId`, `/decision/:runId/:i`, `/evidence/:runId`, `/briefing/:runId`, `/approvals`, `/machines`, `/machines/:id`.
+- Customer routes: `/customer`, `/customer/machine/:id`, `/customer/report/:id`; `/customer?outlet=OUT-01` is the QR entry.
+- Admin routes: `/admin`, `/admin/run/:runId`.
+- Login: `/login` → `POST /login` returns a signed token; the app keeps it in `localStorage` and sends it as `Authorization: Bearer`.
 - Evidence timeline renders `GET /runs/:id` log events in order; `needs_revision` events are visually distinct (icon + label, not colour alone).
 
 ## 6. Testing

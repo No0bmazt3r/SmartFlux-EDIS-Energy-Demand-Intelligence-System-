@@ -151,7 +151,7 @@ Payments and subscriptions; real authentication (demo login only); multi-tenancy
 
 | ID | Screen | Requirement |
 | --- | --- | --- |
-| FR-38 | Availability | Per machine at `as_of`: `free`, `in_use` with minutes left (a cycle in `machine_cycles` spans `as_of`), or `maintenance`. Computed by a `machine_status` query template (Zetaris live, SQLite sample), logged as a `zetaris.query` event like any template. Shows the data time and mode badge |
+| FR-38 | Availability | Per machine at `as_of`: `free`, `in_use` with minutes left (a cycle in `machine_cycles` spans `as_of`), or `maintenance`. Computed by a `machine_status` query template through the same Zetaris → SQLite path as the Admin web (template parity checked by `pnpm smoke`). Shows the data time and mode badge |
 | FR-39 | Maintenance gate | `maintenance` only for a fault with an approved Skeptic verification **and** an owner-approved service action not yet in `service_log`. Test: an unverified or unapproved flag never shows as `maintenance` |
 | FR-40 | Promo loop | Shows an owner-approved promo while it is active. The next session's `promo_check` measures the off-peak share change vs other outlets and records the outcome in H-MEM (existing `run.test.ts` promo test) |
 | FR-41 | Customer report (Could) | `POST /outlets/:id/reports {machine_id, reason}` stores a `customer_report` in H-MEM; the Investigator lists it as supporting evidence, never as a flag by itself |

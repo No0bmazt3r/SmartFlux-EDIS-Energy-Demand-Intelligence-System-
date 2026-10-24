@@ -58,6 +58,23 @@ pnpm agent --approve <action_id>                          # record the owner's d
 pnpm test                                                 # calculators, H-MEM, agents, live-path fakes
 ```
 
+### Web app (customer, owner, admin)
+
+```bash
+pnpm web:build && pnpm start      # API + web app on http://localhost:8000
+# or, while editing the UI: pnpm start  (one terminal)  +  pnpm web:dev  (Vite on :5173, proxies the API)
+```
+
+One app, three roles, picked at the demo login (no password):
+
+| Role | Sees | Can do |
+| --- | --- | --- |
+| **Customer** (QR at the outlet: `/customer?outlet=OUT-01`) | Each machine as free, in use (minutes left) or under maintenance; owner-approved promos | Report a machine that isn't working |
+| **Owner** (phone) | Weekly briefing, bill so far, energy plan, decisions with evidence, machines | Ask the agent, approve or reject actions |
+| **Admin** (desktop) | Every outlet: KPIs, peak vs off-peak, flagged machines, advice scoreboard, run log | Export Scope 2 CSV |
+
+The server checks the role and outlet on every route (signed token; `403` otherwise), so a customer can never read energy data or approve anything. A machine shows **under maintenance** only after the Skeptic approved the fault and the owner approved the service; a customer report is cited as supporting evidence but never flags a machine on its own. Use the date picker to replay the sessions (13 Sep → 4 Oct → 18 Oct).
+
 ### Live mode (Zetaris + Nightshift)
 
 ```bash

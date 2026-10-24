@@ -62,6 +62,8 @@ const TEXT = {
       not_achieved: (n: string) => `The ${n} promo has not moved use off-peak yet` },
     promoResultEv: (o: number, p: number) => [`Off-peak share at this outlet ${o >= 0 ? "+" : ""}${o.toFixed(1)} pts; at the other outlets ${p >= 0 ? "+" : ""}${p.toFixed(1)} pts`, "Compared against your other outlets, so weather and holidays don't skew it"],
     noFaultEv: (n: number) => `All ${n} dryers are within their normal range`,
+    reports: (n: number, r: string) => `Customers also reported it (${n}×: ${r})`,
+    reportsUnconfirmed: (names: string) => `Customer reports on ${names}: the meter data doesn't show a fault, so nothing is flagged`,
     bill: (d: string) => `Energy use ${d} per day vs the baseline week`,
     billEv: (b: number, c: number) => `${b.toFixed(0)} → ${c.toFixed(0)} kWh per day`,
     cause: (t: string) => `Cause: ${t}`,
@@ -124,6 +126,8 @@ const TEXT = {
       not_achieved: (n: string) => `Promosi ${n} belum memindahkan penggunaan ke luar puncak` },
     promoResultEv: (o: number, p: number) => [`Bahagian luar puncak di premis ini ${o >= 0 ? "+" : ""}${o.toFixed(1)} mata; di premis lain ${p >= 0 ? "+" : ""}${p.toFixed(1)} mata`, "Dibandingkan dengan premis lain anda"],
     noFaultEv: (n: number) => `Kesemua ${n} pengering dalam julat biasa`,
+    reports: (n: number, r: string) => `Pelanggan turut melaporkannya (${n}×: ${r})`,
+    reportsUnconfirmed: (names: string) => `Laporan pelanggan tentang ${names}: data meter tidak menunjukkan kerosakan, jadi tiada yang dibenderakan`,
     bill: (d: string) => `Penggunaan tenaga ${d} sehari berbanding minggu asas`,
     billEv: (b: number, c: number) => `${b.toFixed(0)} → ${c.toFixed(0)} kWj sehari`,
     cause: (t: string) => `Punca: ${t}`,
@@ -168,6 +172,7 @@ function faultCard(claim: Claim, ruledOut: string[], lang: Lang): Decision {
       gas ? t.minutes(f.baseline, f.current, sign(f.delta_pct)) : t.kwhVsNormal(f.name, f.current, f.baseline, sign(f.delta_pct)),
       ...(gas ? [t.gasNote] : [t.minutes(f.minutes.baseline, f.minutes.current, minDelta)]),
       t.peers(sign(f.peer_delta_pct)),
+      ...(f.customer_reports?.length ? [t.reports(f.customer_reports.length, [...new Set(f.customer_reports)].join(", ").replace(/_/g, " "))] : []),
     ],
     ruled_out: ruledOut,
     assumptions: [t.baseline(range(f.windows.baseline), range(f.windows.current)), gas ? t.lpg(f.lpg) : t.flat(f.rate), t.synthetic],
@@ -273,7 +278,7 @@ export function reporter(state: RunState, ctx: Ctx) {
         evidence: rs.map((r) => t.learnedEv(r.name, r.kwh_baseline && r.heat_source === "electric" ? `${r.kwh_baseline.value.toFixed(2)} kWh, ` : "", r.minutes.baseline)),
         ruled_out: [], assumptions: [t.synthetic] });
     } else if (claim.kind === "fault" && claim.data.none) {
-      state.decisions.push({ type: "machine_fault", verdict: t.noFault, confidence: "high", evidence: [t.noFaultEv(claim.data.faults.length)], ruled_out: [],
+      state.decisions.push({ type: "machine_fault", verdict: t.noFault, confidence: "high", evidence: [t.noFaultEv(claim.data.faults.length), ...(claim.data.unconfirmed_reports?.length ? [t.reportsUnconfirmed(claim.data.unconfirmed_reports.join(", "))] : [])], ruled_out: [],
         assumptions: [t.baseline(range(claim.data.windows.baseline), range(claim.data.windows.current)), t.synthetic] });
     } else if (claim.kind === "fault") {
       state.decisions.push(faultCard(claim, ruledOut, state.lang));
