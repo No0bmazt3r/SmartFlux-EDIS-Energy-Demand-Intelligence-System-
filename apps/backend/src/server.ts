@@ -11,6 +11,7 @@
 //   GET  /outlets   names for the sign-in screen
 //   GET  /outlets/:id/availability ?as_of&at   customer view;   POST /outlets/:id/reports {machine_id, reason, as_of}
 //   GET  /outlets/:id/owner ?as_of             owner home, machines, approvals
+//   GET  /outlets/:id/day ?as_of&date          one day of half-hourly load with the peak window (HQ daily load chart)
 //   GET  /health
 // Every route except /health, sign-in and /outlets needs a token; roles and outlet scope per server/auth.ts.
 import { existsSync, readFileSync, statSync } from "node:fs";
@@ -29,7 +30,7 @@ import { adminOverview, auditLog, dataQuery, pipeline, scope2Csv } from "./serve
 import { deny, issueToken, lockedOut, noteLogin, POLICY, readToken, type Role } from "./server/auth.ts";
 import { cookie, googleConfig, googleFinish, googleStart, STATE_COOKIE } from "./server/google.ts";
 import { openUsers, seedUsers, UserError, type User } from "./server/users.ts";
-import { availability, ownerView, recordReport, REPORT_REASONS } from "./server/outlet.ts";
+import { availability, dayLoad, ownerView, recordReport, REPORT_REASONS } from "./server/outlet.ts";
 import { pathToFileURL } from "node:url";
 
 class HttpError extends Error { constructor(readonly status: number, message: string) { super(message); } }
@@ -120,7 +121,7 @@ export function createApp(cfg: Config, opts: { webDir?: string; env?: NodeJS.Pro
         if (req.method === "DELETE" && id) { users.remove(id, session!.uid ?? -1); return send(res, 200, { ok: true }); }
         throw new HttpError(405, "Method not allowed");
       }
-      const outletMatch = url.pathname.match(/^\/outlets\/(OUT-\d{2})\/(availability|reports|owner)$/);
+      const outletMatch = url.pathname.match(/^\/outlets\/(OUT-\d{2})\/(availability|reports|owner|day)$/);
       if (outletMatch) {
         const [, outlet, what] = outletMatch;
         if (req.method === "GET" && what === "availability") {
@@ -138,6 +139,12 @@ export function createApp(cfg: Config, opts: { webDir?: string; env?: NodeJS.Pro
           return send(res, 200, { ok: true });
         }
         if (req.method === "GET" && what === "owner") { need(POLICY.owner, outlet); return send(res, 200, await ownerView(cfg, db, outlet, asOfParam(url))); }
+        if (req.method === "GET" && what === "day") {
+          need(POLICY.owner, outlet);
+          const date = url.searchParams.get("date") ?? undefined, asOf = asOfParam(url);
+          if (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > asOf)) throw new HttpError(400, "date must be YYYY-MM-DD, on or before as_of");
+          return send(res, 200, await dayLoad(cfg, db, outlet, asOf, date));
+        }
       }
       if (req.method === "POST" && url.pathname === "/run") {
         need(POLICY.run);

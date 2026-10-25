@@ -107,6 +107,84 @@ function Kpis({ items }: { items: [string, string, string?, string?][] }) {
   return <dl className="kpis">{items.map(([l, v, c, note]) => <div key={l}><dt className="mono-label">{l}</dt><dd className={`kpi num ${c ?? ""}`}>{v}</dd>{note && <span className="sm muted">{note}</span>}</div>)}</dl>;
 }
 
+// Daily load: one day of half-hourly meter readings with the TNB peak window shaded and a typical-day line
+// (the same half-hour on the same kind of day, 4-week average). Only measured data; a text summary and a table view too.
+type Day = { date: string | null; dates: string[]; working_day: boolean; typical_days: number; rates: { flat: number; peak: number; offpeak: number };
+  slots: { t: string; kwh: number; peak: boolean; typical: number | null }[];
+  summary: { kwh: number; peak_kwh: number; peak_share: number; cost_flat_rm: number; cost_tou_rm: number; busiest: { t: string; kw: number } } | null };
+const weekday = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+function DailyLoad({ outlets, breakeven }: { outlets: Outlet[]; breakeven: number }) {
+  const { asOf } = usePrefs();
+  const [outlet, setOutlet] = useState(outlets[0].outlet_id), [date, setDate] = useState<string | null>(null), [table, setTable] = useState(false);
+  useEffect(() => setDate(null), [asOf, outlet]);
+  const r = useApi<Day>(`/outlets/${outlet}/day?as_of=${asOf}${date ? `&date=${date}` : ""}`);
+  const d = r.data, name = outlets.find((o) => o.outlet_id === outlet)?.name ?? "";
+  const step = (n: number) => { if (!d?.date) return; const i = d.dates.indexOf(d.date) + n; if (i >= 0 && i < d.dates.length) setDate(d.dates[i]); };
+  const W = 720, H = 220, L = 34, B = 26, n = d?.slots.length || 48;
+  const kw = (kwh: number) => kwh * 2; // a half-hour's kWh × 2 = average kW in that half-hour
+  const top = d ? Math.max(4, ...d.slots.map((s) => kw(Math.max(s.kwh, s.typical ?? 0)))) : 4;
+  const tick = [1, 2, 5, 10, 20, 50].find((t) => top / t <= 4) ?? 100; // about four round gridlines
+  const ticks = Array.from({ length: Math.ceil(top / tick) }, (_, i) => (i + 1) * tick), max = ticks.at(-1)! * 1.12;
+  const x = (i: number) => L + (i / n) * (W - L), y = (v: number) => H - B - (v / max) * (H - B - 10);
+  const peakIdx = d ? d.slots.map((s, i) => (s.peak ? i : -1)).filter((i) => i >= 0) : [];
+  const line = (vals: (number | null)[]) => vals.map((v, i) => (v == null ? "" : `${i && vals[i - 1] != null ? "L" : "M"}${(x(i) + x(i + 1)) / 2},${y(v)}`)).join("");
+  const actual = d ? line(d.slots.map((s) => kw(s.kwh))) : "";
+  const area = d ? `${actual}L${(x(n - 1) + x(n)) / 2},${y(0)}L${(x(0) + x(1)) / 2},${y(0)}Z` : "";
+  const busiestI = d?.summary ? d.slots.findIndex((s) => s.t === d.summary!.busiest.t) : -1;
+  const s = d?.summary;
+  return (
+    <Panel title="Daily load" sub="Half-hourly meter readings · TNB peak window shaded · no sub-meters" icon="monitoring"
+      right={<button className="textlink" onClick={() => setTable(!table)}>{table ? "View as chart" : "View as table"}</button>}>
+      <div className="row between wrap">
+        <Dropdown label="Outlet" value={outlet} options={outlets.map((o) => ({ value: o.outlet_id, label: `${o.outlet_id} ${o.name}` }))} onChange={setOutlet} />
+        {d?.date && <div className="row">
+          <button className="btn secondary sm-btn" onClick={() => step(-1)} disabled={d.dates.indexOf(d.date) <= 0} aria-label="Previous day"><Icon name="chevron_left" /></button>
+          <span className="mono-label num nowrap" aria-live="polite">{weekday(d.date)}</span>
+          <button className="btn secondary sm-btn" onClick={() => step(1)} disabled={d.dates.indexOf(d.date) >= d.dates.length - 1} aria-label="Next day"><Icon name="chevron_right" /></button>
+        </div>}
+      </div>
+      {!d ? (r.error ? <Failed error={r.error} /> : <Loading />) : !s ? <p className="sm muted">No meter readings up to this date.</p> : <>
+        <p className="sm">{d.working_day
+          ? <>On {weekday(d.date!)}, <b className="num">{pct(s.peak_share)}</b> of {outlet} {name}'s energy fell in the 14:00–22:00 peak window, busiest at {s.busiest.t} ({s.busiest.kw.toFixed(1)} kW). The ToU break-even is {pct(breakeven)} over a month; weekends and holidays are off-peak all day, which pulls the monthly share down.</>
+          : <>{weekday(d.date!)} is a weekend or public holiday: off-peak all day under ToU, so there is no peak window to shade.</>}</p>
+        {table ? (
+          <div className="table-wrap" style={{ maxHeight: 320, overflow: "auto" }}><table><thead><tr><th>Time</th><th>Period</th><th className="n">kWh</th><th className="n">Typical kWh</th></tr></thead>
+            <tbody>{d.slots.map((x) => <tr key={x.t}><td className="num">{x.t}</td><td>{x.peak ? "Peak" : "Off-peak"}</td><td className="n">{x.kwh.toFixed(2)}</td><td className="n">{x.typical?.toFixed(2) ?? "—"}</td></tr>)}</tbody></table></div>
+        ) : (
+          <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" style={{ width: "100%", maxHeight: 300 }}
+            aria-label={`Half-hourly load for ${outlet} on ${weekday(d.date!)}: ${s.kwh.toFixed(0)} kWh, ${pct(s.peak_share)} in the peak window`}>
+            <defs><linearGradient id="dl-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="var(--chart-offpeak)" stopOpacity="0.45" /><stop offset="1" stopColor="var(--chart-offpeak)" stopOpacity="0.02" /></linearGradient></defs>
+            {peakIdx.length > 0 && <g>
+              <rect x={x(peakIdx[0])} y={6} width={x(peakIdx.at(-1)! + 1) - x(peakIdx[0])} height={H - B - 6} fill="var(--chart-peak)" opacity="0.12" rx="6" />
+              <text x={x(peakIdx[0]) + 8} y={H - B - 8} style={{ fill: "var(--chart-peak)" }}>Peak 14:00–22:00 · RM{d.rates.peak.toFixed(4)}/kWh</text></g>}
+            {ticks.map((v) => <g key={v}><line x1={L} x2={W} y1={y(v)} y2={y(v)} stroke="var(--chart-grid)" />
+              <text x={L - 6} y={y(v) + 4} textAnchor="end">{v}</text></g>)}
+            <text x={2} y={14}>kW</text>
+            <path d={area} fill="url(#dl-fill)" />
+            <path d={actual} fill="none" stroke="var(--primary-text)" strokeWidth="2.5" strokeLinejoin="round" />
+            <path d={line(d.slots.map((s) => (s.typical == null ? null : kw(s.typical))))} fill="none" stroke="var(--chart-baseline)" strokeWidth="1.5" strokeDasharray="5 4" />
+            {busiestI >= 0 && <g><circle cx={(x(busiestI) + x(busiestI + 1)) / 2} cy={y(kw(d.slots[busiestI].kwh))} r="4.5" fill="var(--chart-peak)" stroke="var(--bg, #0F061E)" strokeWidth="2" />
+              <text x={(x(busiestI) + x(busiestI + 1)) / 2} y={y(kw(d.slots[busiestI].kwh)) - 10} textAnchor="middle" style={{ fill: "var(--text)" }}>{s.busiest.kw.toFixed(1)} kW</text></g>}
+            {[0, 12, 24, 36, n - 1].map((i, k, all) => <text key={i} x={k === 0 ? x(0) : k === all.length - 1 ? W : (x(i) + x(i + 1)) / 2} y={H - 6}
+              textAnchor={k === 0 ? "start" : k === all.length - 1 ? "end" : "middle"}>{d.slots[i]?.t}</text>)}
+          </svg>
+        )}
+        <div className="row wrap sm">
+          <span className="row"><svg width="18" height="10" aria-hidden><line x1="0" x2="18" y1="5" y2="5" stroke="var(--primary-text)" strokeWidth="2.5" /></svg>This day</span>
+          <span className="row"><svg width="18" height="10" aria-hidden><line x1="0" x2="18" y1="5" y2="5" stroke="var(--chart-baseline)" strokeWidth="1.5" strokeDasharray="5 4" /></svg>Typical {d.working_day ? "working day" : "weekend day"} ({d.typical_days}-day average)</span>
+          {peakIdx.length > 0 && <span className="row"><svg width="12" height="12" aria-hidden><rect width="12" height="12" rx="2" fill="var(--chart-peak)" opacity="0.35" /></svg>ToU peak window</span>}
+        </div>
+        <dl className="kpis compact">
+          <div><dt className="mono-label">Day total</dt><dd className="num">{s.kwh.toFixed(0)} kWh</dd></div>
+          <div><dt className="mono-label">In peak window</dt><dd className="num">{s.peak_kwh.toFixed(0)} kWh · {pct(s.peak_share)}</dd></div>
+          <div><dt className="mono-label">Cost on flat</dt><dd className="num">{rm(s.cost_flat_rm, 2)}</dd></div>
+          <div><dt className="mono-label">Same day on ToU</dt><dd className={`num ${s.cost_tou_rm < s.cost_flat_rm ? "save" : ""}`}>{rm(s.cost_tou_rm, 2)}</dd></div>
+        </dl>
+      </>}
+    </Panel>
+  );
+}
+
 // --- Pages ---
 
 function OverviewPage({ o, all }: { o: Overview; all: Overview }) {
@@ -125,6 +203,7 @@ function OverviewPage({ o, all }: { o: Overview; all: Overview }) {
       ]} />
       <div className="grid">
         <div className="span-8 col">
+          <DailyLoad outlets={o.outlets} breakeven={o.outlets[0]?.tariff.breakeven ?? 0.636} />
           <EnergyChart outlets={o.outlets} />
           <Panel title="Outlets" sub="Tariff verdict and energy plan per outlet">
             <div className="table-wrap"><table><thead><tr><th>Outlet</th><th className="n">kWh (month)</th><th className="n">Peak share</th><th>Tariff verdict</th><th>Energy plan</th><th className="n">Open flags</th></tr></thead>
