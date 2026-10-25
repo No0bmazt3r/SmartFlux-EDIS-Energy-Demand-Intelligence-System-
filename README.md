@@ -82,7 +82,7 @@ One app, three roles. Accounts are stored in SQLite (`data/users.db`, created on
 | --- | --- | --- |
 | **Super admin** (the business owner; desktop) | Every outlet: the franchise dashboard (KPIs, peak vs off-peak, flagged machines, advice scoreboard, run log) and the outlet app | Everything an admin can, export Scope 2 CSV, and add, edit or remove people on the People screen |
 | **Admin** (a franchise manager; phone) | The outlets they were given: weekly briefing, bill so far, energy plan, decisions with evidence, machines | Ask the agent, approve or reject actions |
-| **Customer** (phone) | Outlets with live free machines, each machine as free, in use (a countdown from the real cycle) or under maintenance; owner-approved happy hours | Report a machine that isn't working. Sign up with email or Google, or scan an outlet's QR code (`/customer?outlet=OUT-01`) to look as a guest |
+| **Customer** (phone only: on a laptop it asks them to open the link on a phone; devtools device mode works for demos) | Outlets with live free machines, each machine as free, in use (a countdown from the real cycle) or under maintenance; owner-approved happy hours | Report a machine that isn't working. Sign up with email or Google, or scan an outlet's QR code (`/customer?outlet=OUT-01`) to look as a guest |
 
 In sample mode a clean clone seeds three demo accounts, all with the password `smartflux-demo` (sample mode only; live mode creates only the super admin you name in `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD`):
 

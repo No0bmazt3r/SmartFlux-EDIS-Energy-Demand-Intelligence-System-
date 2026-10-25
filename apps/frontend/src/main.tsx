@@ -109,8 +109,40 @@ const GoogleMark = () => (
   </svg>
 );
 
+// The customer app is phone-only: a narrow screen or a touch screen (browser devtools' device mode counts).
+const PHONE = "(max-width: 768px), (pointer: coarse)";
+function usePhone() {
+  const [phone, setPhone] = useState(() => matchMedia(PHONE).matches);
+  useEffect(() => {
+    const m = matchMedia(PHONE), f = () => setPhone(m.matches);
+    m.addEventListener("change", f);
+    return () => m.removeEventListener("change", f);
+  }, []);
+  return phone;
+}
+
+function PhoneOnly({ outlet }: { outlet: string }) {
+  const [copied, setCopied] = useState(false), link = `${location.origin}/customer?outlet=${outlet}`;
+  return (
+    <main className="login">
+      <div className="login-head">
+        <span className="app-tile lg"><Icon name="smartphone" /></span>
+        <h1>Open SmartFlux on your phone</h1>
+        <p className="muted">The customer app is made for phones. Open this link on your phone, or scan the QR code on any machine at the outlet.</p>
+      </div>
+      <section className="card glow stack tight">
+        <code className="mono">{link}</code>
+        <div className="row">
+          <button className="btn secondary" onClick={() => navigator.clipboard.writeText(link).then(() => setCopied(true))}><Icon name={copied ? "check" : "content_copy"} className="sm" />{copied ? "Copied" : "Copy link"}</button>
+          <button className="btn outlined" onClick={() => { setPref("session", null); navigate("/login", true); }}>Sign out</button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function App() {
-  const path = usePath(), { session, lang } = usePrefs();
+  const path = usePath(), { session, lang, outlet } = usePrefs(), phone = usePhone();
   const qr = new URLSearchParams(location.search).get("outlet");
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   useEffect(() => {
@@ -124,7 +156,7 @@ function App() {
   if (path.startsWith("/kitchen-sink")) return <KitchenSink />; // public: components only, no data
   if (!session || !HOME[session.role] || path.startsWith("/login")) return <Login />;
   if (!allowed(session.role, path)) return null;
-  if (session.role === "customer") return <CustomerApp />;
+  if (session.role === "customer") return phone ? <CustomerApp /> : <PhoneOnly outlet={outlet ?? session.outlets[0]} />;
   if (path.startsWith("/franchise")) return <AdminApp />;
   if (path.startsWith("/people")) return <PeopleApp />;
   return <OwnerApp />;
