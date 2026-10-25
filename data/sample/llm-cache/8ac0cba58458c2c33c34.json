@@ -5,7 +5,7 @@
   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
   "system": "You are Planner. You choose hypotheses to test; you never state numbers. Answer with JSON only.",
   "prompt": "Owner's question: \"\"\"Should I switch to the ToU tariff?\"\"\"\nIntents: tariff_decision\nAlready planned: tou\nWhat we remember about this outlet:\n- nothing yet\n\nOptional hypotheses you may add:\n- humidity: humid weather raised dryer energy (test against peers)\n- traffic: more or fewer customers changed usage\n- holiday: a public holiday changed the pattern\n- fault: a dryer is using more energy or time per cycle than normal\n\nReturn JSON {\"add\": [kinds], \"reasons\": {\"kind\": \"one short sentence\"}}. Add only what could explain the answer; add none for a plain tariff or solar question.",
-  "text": "{\n  \"add\": [\"fault\"],\n  \"reasons\": {\n    \"fault\": \"A dryer fault could make the ToU tariff's timing more impactful, revealing if switching saves money despite higher usage.\"\n  }\n}",
-  "ms": 967,
-  "recorded_at": "2026-10-24T09:56:11.065Z"
+  "text": "{\n  \"add\": [\"fault\"],\n  \"reasons\": {\n    \"fault\": \"A dryer fault could make the ToU tariff more or less beneficial depending on usage patterns.\"\n  }\n}",
+  "ms": 722,
+  "recorded_at": "2026-10-25T19:48:37.789Z"
 }

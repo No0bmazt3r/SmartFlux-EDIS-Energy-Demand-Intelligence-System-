@@ -1,5 +1,5 @@
 {
-  "run_id": "r-af23ad5e",
+  "run_id": "r-32ffc784",
   "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
   "outlet_id": "OUT-02",
   "as_of": "2026-10-18",
@@ -16,7 +16,7 @@
       ],
       "ruled_out": [],
       "assumptions": [
-        "Tahap biasa = minggu asas 7 Sept–13 Sept; dibandingkan dengan 5 Oct–18 Oct",
+        "Tahap biasa = minggu asas 7 Sep–13 Sep; dibandingkan dengan 5 Okt–18 Okt",
         "Kos LPG dianggap RM0.05 setiap minit pengering (sahkan dengan pembekal)",
         "Data contoh: data perniagaan adalah sintetik, cuaca dan cuti adalah sebenar"
       ]
@@ -24,10 +24,10 @@
   ],
   "actions": [
     {
-      "id": "r-af23ad5e-a1",
+      "id": "r-32ffc784-a1",
       "type": "schedule_service",
       "target": "OUT-02-G3",
-      "reason": "G3 wastes about RM84.79/month",
+      "reason": "G3 membazir kira-kira RM84.79/bulan",
       "risk": "operational",
       "status": "awaiting_approval"
     }

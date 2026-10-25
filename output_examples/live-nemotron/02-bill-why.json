@@ -1,5 +1,5 @@
 {
-  "run_id": "r-d07a834c",
+  "run_id": "r-a8c07ca6",
   "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
   "outlet_id": "OUT-01",
   "as_of": "2026-10-04",
@@ -65,7 +65,7 @@
   ],
   "actions": [
     {
-      "id": "r-d07a834c-a1",
+      "id": "r-a8c07ca6-a1",
       "type": "schedule_service",
       "target": "OUT-01-D4",
       "reason": "D4 wastes about RM48.03/month",
@@ -73,7 +73,7 @@
       "status": "awaiting_approval"
     },
     {
-      "id": "r-d07a834c-a2",
+      "id": "r-a8c07ca6-a2",
       "type": "switch_tariff",
       "target": "OUT-01",
       "reason": "ToU saves about RM9.54/month",

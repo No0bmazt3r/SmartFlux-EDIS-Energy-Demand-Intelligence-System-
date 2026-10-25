@@ -1,0 +1,11 @@
+{
+  "key": "4a39d6455bd626e2050b",
+  "provider": "nvidia",
+  "lane": "deep",
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "system": "You are Reporter. You only reword; numbers come from calculators and must not change. Answer with JSON only.",
+  "prompt": "Rewrite these decision cards for a busy laundromat owner in English: short, plain, no jargon.\nKeep every number exactly as written, add no new numbers, keep the same number of evidence lines.\n[{\"verdict\":\"Stay on your current flat tariff\",\"evidence\":[\"Peak share 75.0% vs break-even 63.6%\",\"Worst week (week 4): 78.1% in peak\",\"ToU RM1349.44/month vs flat RM1337.14/month\"]}]\n\nReturn JSON {\"cards\": [{\"verdict\": \"...\", \"evidence\": [\"...\"]}]} in the same order.",
+  "text": "{\"cards\": [{\"verdict\": \"Stay on your current flat tariff\", \"evidence\": [\"Peak share 75.0% vs break-even 63.6%\", \"Worst week (week 4): 78.1% in peak\", \"ToU RM1349.44/month vs flat RM1337.14/month\"]}]}",
+  "ms": 1051,
+  "recorded_at": "2026-10-25T19:48:39.013Z"
+}

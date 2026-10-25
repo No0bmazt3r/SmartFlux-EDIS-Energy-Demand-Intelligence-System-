@@ -1,0 +1,11 @@
+{
+  "key": "cc4c766abb90b86e75ac",
+  "provider": "nvidia",
+  "lane": "deep",
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "system": "You are Reporter. You only reword; numbers come from calculators and must not change. Answer with JSON only.",
+  "prompt": "Rewrite these decision cards for a busy laundromat owner in English: short, plain, no jargon.\nKeep every number exactly as written, add no new numbers, keep the same number of evidence lines.\n[{\"verdict\":\"Weekly briefing, Mon 19 Oct\",\"evidence\":[\"Servicing D4 saved RM64.65/month\",\"No dryer is wasting energy\",\"Switch to the ToU tariff (RM7.6/month)\",\"Peak share last week 61.5% (+0.8 pts)\",\"2 actions waiting for your approval\"]},{\"verdict\":\"No dryer is wasting energy\",\"evidence\":[\"All 6 dryers are within their normal range\"]},{\"verdict\":\"Switch to the ToU tariff\",\"evidence\":[\"Peak share 58.3% vs break-even 63.6%\",\"Worst week (week 6): 61.5% in peak\",\"ToU RM1780.89/month vs flat RM1788.49/month\"]}]\n\nReturn JSON {\"cards\": [{\"verdict\": \"...\", \"evidence\": [\"...\"]}]} in the same order.",
+  "text": "{\"cards\": [{\"verdict\": \"Weekly briefing, Mon 19 Oct\", \"evidence\": [\"Servicing D4 saved RM64.65/month\", \"No dryer is wasting energy\", \"Switch to the ToU tariff (RM7.6/month)\", \"Peak share last week 61.5% (+0.8 pts)\", \"2 actions waiting for your approval\"]}, {\"verdict\": \"No dryer is wasting energy\", \"evidence\": [\"All 6 dryers are within their normal range\"]}, {\"verdict\": \"Switch to the ToU tariff\", \"evidence\": [\"Peak share 58.3% vs break-even 63.6%\", \"Worst week (week 6): 61.5% in peak\", \"ToU RM1780.89/month vs flat RM1788.49/month\"]}]}",
+  "ms": 1727,
+  "recorded_at": "2026-10-25T19:48:52.704Z"
+}

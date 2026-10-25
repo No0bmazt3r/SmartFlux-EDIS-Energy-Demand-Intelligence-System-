@@ -4,6 +4,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { pathToFileURL } from "node:url";
 
 const START = "2026-09-07"; // Monday, week 1
 const DAYS = 42;
@@ -306,7 +307,8 @@ export async function generate(seed: number, out: string) {
   return { cycles: rows.cycles.length, meter: rows.meter.length };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run directly (not imported by a test)? pathToFileURL makes the check work on Windows paths too (C:\…).
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { values } = parseArgs({ options: { seed: { type: "string", default: "1" }, out: { type: "string", default: "data/sample" } } });
   const res = await generate(Number(values.seed), values.out!);
   console.log(`seed ${values.seed} -> ${values.out}: ${res.meter} meter rows, ${res.cycles} cycles`);

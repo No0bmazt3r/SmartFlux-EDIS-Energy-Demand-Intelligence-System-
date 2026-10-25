@@ -15,13 +15,14 @@
 // Every route except /health, sign-in and /outlets needs a token; roles and outlet scope per server/auth.ts.
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { extname, join, normalize } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 import { openSampleDb } from "./adapters/local-sqlite.ts";
 import { loadConfig, type Config } from "./config.ts";
 import { openHmem } from "./engines/hmem/index.ts";
 import { decideAction } from "./orchestrator/memory.ts";
 import { run } from "./orchestrator/run.ts";
 import { WINDOW, validateRequest } from "./orchestrator/state.ts";
+import { seedDemoHistory } from "./demo-history.ts";
 import { startScheduler } from "./scheduler.ts";
 import { TEMPLATES } from "./templates/index.ts";
 import { adminOverview, auditLog, dataQuery, pipeline, scope2Csv } from "./server/admin.ts";
@@ -29,6 +30,7 @@ import { deny, issueToken, lockedOut, noteLogin, POLICY, readToken, type Role } 
 import { cookie, googleConfig, googleFinish, googleStart, STATE_COOKIE } from "./server/google.ts";
 import { openUsers, seedUsers, UserError, type User } from "./server/users.ts";
 import { availability, ownerView, recordReport, REPORT_REASONS } from "./server/outlet.ts";
+import { pathToFileURL } from "node:url";
 
 class HttpError extends Error { constructor(readonly status: number, message: string) { super(message); } }
 const TYPES: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".webmanifest": "application/manifest+json" };
@@ -172,9 +174,11 @@ export function createApp(cfg: Config, opts: { webDir?: string; env?: NodeJS.Pro
       if (req.method === "GET" && url.pathname === "/franchise/pipeline") { need(POLICY.franchise); return send(res, 200, pipeline(cfg)); }
       if (req.method === "GET" && url.pathname === "/franchise/audit") { need(POLICY.franchise); return send(res, 200, auditLog(cfg, users.list())); }
       if (req.method === "GET" && opts.webDir && existsSync(opts.webDir)) {
-        const safe = normalize(url.pathname).replace(/^(\.\.[/\\])+/, "");
-        const path = join(opts.webDir, safe);
-        const file = path.startsWith(opts.webDir) && existsSync(path) && statSync(path).isFile() ? path : join(opts.webDir, "index.html"); // SPA routes
+        // resolve() gives absolute paths with the platform's separator, so the "stays inside the web folder" check
+        // also holds on Windows (a mixed "apps/…" vs "apps\…" comparison failed there and every asset got index.html).
+        const root = resolve(opts.webDir), path = resolve(root, `.${decodeURIComponent(url.pathname)}`);
+        const inside = path.startsWith(root + sep);
+        const file = inside && existsSync(path) && statSync(path).isFile() ? path : join(root, "index.html"); // SPA routes
         return send(res, 200, readFileSync(file), TYPES[extname(file)] ?? "application/octet-stream");
       }
       throw new HttpError(404, "Not found");
@@ -185,8 +189,14 @@ export function createApp(cfg: Config, opts: { webDir?: string; env?: NodeJS.Pro
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run directly (not imported by a test)? pathToFileURL makes the check work on Windows paths too (C:\…).
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  // --demo (pnpm demo): in sample mode, reason with the recorded Nemotron answers unless .env picks another LLM_MODE,
+  // and on a fresh install store the example sessions first, so the dashboard opens with a history.
+  const demo = process.argv.includes("--demo");
+  if (demo && process.env.SAMPLE_MODE !== "false" && !process.env.LLM_MODE && existsSync("data/sample/llm-cache")) process.env.LLM_MODE = "replay";
   const cfg = loadConfig();
+  if (demo) await seedDemoHistory(cfg);
   createApp(cfg, { webDir: process.env.WEB_DIR ?? "apps/frontend/dist" }).listen(cfg.port, "0.0.0.0", () => {
     console.log(`SmartFlux API on http://0.0.0.0:${cfg.port} (data: ${cfg.mode.data}, reasoning: ${cfg.mode.llm})`);
     if (process.env.BRIEFING_SCHEDULER !== "off") startScheduler(cfg);
