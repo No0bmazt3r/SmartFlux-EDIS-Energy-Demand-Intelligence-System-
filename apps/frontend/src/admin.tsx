@@ -3,7 +3,7 @@
 // pipeline, audit log. People (people.tsx) sits in the same shell.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, linkProps, match, navigate, setPref, usePath, usePrefs, useApi, type Lang } from "./api.ts";
-import { DatePicker, Dropdown, Failed, Icon, Loading, ModeBadge, Sparkline, StatusBadge, day, rm, short, useToast, type Week } from "./ui.tsx";
+import { DatePicker, Dropdown, Failed, Icon, Loading, ModeBadge, Sparkline, StatusBadge, day, rm, short, useToast, type LogEvent, type Week } from "./ui.tsx";
 import { Evidence } from "./owner.tsx";
 
 type Outlet = { outlet_id: string; name: string; kpis: Record<string, number>; weekly: { week: number; peak_kwh: number; offpeak_kwh: number }[];
@@ -185,6 +185,85 @@ function DailyLoad({ outlets, breakeven }: { outlets: Outlet[]; breakeven: numbe
   );
 }
 
+// Agent trace: one real run, stage by stage, read from its log. The loop is the point: the Skeptic re-derives each
+// claim from the data and can send work back; nothing runs until a person approves. Stages show what each agent did,
+// whether a model or plain code did it, and the send-backs in full.
+type TraceRun = { result: { run_id: string; outlet_id: string; as_of: string; question?: string; mode: string; actions: { id: string; type: string; target: string; reason: string; risk: string; status?: string }[] }; events: LogEvent[] };
+// "nvidia/nemotron-3.5-lightning-30b-a3b (replayed)" → "Nemotron 3.5 Lightning · replayed"
+const modelName = (m?: string) => m ? m.replace(/^nvidia\//, "").replace(/ \(replayed\)$/, "").split("-").filter((w) => !/^\d+b$|^a\d+b$/.test(w))
+  .map((w) => w[0].toUpperCase() + w.slice(1)).join(" ") + (m.endsWith("(replayed)") ? " · replayed" : "") : null;
+const count = (summary: string | undefined, one: string, many: string) => {
+  const m = summary?.match(/^(\d+) \w+: (.*)$/); if (!m) return null;
+  return { n: Number(m[1]), word: Number(m[1]) === 1 ? one : many, rest: m[2] };
+};
+function AgentTrace({ runs }: { runs: Overview["run_log"] }) {
+  const usable = runs.filter((x) => x.verdicts.length && !x.intents.includes("out_of_scope"));
+  const preferred = usable.find((x) => x.intents.includes("energy_plan")) ?? usable.find((x) => x.intents.includes("bill_investigation")) ?? usable[0];
+  const [pick, setPick] = useState<string | null>(null);
+  const id = pick && usable.some((x) => x.run_id === pick) ? pick : preferred?.run_id;
+  const r = useApi<TraceRun>(id ? `/runs/${id}` : null);
+  if (!preferred) return null;
+  const ev = r.data?.events ?? [];
+  const by = (agent: string) => ev.filter((e) => e.agent_name === agent);
+  const first = (agent: string, action: string) => ev.find((e) => e.agent_name === agent && e.action === action);
+  const scout = first("Scout", "classify"), ground = first("Scout", "ground_intents"), plan = first("Planner", "plan");
+  const recalls = ev.filter((e) => e.action === "hmem.recall" && !/^no /.test(e.output_summary));
+  const inv = by("Investigator"), sk = by("Skeptic"), report = first("Reporter", "report"), word = first("Reporter", "word");
+  const queries = ev.filter((e) => e.action.endsWith(".query")), source = queries.some((e) => e.action === "zetaris.query") ? "Zetaris" : "SQLite";
+  const calcs = [...new Set(inv.filter((e) => e.action.startsWith("calc.")).map((e) => e.action.slice(5)))];
+  const sentBack = sk.filter((e) => e.status === "needs_revision"), approved = sk.filter((e) => e.action === "approve").length;
+  const judge = sk.find((e) => e.model), waiting = (r.data?.result.actions ?? []).filter((a) => a.status !== "approved");
+  const intents = scout?.output_summary.match(/intents=\[([^\]]*)\]/)?.[1].split(",").map((x) => x.replace(/_/g, " ")) ?? [];
+  const stages: { n: number; agent: string; icon: string; did: ReactNode; who: string | null; warn?: boolean }[] = [
+    { n: 1, agent: "Scout", icon: "travel_explore", who: modelName(scout?.model),
+      did: <>Read the question as <b>{intents.join(" + ") || "—"}</b>.{ground?.output_summary.includes("dropped") && <> Dropped what the owner didn't ask: {ground.output_summary.split("dropped ")[1]?.split(":")[0]}.</>}</> },
+    { n: 2, agent: "Planner", icon: "account_tree", who: modelName(plan?.model),
+      did: (() => { const c = count(plan?.output_summary, "hypothesis", "hypotheses"); const kinds = c?.rest.split(", ").map((k) => k.split(" (")[0]).join(", ");
+        return <>Chose {c ? <><b>{c.n} {c.word}</b> to test ({kinds})</> : "what to test"}{recalls.length ? <>, using {recalls.length} memor{recalls.length === 1 ? "y" : "ies"} from earlier sessions</> : null}.</>; })() },
+    { n: 3, agent: "Investigator", icon: "query_stats", who: "code · no model",
+      did: <>Ran {queries.filter((e) => e.agent_name === "Investigator").length} queries on {source} and {calcs.length} calculator{calcs.length === 1 ? "" : "s"} ({calcs.join(", ").replace(/_/g, " ")}). Every RM figure comes from here.</> },
+    { n: 4, agent: "Skeptic", icon: "fact_check", who: judge ? `${modelName(judge.model)} + re-checks in code` : "re-checks in code", warn: sentBack.length > 0,
+      did: <>Re-derived each claim from the data: {approved} approved{sentBack.length ? <>, <b className="peak">{sentBack.length} sent back</b></> : null}.</> },
+    { n: 5, agent: "Reporter", icon: "edit_note", who: modelName(word?.model) ?? "templates",
+      did: (() => { const c = count(report?.output_summary?.split(";")[0], "decision card", "decision cards");
+        return <>Wrote {c ? <b>{c.n} {c.word}</b> : "the answer"} from approved claims only.{word ? " Reworded in plain language; a rewrite that changes a number is rejected." : ""}</>; })() },
+  ];
+  return (
+    <Panel title="How the agents reached it" sub="One real run, step by step · read from its log" icon="hub"
+      right={id && <a className="btn secondary sm-btn" {...linkProps(`/franchise/run/${id}`)}>Full evidence</a>}>
+      <Dropdown label="Run" value={id!} onChange={setPick}
+        options={usable.map((x) => ({ value: x.run_id, label: `${day(x.as_of)} · ${x.outlet_id} · ${x.verdicts.at(-1) ?? x.question ?? x.kind}` }))} />
+      {r.error ? <Failed error={r.error} /> : !r.data ? <Loading /> : <>
+        {r.data.result.question && <p className="sm">Owner asked: <q>{r.data.result.question}</q></p>}
+        <ol className="trace" aria-label="Agent stages">
+          {stages.map((st) => (
+            <li key={st.agent} className={`trace-step ${st.warn ? "sent" : ""}`}>
+              <span className="mono-label">0{st.n} · {st.agent}</span>
+              <Icon name={st.icon} className={st.warn ? "peak" : "info"} />
+              <p className="sm">{st.did}</p>
+              <span className="pill">{st.who ?? "code"}</span>
+            </li>
+          ))}
+          <li className="trace-step end">
+            <span className="mono-label">Then · you</span>
+            <Icon name="front_hand" className="peak" />
+            <p className="sm">{waiting.length ? <><b>{waiting.length} action{waiting.length === 1 ? "" : "s"} waiting for approval.</b> Nothing has run.</> : "No action needed from this run."}</p>
+            <span className="pill">{waiting.length ? "awaiting approval" : "read-only"}</span>
+          </li>
+        </ol>
+        {sentBack.map((e, i) => (
+          <div key={i} className="sentback" role="note">
+            <Icon name="undo" className="peak" />
+            <div className="grow"><span className="mono-label">Skeptic → {e.target_agent ?? "Investigator"} · sent back</span>
+              <p className="sm">{e.output_summary.split(" · Nemotron:")[0]}</p>
+              {e.output_summary.includes(" · Nemotron:") && <p className="sm muted">Nemotron agreed: {e.output_summary.split(" · Nemotron:")[1].replace(/^ ?(rule_out|approve), ?/, "")}</p>}</div>
+          </div>
+        ))}
+      </>}
+    </Panel>
+  );
+}
+
 // --- Pages ---
 
 function OverviewPage({ o, all }: { o: Overview; all: Overview }) {
@@ -306,6 +385,7 @@ function AgentPage({ o, reload }: { o: Overview; reload: () => void }) {
   };
   return (
     <div className="stack">
+      <AgentTrace runs={o.run_log} />
       <Panel title="Awaiting your approval" sub="Nothing reaches a machine, a customer or TNB until you approve it" icon="task_alt">
         {pending.length ? <div className="approvals">{pending.map((a) => (
           <article key={a.action_id} className="approval">
