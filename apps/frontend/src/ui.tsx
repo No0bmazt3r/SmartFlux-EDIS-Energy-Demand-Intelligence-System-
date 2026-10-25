@@ -322,7 +322,7 @@ export function TopBar({ title, back, children }: { title?: string; back?: strin
     <header className="topbar">
       {back ? <a className="back" aria-label="Back" {...linkProps(back)}><Icon name="arrow_back" /></a> : null}
       {title ? <h1 className="grow row" style={{ fontSize: 22, lineHeight: "28px" }}>{!back && <span className="app-tile"><Icon name="local_laundry_service" /></span>}{title}</h1>
-        : <h1 className="brand-h"><a className="brand" {...linkProps("/")}><span className="app-tile"><Icon name="local_laundry_service" /></span>SmartFlux</a></h1>}
+        : <h1 className="brand-h"><a className="brand" {...linkProps("/outlet")}><span className="app-tile"><Icon name="local_laundry_service" /></span>SmartFlux</a></h1>}
       {children && <div className="controls">{children}</div>}
     </header>
   );
@@ -330,11 +330,11 @@ export function TopBar({ title, back, children }: { title?: string; back?: strin
 
 export function BottomNav({ pending }: { pending: number }) {
   const path = usePath().split("?")[0], t = useT();
-  const items: [string, string, string, number?][] = [["/", "home", t("home")], ["/ask", "auto_awesome", t("ask")], ["/machines", "local_laundry_service", t("machines")], ["/approvals", "task_alt", t("approvals"), pending]];
+  const items: [string, string, string, number?][] = [["/outlet", "home", t("home")], ["/ask", "auto_awesome", t("ask")], ["/machines", "local_laundry_service", t("machines")], ["/approvals", "task_alt", t("approvals"), pending]];
   return (
     <nav className="nav" aria-label="Main">
       {items.map(([href, icon, label, n]) => (
-        <a key={href} {...linkProps(href)} aria-current={(href === "/" ? path === "/" : path.startsWith(href)) ? "page" : undefined}>
+        <a key={href} {...linkProps(href)} aria-current={(href === "/outlet" ? path === "/outlet" : path.startsWith(href)) ? "page" : undefined}>
           <Icon name={icon} />{label}{n ? <span className="count" aria-label={`${n} pending`}>{n}</span> : null}
         </a>
       ))}

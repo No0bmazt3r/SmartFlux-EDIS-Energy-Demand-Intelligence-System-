@@ -128,3 +128,56 @@ export function scope2Csv(overview: Awaited<ReturnType<typeof adminOverview>>) {
   const rows = overview.outlets.map((o) => [o.outlet_id, o.name, o.scope2.period, o.scope2.kwh.toFixed(1), o.scope2.factor_kg_per_kwh, o.scope2.scope2_tco2e.toFixed(3), `"${o.scope2.method.replace(/"/g, "'")}"`].join(","));
   return ["outlet_id,name,period,grid_kwh,grid_factor_kg_per_kwh,scope2_tco2e,method", ...rows].join("\n") + "\n";
 }
+
+// GET /franchise/pipeline: the data and reasoning path, measured from the run logs (no figures beyond what the logs hold).
+const AGENTS = ["Scout", "Planner", "Investigator", "Skeptic", "Reporter", "H-MEM"];
+export function pipeline(cfg: Config) {
+  const runs = readRuns(cfg.logDir, 1000);
+  const events = runs.flatMap((r) => {
+    const f = join(cfg.logDir, `${r.run_id}.jsonl`);
+    return existsSync(f) ? readFileSync(f, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
+  });
+  const median = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : null);
+  const tally = (xs: string[]) => Object.entries(xs.reduce<Record<string, number>>((m, x) => ((m[x] = (m[x] ?? 0) + 1), m), {})).map(([name, n]) => ({ name, n }));
+  const queries = events.filter((e) => /\.query$/.test(e.action));
+  const host = (u?: string) => { try { return u ? new URL(u).host : null; } catch { return null; } };
+  return {
+    mode: cfg.mode,
+    data: { source: cfg.mode.data === "zetaris" ? "Zetaris" : "Local SQLite (sample data)", host: host(cfg.zetaris?.restUrl ?? cfg.zetaris?.baseUrl) },
+    llm: { provider: cfg.llm?.provider ?? (cfg.mode.llm === "replay" ? "Replay of a recorded Nemotron run" : "Rules agents, no LLM"), host: host(cfg.llm?.baseUrl), models: cfg.llm?.models ?? null },
+    totals: {
+      runs: runs.length, events: events.length,
+      zetaris_queries: queries.filter((e) => e.action === "zetaris.query").length, sqlite_queries: queries.filter((e) => e.action === "sqlite.query").length,
+      median_query_ms: median(queries.filter((e) => e.ms != null).map((e) => e.ms)),
+      llm_calls: events.filter((e) => e.model).length, sent_back: events.filter((e) => e.status === "needs_revision").length,
+      fallbacks: events.filter((e) => e.status === "fallback").length, retries: events.filter((e) => e.status === "retrying").length,
+    },
+    runs_by_mode: tally(runs.map((r) => r.run_mode ?? "sample")),
+    models: tally(events.filter((e) => e.model).map((e) => e.model)),
+    agents: AGENTS.map((agent) => {
+      const es = events.filter((e) => e.agent_name === agent);
+      return { agent, steps: es.length, llm_steps: es.filter((e) => e.model).length, sent_back: es.filter((e) => e.status === "needs_revision").length,
+        fallbacks: es.filter((e) => e.status === "fallback" || e.status === "retrying").length };
+    }),
+    recent: events.filter((e) => ["needs_revision", "fallback", "retrying", "error"].includes(e.status)).sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 8)
+      .map((e) => ({ ts: e.ts, run_id: e.run_id, agent: e.agent_name, action: e.action, status: e.status, target: e.target_agent ?? null, summary: e.output_summary })),
+  };
+}
+
+// GET /franchise/audit: who did what, newest first. Agent advice and outcomes, owner decisions and customer reports
+// from H-MEM (append-only); accounts from the users table.
+export function auditLog(cfg: Config, people: { name: string; email: string; role: string; created_at: string; created_by: number | null; id: number }[]) {
+  const KINDS = ["decision", "advice", "outcome", "customer_report"];
+  const memory = openHmem(cfg.hmemDir, cfg.logDir).all().filter((m) => KINDS.some((k) => m.tags.includes(k)));
+  const rows = [
+    ...memory.map((m) => ({
+      ts: m.timestamp, as_of: m.as_of, actor: m.agentId, event: KINDS.find((k) => m.tags.includes(k))!, outlet: m.entities[0] ?? null,
+      detail: m.content, status: m.data.decision ?? m.data.verdict ?? (m.tags.includes("advice") ? "proposed" : "recorded"), run_id: m.runId && m.runId !== "-" ? m.runId : null,
+    })),
+    ...people.map((u) => ({
+      ts: `${u.created_at.replace(" ", "T")}Z`, as_of: null, actor: people.find((p) => p.id === u.created_by)?.name ?? "Setup", event: "account",
+      outlet: null, detail: `Account created: ${u.name} (${u.email}) as ${u.role}`, status: "created", run_id: null,
+    })),
+  ];
+  return rows.sort((a, b) => b.ts.localeCompare(a.ts));
+}

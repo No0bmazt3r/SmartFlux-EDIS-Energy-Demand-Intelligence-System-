@@ -358,14 +358,14 @@ export function OwnerApp() {
   let p, screen, title: string | undefined, back: string | undefined;
   if (!ctx) screen = owner.error ? <Failed error={owner.error} /> : <Loading />;
   else if ((p = match("/result/:id", path))) { screen = <Result runId={p.id} />; title = t("answer"); back = "/ask"; }
-  else if ((p = match("/decision/:id/:i", path))) { screen = <Result runId={p.id} only={Number(p.i)} />; title = t("decision"); back = "/"; }
-  else if ((p = match("/evidence/:id", path))) { screen = <Evidence runId={p.id} />; title = t("evidence"); back = "/"; }
-  else if ((p = match("/briefing/:id", path))) { screen = <Briefing runId={p.id} />; title = t("weeklyBriefing"); back = "/"; }
+  else if ((p = match("/decision/:id/:i", path))) { screen = <Result runId={p.id} only={Number(p.i)} />; title = t("decision"); back = "/outlet"; }
+  else if ((p = match("/evidence/:id", path))) { screen = <Evidence runId={p.id} />; title = t("evidence"); back = "/outlet"; }
+  else if ((p = match("/briefing/:id", path))) { screen = <Briefing runId={p.id} />; title = t("weeklyBriefing"); back = "/outlet"; }
   else if ((p = match("/machines/:id", path))) { screen = <Machine {...ctx} id={p.id} />; title = t("machine"); back = "/machines"; }
   else if (match("/machines", path)) { screen = <Machines {...ctx} />; title = t("machines"); }
   else if (match("/approvals", path)) { screen = <Approvals {...ctx} />; title = t("approvals"); }
   else if (match("/ask", path)) { screen = <Ask {...ctx} />; title = t("ask"); }
-  else if (match("/plan", path)) { screen = <Plan {...ctx} />; title = t("energyPlan"); back = "/"; }
+  else if (match("/plan", path)) { screen = <Plan {...ctx} />; title = t("energyPlan"); back = "/outlet"; }
   else screen = <Home {...ctx} />;
   return (
     <div className="app">

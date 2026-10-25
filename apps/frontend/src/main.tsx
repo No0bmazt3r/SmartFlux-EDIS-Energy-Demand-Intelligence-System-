@@ -8,12 +8,13 @@ import { api, navigate, setPref, usePath, usePrefs, useApi, type Role, type Sess
 import { AdminApp } from "./admin.tsx";
 import { CustomerApp } from "./customer.tsx";
 import { KitchenSink } from "./kitchen.tsx";
+import { Landing } from "./landing.tsx";
 import { OwnerApp } from "./owner.tsx";
 import { PeopleApp } from "./people.tsx";
 import { Dropdown, Failed, Icon } from "./ui.tsx";
 import "./styles.css";
 
-const HOME: Record<Role, string> = { customer: "/customer", admin: "/", superadmin: "/franchise" };
+const HOME: Record<Role, string> = { customer: "/customer", admin: "/outlet", superadmin: "/franchise" };
 const STAFF_ONLY = ["/franchise", "/people"];
 const allowed = (role: Role, path: string) =>
   role === "customer" ? path.startsWith("/customer")
@@ -29,6 +30,15 @@ const guest = (outlet_id: string) => api<Session>("/login/guest", { outlet_id })
 
 type AuthConfig = { google: boolean; demo: { password: string | null; accounts: { email: string; role: Role; name: string }[] } | null };
 const ROLE_LABEL: Record<Role, string> = { superadmin: "Super admin", admin: "Admin", customer: "Customer" };
+const ORDER: Role[] = ["superadmin", "admin", "customer"];
+const ROLE_HINT: Record<Role, string> = {
+  superadmin: "The business owner: franchise dashboard, every outlet, People",
+  admin: "Ipoh franchise manager: briefing, ask the agent, approvals",
+  customer: "Free machines and happy hours, made for phones",
+};
+// With demo roles on top, the email form folds away under a disclosure.
+const Wrap = ({ demo, children }: { demo: boolean; children: React.ReactNode }) =>
+  demo ? <details className="stack"><summary className="center muted">Sign in with an account instead</summary>{children}</details> : <>{children}</>;
 
 function Login() {
   const outlets = useApi<{ outlet_id: string; name: string }[]>("/outlets");
@@ -52,13 +62,22 @@ function Login() {
     catch (x) { setErr((x as Error).message); setBusy(false); }
   };
   const demo = config.data?.demo;
+  const asDemo = (email: string) => api<Session>("/login/demo", { email }).then(start, (e) => setErr(e.message));
   return (
     <main className="login">
       <div className="login-head">
         <span className="app-tile lg"><Icon name="local_laundry_service" /></span>
-        <h1>{mode === "in" ? "Welcome back" : "Create your account"}</h1>
-        <p className="muted">{mode === "in" ? "Sign in to SmartFlux" : "Find a free machine and see happy-hour times"}</p>
+        <h1>{demo ? "Try SmartFlux" : mode === "in" ? "Welcome back" : "Create your account"}</h1>
+        <p className="muted">{demo ? "Pick a role. No password needed in the demo." : mode === "in" ? "Sign in to SmartFlux" : "Find a free machine and see happy-hour times"}</p>
       </div>
+      {demo && <section className="card glow stack tight" aria-label="Pick a role">
+        <div className="list flush">{[...demo.accounts].sort((a, b) => ORDER.indexOf(a.role) - ORDER.indexOf(b.role)).map((a) => (
+          <button key={a.email} className="mrow" onClick={() => asDemo(a.email)}>
+            <span className="avatar sm">{a.name[0]}</span><span className="grow left"><b>{ROLE_LABEL[a.role]}</b><br /><span className="sm muted">{ROLE_HINT[a.role]}</span></span><Icon name="arrow_forward" className="sm muted" /></button>
+        ))}</div>
+        {err && <p className="bad sm" role="alert"><Icon name="error" className="sm" /> {err}</p>}
+      </section>}
+      <Wrap demo={!!demo}>
       <form className="card glow stack" onSubmit={submit}>
         {mode === "up" && <div className="field"><label className="label" htmlFor="su-name">Name</label>
           <span className="input-icon"><Icon name="person" className="sm muted" /><input id="su-name" className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required /></span></div>}
@@ -79,6 +98,7 @@ function Login() {
       </form>
       <p className="center muted">{mode === "in" ? "Don't have an account? " : "Already have an account? "}
         <button className="textlink accent" onClick={() => { setMode(mode === "in" ? "up" : "in"); setErr(""); }}>{mode === "in" ? "Sign up" : "Sign in"}</button></p>
+      </Wrap>
 
       <section className="card stack tight">
         <h2 className="h3 row"><Icon name="qr_code_scanner" className="accent" />At the outlet?</h2>
@@ -87,14 +107,6 @@ function Login() {
           <button className="btn secondary" onClick={() => guest(outlet).catch((e) => setErr(e.message))}>See machines</button></div>
       </section>
 
-      {demo && <section className="card stack tight" aria-label="Demo accounts">
-        <h2 className="h3">Demo accounts</h2>
-        <p className="sm muted">Sample mode only. {demo.password ? <>Password <code className="mono">{demo.password}</code>. </> : null}Tap one to fill the form.</p>
-        <div className="list flush">{demo.accounts.map((a) => (
-          <button key={a.email} className="mrow" onClick={() => { setMode("in"); setEmail(a.email); if (demo.password) setPassword(demo.password); }}>
-            <span className="avatar sm">{a.name[0]}</span><span className="grow left">{a.name}<br /><span className="sm muted">{a.email}</span></span><span className="pill">{ROLE_LABEL[a.role]}</span></button>
-        ))}</div>
-      </section>}
       {(outlets.error || config.error) && <Failed error={outlets.error ?? config.error!} />}
     </main>
   );
@@ -121,7 +133,7 @@ function usePhone() {
   return phone;
 }
 
-function PhoneOnly({ outlet }: { outlet: string }) {
+function PhoneOnly({ outlet, onPreview }: { outlet: string; onPreview: () => void }) {
   const [copied, setCopied] = useState(false), link = `${location.origin}/customer?outlet=${outlet}`;
   return (
     <main className="login">
@@ -136,17 +148,18 @@ function PhoneOnly({ outlet }: { outlet: string }) {
           <button className="btn secondary" onClick={() => navigator.clipboard.writeText(link).then(() => setCopied(true))}><Icon name={copied ? "check" : "content_copy"} className="sm" />{copied ? "Copied" : "Copy link"}</button>
           <button className="btn outlined" onClick={() => { setPref("session", null); navigate("/login", true); }}>Sign out</button>
         </div>
+        <button className="textlink accent sm" onClick={onPreview}>Judging on a laptop? Preview it here</button>
       </section>
     </main>
   );
 }
 
 function App() {
-  const path = usePath(), { session, lang, outlet } = usePrefs(), phone = usePhone();
+  const path = usePath(), { session, lang, outlet } = usePrefs(), phone = usePhone(), [preview, setPreview] = useState(false);
   const qr = new URLSearchParams(location.search).get("outlet");
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   useEffect(() => {
-    if (path.startsWith("/kitchen-sink")) return;
+    if (path.startsWith("/kitchen-sink") || path === "/") return; // the landing page is for everyone
     if (session && !HOME[session.role]) { setPref("session", null); return; } // a session from an older build
     // QR code at the outlet: /customer?outlet=OUT-01 opens that outlet as a guest unless a customer is already signed in.
     if (qr && path.startsWith("/customer") && (session?.role !== "customer" || !session.outlets.includes(qr))) { guest(qr); return; }
@@ -154,9 +167,10 @@ function App() {
     else if (session && !allowed(session.role, path)) navigate(HOME[session.role], true);
   }, [path, session, qr]);
   if (path.startsWith("/kitchen-sink")) return <KitchenSink />; // public: components only, no data
+  if (path === "/") return <Landing />; // always first; Get started → /login (signed in: straight on to your home)
   if (!session || !HOME[session.role] || path.startsWith("/login")) return <Login />;
   if (!allowed(session.role, path)) return null;
-  if (session.role === "customer") return phone ? <CustomerApp /> : <PhoneOnly outlet={outlet ?? session.outlets[0]} />;
+  if (session.role === "customer") return phone || preview ? <CustomerApp /> : <PhoneOnly outlet={outlet ?? session.outlets[0]} onPreview={() => setPreview(true)} />;
   if (path.startsWith("/franchise")) return <AdminApp />;
   if (path.startsWith("/people")) return <PeopleApp />;
   return <OwnerApp />;

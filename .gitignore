@@ -5,3 +5,4 @@ dist/
 data/hmem/
 *.log
 data/users.db
+.taste-skill/

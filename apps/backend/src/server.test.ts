@@ -124,6 +124,15 @@ test("run → approve → verify over HTTP, and the run's evidence is readable",
   const csv = await (await get(`/franchise/scope2.csv?as_of=2026-10-18`, admin)).text();
   assert.match(csv.split("\n")[0], /^outlet_id,name,period,grid_kwh/);
   assert.equal(csv.trim().split("\n").length, 4);
+
+  const pipe = await (await get("/franchise/pipeline", admin)).json();
+  assert.ok(pipe.totals.runs >= 3 && pipe.totals.sqlite_queries > 0 && pipe.totals.zetaris_queries === 0, "sample mode: every query on local SQLite");
+  assert.ok(pipe.agents.find((a: any) => a.agent === "Skeptic").steps > 0);
+  const audit = await (await get("/franchise/audit", admin)).json();
+  assert.ok(audit.some((e: any) => e.event === "decision" && e.status === "approved" && e.actor === "Owner"), "who approved is recorded");
+  assert.ok(audit.some((e: any) => e.event === "advice" && e.actor !== "Owner"));
+  assert.ok(audit.some((e: any) => e.event === "customer_report"));
+  assert.equal((await get("/franchise/audit", customer)).status, 403);
 });
 
 test("customer view: a promo shows only after the owner approves it", async () => {
@@ -143,6 +152,10 @@ test("accounts: sign-in with a hashed password, sign-up, lockout after five wron
   assert.equal((await (await get("/me", s.token)).json()).email, "owner@smartflux.demo");
   assert.equal((await post("/login", { email: "owner@smartflux.demo", password: "wrong-password" }, "")).status, 401);
   assert.equal((await post("/login", { email: "nobody@x.com", password: "smartflux-demo" }, "")).status, 401, "same answer for an unknown email");
+
+  const demo = await (await post("/login/demo", { email: "ipoh@smartflux.demo" }, "")).json();
+  assert.deepEqual([demo.role, demo.outlets], ["admin", ["OUT-01"]], "one click into a demo account, no password");
+  assert.equal((await post("/login/demo", { email: "siti@example.com" }, "")).status, 404, "only the demo accounts");
 
   const up = await post("/signup", { name: "Siti", email: "siti@example.com", password: "longenough" }, "");
   assert.equal(up.status, 201);

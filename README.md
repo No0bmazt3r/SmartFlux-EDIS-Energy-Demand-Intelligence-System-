@@ -54,7 +54,7 @@ flowchart LR
 
 ## Quick start
 
-Requires Node 22.13+ and pnpm.
+Requires Node 22.13+ and pnpm. New here? **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** walks through every path step by step: demo, editing, and fully live with Zetaris and Nightshift.
 
 ```bash
 # Sample mode: no credentials, no sponsor services, the real agent logic on cached data
@@ -73,18 +73,19 @@ No `.env` is needed for sample mode. On Windows, run it inside WSL2.
 
 ```bash
 pnpm demo      # builds the web app, then serves it with the API on http://localhost:8000
-pnpm dev       # while editing: API on :8000 + Vite with hot reload on http://localhost:5173 (proxies the API)
+pnpm dev       # while editing: API on :8000 (restarts on save) + Vite with hot reload on http://localhost:5173 (proxies the API)
+pnpm live      # live mode in one command (after the one-time Zetaris + Nightshift setup): starts smartflux-pg, runs pnpm smoke, then pnpm demo
 ```
 
-One app, three roles. Accounts are stored in SQLite (`data/users.db`, created on first start) with scrypt-hashed passwords; Google sign-in turns on when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set (see `.env.example`).
+Signed out, `/` is a landing page; **Get started** opens the sign-in screen. The super admin works in **HQ**, a web console with a sidebar: overview, machine energy (virtual sub-metering), tariff and peak, agent interventions, data and AI pipeline (Zetaris queries, LLM calls and Skeptic send-backs counted from the run logs), People, and an audit log built from H-MEM. One app, three roles. Accounts are stored in SQLite (`data/users.db`, created on first start) with scrypt-hashed passwords; Google sign-in turns on when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set (see `.env.example`).
 
 | Role | Sees | Can do |
 | --- | --- | --- |
 | **Super admin** (the business owner; desktop) | Every outlet: the franchise dashboard (KPIs, peak vs off-peak, flagged machines, advice scoreboard, run log) and the outlet app | Everything an admin can, export Scope 2 CSV, and add, edit or remove people on the People screen |
 | **Admin** (a franchise manager; phone) | The outlets they were given: weekly briefing, bill so far, energy plan, decisions with evidence, machines | Ask the agent, approve or reject actions |
-| **Customer** (phone only: on a laptop it asks them to open the link on a phone; devtools device mode works for demos) | Outlets with live free machines, each machine as free, in use (a countdown from the real cycle) or under maintenance; owner-approved happy hours | Report a machine that isn't working. Sign up with email or Google, or scan an outlet's QR code (`/customer?outlet=OUT-01`) to look as a guest |
+| **Customer** (phone only: on a laptop it asks them to open the link on a phone, with a "Preview it here" link for judges) | Outlets with live free machines, each machine as free, in use (a countdown from the real cycle) or under maintenance; owner-approved happy hours | Report a machine that isn't working. Sign up with email or Google, or scan an outlet's QR code (`/customer?outlet=OUT-01`) to look as a guest |
 
-In sample mode a clean clone seeds three demo accounts, all with the password `smartflux-demo` (sample mode only; live mode creates only the super admin you name in `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD`):
+**To try it, open the app and pick a role: no password needed.** In sample mode the sign-in screen lists three demo accounts and one click signs you in (`POST /login/demo`). They also take the password `smartflux-demo` under "Sign in with an account instead" (sample mode only; live mode creates only the super admin you name in `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD`):
 
 | Email | Role |
 | --- | --- |

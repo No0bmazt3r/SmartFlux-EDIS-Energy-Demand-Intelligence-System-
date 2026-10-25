@@ -4,7 +4,8 @@
 //   POST /approve          {action_id, decision: "approved" | "rejected"}
 //   GET  /runs/:id         the stored result and every log event of one run (the Evidence screen)
 //   GET  /franchise/overview ?as_of=YYYY-MM-DD   all-outlet view (super admin);   GET /franchise/scope2.csv?as_of=...
-//   POST /login {email, password} · POST /signup {name, email, password} · POST /login/guest {outlet_id} → signed token
+//   GET  /franchise/pipeline (data + reasoning path, from the run logs) · GET /franchise/audit (who did what)
+//   POST /login {email, password} · POST /signup {name, email, password} · POST /login/guest {outlet_id} · POST /login/demo {email} (sample mode) → signed token
 //   GET  /auth/config · GET /auth/google → Google → GET /auth/google/callback · GET /me
 //   GET|POST /users · PATCH|DELETE /users/:id   the People screen (super admin)
 //   GET  /outlets   names for the sign-in screen
@@ -23,7 +24,7 @@ import { run } from "./orchestrator/run.ts";
 import { WINDOW, validateRequest } from "./orchestrator/state.ts";
 import { startScheduler } from "./scheduler.ts";
 import { TEMPLATES } from "./templates/index.ts";
-import { adminOverview, dataQuery, scope2Csv } from "./server/admin.ts";
+import { adminOverview, auditLog, dataQuery, pipeline, scope2Csv } from "./server/admin.ts";
 import { deny, issueToken, lockedOut, noteLogin, POLICY, readToken, type Role } from "./server/auth.ts";
 import { cookie, googleConfig, googleFinish, googleStart, STATE_COOKIE } from "./server/google.ts";
 import { openUsers, seedUsers, UserError, type User } from "./server/users.ts";
@@ -75,6 +76,12 @@ export function createApp(cfg: Config, opts: { webDir?: string; env?: NodeJS.Pro
       if (req.method === "POST" && url.pathname === "/signup") {
         const b = await readJson(req);
         return send(res, 201, signedIn(users.create({ name: b.name, email: b.email, password: b.password ?? "", role: "customer" }, await ids)));
+      }
+      // Sample mode: one click into a demo account, no password, so judges can try every role.
+      if (req.method === "POST" && url.pathname === "/login/demo") {
+        const b = await readJson(req), u = sample && String(b.email ?? "").endsWith("@smartflux.demo") ? users.byEmail(b.email) : undefined;
+        if (!u) throw new HttpError(404, "Demo sign-in is only available in sample mode");
+        return send(res, 200, signedIn(u));
       }
       // The QR code at an outlet: a customer can see that outlet's machines without an account.
       if (req.method === "POST" && url.pathname === "/login/guest") {
@@ -144,7 +151,7 @@ export function createApp(cfg: Config, opts: { webDir?: string; env?: NodeJS.Pro
         const hmem = openHmem(cfg.hmemDir, cfg.logDir);
         const advice = hmem.all().find((m) => m.tags.includes("advice") && m.data.action_id === b.action_id);
         if (advice) need(POLICY.approve, advice.entities[0]);
-        try { return send(res, 200, { ok: true, memory: decideAction(hmem, b.action_id, b.decision).content }); }
+        try { return send(res, 200, { ok: true, memory: decideAction(hmem, b.action_id, b.decision, session?.name ?? "Owner").content }); }
         catch (e) { throw new HttpError(/No proposed|already decided/.test((e as Error).message) ? 409 : 500, (e as Error).message); }
       }
       const runMatch = url.pathname.match(/^\/runs\/(r-[0-9a-f]{8})$/);
@@ -162,6 +169,8 @@ export function createApp(cfg: Config, opts: { webDir?: string; env?: NodeJS.Pro
       }
       if (req.method === "GET" && url.pathname === "/franchise/overview") { need(POLICY.franchise); return send(res, 200, await adminOverview(cfg, asOfParam(url), db)); }
       if (req.method === "GET" && url.pathname === "/franchise/scope2.csv") { need(POLICY.franchise); return send(res, 200, scope2Csv(await adminOverview(cfg, asOfParam(url), db)), "text/csv"); }
+      if (req.method === "GET" && url.pathname === "/franchise/pipeline") { need(POLICY.franchise); return send(res, 200, pipeline(cfg)); }
+      if (req.method === "GET" && url.pathname === "/franchise/audit") { need(POLICY.franchise); return send(res, 200, auditLog(cfg, users.list())); }
       if (req.method === "GET" && opts.webDir && existsSync(opts.webDir)) {
         const safe = normalize(url.pathname).replace(/^(\.\.[/\\])+/, "");
         const path = join(opts.webDir, safe);

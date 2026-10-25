@@ -2,7 +2,7 @@
 // The server enforces every rule here; changes apply to live sessions at once.
 import { useState } from "react";
 import { api, usePrefs, useApi, type Role } from "./api.ts";
-import { StaffBar } from "./admin.tsx";
+import { HqShell } from "./admin.tsx";
 import { Dropdown, Failed, Icon, Loading, day, useToast } from "./ui.tsx";
 
 type User = { id: number; name: string; email: string; role: Role; outlets: string[]; google: boolean; password: boolean; created_at: string };
@@ -72,10 +72,9 @@ export function PeopleApp() {
           <button className="btn outlined sm-btn danger" disabled={u.id === me.data?.uid} title={u.id === me.data?.uid ? "You can't remove yourself" : undefined} onClick={() => remove(u)}>Remove</button></span>
       </li>;
   return (
-    <div className="admin">
-      <StaffBar />
-      <div className="row between wrap section-head"><div><h1>People</h1><p className="muted">{staff.length} staff · {customers.length} {customers.length === 1 ? "customer" : "customers"}</p></div>
-        {!adding && <button className="btn cta" onClick={() => setAdding(true)}><Icon name="person_add" />Add person</button>}</div>
+    <HqShell crumb="People" actions={!adding && <button className="btn cta sm-btn" onClick={() => setAdding(true)}><Icon name="person_add" className="sm" />Add person</button>}>
+      <div className="stack">
+      <p className="muted">{staff.length} staff · {customers.length} {customers.length === 1 ? "customer" : "customers"}. Super admins see every outlet; an admin runs the franchise outlets you give them.</p>
       {adding && <section className="card glow"><h2 className="h3">Add a person</h2>
         <PersonForm outlets={outlets.data ?? []} onCancel={() => setAdding(false)} onSave={async (b) => { await save("/users", "POST", b); setAdding(false); toast.show("Added. They can sign in now."); }} /></section>}
       {people.error ? <Failed error={people.error} /> : !people.data ? <Loading /> : <>
@@ -83,6 +82,7 @@ export function PeopleApp() {
         <section className="card"><h2 className="h3">Customers</h2>{customers.length ? <ul className="people">{customers.map(row)}</ul> : <p className="sm muted">No customer accounts yet. Customers sign up on the sign-in screen.</p>}</section>
       </>}
       {toast.node}
-    </div>
+      </div>
+    </HqShell>
   );
 }

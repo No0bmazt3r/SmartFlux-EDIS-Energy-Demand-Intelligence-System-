@@ -1,18 +1,26 @@
-// Franchise dashboard (features.md Part B), for the super admin: every outlet at once, from GET /franchise/overview.
-import { useState } from "react";
-import { api, linkProps, match, usePath, usePrefs, useApi } from "./api.ts";
-import { DemoControls, Failed, Icon, Loading, ModeBadge, StatusBadge, day, rm, short } from "./ui.tsx";
+// HQ: the super admin's web console, laid out like the team's admin design (sidebar, scope picker, alert strip, panels),
+// with every figure from the API. Pages: overview, machine energy, tariff and peak, agent interventions, data and AI
+// pipeline, audit log. People (people.tsx) sits in the same shell.
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { api, linkProps, match, navigate, setPref, usePath, usePrefs, useApi, type Lang } from "./api.ts";
+import { DatePicker, Dropdown, Failed, Icon, Loading, ModeBadge, Sparkline, StatusBadge, day, rm, short, useToast, type Week } from "./ui.tsx";
 import { Evidence } from "./owner.tsx";
 
 type Outlet = { outlet_id: string; name: string; kpis: Record<string, number>; weekly: { week: number; peak_kwh: number; offpeak_kwh: number }[];
   tariff: { peak_share: number; breakeven: number; verdict: string; tou_saving_rm_per_month: number };
   split: { washers_kwh: number; dryers_kwh: number; base_kwh: number; total_kwh: number } | null };
+type Advice = { action_id: string; outlet_id: string; type: string; target: string; advised_as_of: string; risk: string; reason?: string; run_id: string;
+  predicted_rm_per_month: number | null; status: string; verified: { verdict: string; realised_rm_per_month: number } | null };
 type Overview = { as_of: string; outlets: Outlet[]; verified_savings_rm_per_month: number;
   flagged_machines: { outlet_id: string; machine_id: string; verdict?: string; evidence?: string; rm_per_month?: number; status: string; run_id: string }[];
-  advice_scoreboard: { action_id: string; outlet_id: string; type: string; target: string; predicted_rm_per_month: number | null; status: string; verified: { verdict: string; realised_rm_per_month: number } | null }[];
+  advice_scoreboard: Advice[];
   run_log: { run_id: string; created_at: string; outlet_id: string; as_of: string; kind: string; question?: string; intents: string[]; verdicts: string[]; mode: string }[] };
 
 const sum = (o: Outlet[], k: string) => o.reduce((s, x) => s + x.kpis[k], 0);
+const ACTION: Record<string, string> = { schedule_service: "Service", run_promo: "Happy hour", request_solar_quote: "Solar quote" };
+const actionLabel = (a: Advice) => a.type === "switch_tariff" ? "Switch to ToU" : `${ACTION[a.type] ?? a.type.replace(/_/g, " ")} ${a.type === "schedule_service" ? short(a.target) : a.target.replace(/^OUT-\d+ ?/, "")}`;
+const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+const when = (ts: string) => new Date(ts).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 // Stacked weekly bars, peak on top (design-system §8): direct labels, 2 px gap between segments, text summary above.
 function EnergyChart({ outlets }: { outlets: Outlet[] }) {
@@ -75,13 +83,12 @@ function SplitChart({ outlets }: { outlets: Outlet[] }) {
   );
 }
 
-// Newest first, capped so the card ends level with its row; the rest one click away.
-function RunLog({ runs }: { runs: Overview["run_log"] }) {
+function RunLog({ runs, limit = 6 }: { runs: Overview["run_log"]; limit?: number }) {
   const [all, setAll] = useState(false);
   return (
     <section className="card"><div className="row between"><h3>Run log <span className="sm muted num count-inline">{runs.length}</span></h3>
-      {runs.length > 6 && <button className="textlink" onClick={() => setAll(!all)}>{all ? "Show fewer" : "View all"}</button>}</div>
-      {runs.length ? <div className="list flush">{(all ? runs : runs.slice(0, 6)).map((x) => (
+      {runs.length > limit && <button className="textlink" onClick={() => setAll(!all)}>{all ? "Show fewer" : "View all"}</button>}</div>
+      {runs.length ? <div className="list flush">{(all ? runs : runs.slice(0, limit)).map((x) => (
         <a key={x.run_id} className="mrow" {...linkProps(`/franchise/run/${x.run_id}`)}>
           <span className="sm grow">{day(x.as_of)} · {x.outlet_id} · {x.kind}<br /><span className="muted">{x.verdicts[0] ?? x.question}</span></span><ModeBadge mode={x.mode} /></a>
       ))}</div> : <p className="sm muted">No runs yet.</p>}
@@ -89,85 +96,354 @@ function RunLog({ runs }: { runs: Overview["run_log"] }) {
   );
 }
 
-function Dashboard() {
-  const { asOf } = usePrefs();
-  const r = useApi<Overview>(`/franchise/overview?as_of=${asOf}`);
-  if (r.error) return <Failed error={r.error} />;
-  if (!r.data) return <Loading />;
-  const o = r.data, cost = sum(o.outlets, "cost_rm_month_to_date"), rev = sum(o.outlets, "revenue_rm_month_to_date");
+const Panel = ({ title, sub, icon, right, children }: { title: string; sub?: string; icon?: string; right?: ReactNode; children: ReactNode }) => (
+  <section className="card panel">
+    <div className="panel-head">{icon && <span className="app-tile"><Icon name={icon} /></span>}<div className="grow"><h2 className="h3">{title}</h2>{sub && <p className="mono-label">{sub}</p>}</div>{right}</div>
+    {children}
+  </section>
+);
+
+function Kpis({ items }: { items: [string, string, string?, string?][] }) {
+  return <dl className="kpis">{items.map(([l, v, c, note]) => <div key={l}><dt className="mono-label">{l}</dt><dd className={`kpi num ${c ?? ""}`}>{v}</dd>{note && <span className="sm muted">{note}</span>}</div>)}</dl>;
+}
+
+// --- Pages ---
+
+function OverviewPage({ o, all }: { o: Overview; all: Overview }) {
+  const cost = sum(o.outlets, "cost_rm_month_to_date"), rev = sum(o.outlets, "revenue_rm_month_to_date");
   const plans = new Map(o.run_log.filter((x) => x.intents?.includes("energy_plan")).map((x) => [x.outlet_id, x.verdicts[0]]));
-  const exportCsv = async () => {
-    const csv = await api<string>(`/franchise/scope2.csv?as_of=${asOf}`);
-    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })), download: `smartflux-scope2-${asOf}.csv` });
-    a.click(); URL.revokeObjectURL(a.href);
-  };
-  const kpis: [string, string, string?][] = [
-    ["Total load (month to date)", `${(sum(o.outlets, "kwh_month_to_date") / 1000).toFixed(1)} MWh`], ["Energy cost", rm(cost)], ["Revenue", rm(rev)],
-    ["Margin", `${rev ? Math.round(((rev - cost) / rev) * 100) : 0}%`], ["Verified savings", `${rm(o.verified_savings_rm_per_month, 2)}/mo`, o.verified_savings_rm_per_month > 0 ? "save" : undefined],
-  ];
+  const pending = o.advice_scoreboard.filter((a) => a.status === "awaiting_approval");
+  const open = o.flagged_machines.filter((f) => !f.status.startsWith("verified"));
   return (
     <div className="stack">
-      <div className="row between wrap"><p className="muted">Month to date as of {day(o.as_of)} · {o.outlets.length} outlets</p>
-        <button className="btn primary" onClick={exportCsv}><Icon name="download" />Export Scope 2 CSV</button></div>
-      <dl className="kpis">{kpis.map(([l, v, c]) => <div key={l}><dt className="label muted">{l}</dt><dd className={`kpi num ${c ?? ""}`}>{v}</dd></div>)}</dl>
+      <Kpis items={[
+        ["Load, month to date", `${(sum(o.outlets, "kwh_month_to_date") / 1000).toFixed(1)} MWh`, undefined, `${o.outlets.length} outlet${o.outlets.length === 1 ? "" : "s"}`],
+        ["Energy cost", rm(cost), undefined, `projected ${rm(sum(o.outlets, "projected_bill_rm"))} for the month`],
+        ["Revenue", rm(rev), undefined, `${sum(o.outlets, "cycles_month_to_date").toLocaleString()} cycles`],
+        ["Margin after energy", `${rev ? Math.round(((rev - cost) / rev) * 100) : 0}%`],
+        ["Verified savings", `${rm(o.verified_savings_rm_per_month, 2)}/mo`, o.verified_savings_rm_per_month > 0 ? "save" : "muted", "measured after a fix, not predicted"],
+      ]} />
       <div className="grid">
         <div className="span-8 col">
           <EnergyChart outlets={o.outlets} />
-          <section className="card"><h3>Flagged machines</h3>
-            <div className="table-wrap"><table><thead><tr><th>Outlet</th><th>Machine</th><th>Finding</th><th className="n">RM/month</th><th>Status</th><th></th></tr></thead>
-              <tbody>{o.flagged_machines.length ? o.flagged_machines.map((f) => (
-                <tr key={f.machine_id}><td className="nowrap">{f.outlet_id}</td><td>{short(f.machine_id)}</td><td className="sm">{f.evidence ?? f.verdict}</td><td className="n">{f.rm_per_month?.toFixed(2) ?? "est."}</td>
-                  <td><StatusBadge s={f.status.startsWith("verified: ") ? f.status.slice(10) : f.status} /></td><td><a {...linkProps(`/franchise/run/${f.run_id}`)}>Open</a></td></tr>
-              )) : <tr><td colSpan={6} className="muted">No flagged machines.</td></tr>}</tbody></table></div>
-          </section>
-          <section className="card"><h3>Outlets</h3>
-            <div className="table-wrap"><table><thead><tr><th>Outlet</th><th className="n">kWh (month)</th><th className="n">Peak share</th><th>Tariff verdict</th><th>Energy plan</th><th className="n">Flags</th></tr></thead>
+          <Panel title="Outlets" sub="Tariff verdict and energy plan per outlet">
+            <div className="table-wrap"><table><thead><tr><th>Outlet</th><th className="n">kWh (month)</th><th className="n">Peak share</th><th>Tariff verdict</th><th>Energy plan</th><th className="n">Open flags</th></tr></thead>
               <tbody>{o.outlets.map((x) => (
-                <tr key={x.outlet_id}><td><span className="nowrap">{x.outlet_id}</span> {x.name}</td><td className="n">{Math.round(x.kpis.kwh_month_to_date).toLocaleString()}</td><td className="n">{(x.tariff.peak_share * 100).toFixed(1)}%</td>
-                  <td>{x.tariff.verdict === "stay" ? "Stay on flat" : `Switch to ToU (${rm(x.tariff.tou_saving_rm_per_month, 2)}/mo)`}</td><td className="sm">{plans.get(x.outlet_id) ?? "Not asked yet"}</td>
-                  <td className="n">{o.flagged_machines.filter((f) => f.outlet_id === x.outlet_id && !f.status.startsWith("verified")).length}</td></tr>
+                <tr key={x.outlet_id}><td><span className="nowrap mono-id">{x.outlet_id}</span> {x.name}</td><td className="n">{Math.round(x.kpis.kwh_month_to_date).toLocaleString()}</td><td className="n">{pct(x.tariff.peak_share)}</td>
+                  <td>{x.tariff.verdict === "stay" ? "Stay on flat" : `Switch to ToU (${rm(x.tariff.tou_saving_rm_per_month, 2)}/mo)`}</td><td className="sm">{plans.get(x.outlet_id) ?? <span className="muted">Not asked yet</span>}</td>
+                  <td className="n">{open.filter((f) => f.outlet_id === x.outlet_id).length}</td></tr>
               ))}</tbody></table></div>
-          </section>
+          </Panel>
         </div>
         <div className="span-4 col">
-          <section className="card"><h3>Advice scoreboard <span className="sm muted num count-inline">{o.advice_scoreboard.length}</span></h3>
-            {o.advice_scoreboard.length ? o.advice_scoreboard.map((a) => (
-              <div key={a.action_id} className="stack tight item"><div className="row between wrap"><span>{a.outlet_id} · {a.type.replace(/_/g, " ")} {a.type === "schedule_service" ? short(a.target) : a.target.replace(/^OUT-\d+ /, "")}</span><StatusBadge s={a.verified?.verdict ?? a.status} /></div>
-                {a.predicted_rm_per_month != null && <span className="sm muted num">predicted {rm(a.predicted_rm_per_month, 2)}{a.verified ? ` → ${a.type === "run_promo" ? "measured" : `verified ${rm(a.verified.realised_rm_per_month, 2)}`}` : ""}</span>}</div>
-            )) : <p className="sm muted">No advice yet.</p>}
-            <p className={`num ${o.verified_savings_rm_per_month > 0 ? "save" : "muted"}`}>Verified so far: {rm(o.verified_savings_rm_per_month, 2)}/month</p>
-          </section>
-          <RunLog runs={o.run_log} />
-          <SplitChart outlets={o.outlets} />
+          <Panel title="Needs you" sub={`${pending.length} awaiting approval · ${open.length} open flag${open.length === 1 ? "" : "s"}`}
+            right={<a className="btn secondary sm-btn" {...linkProps("/franchise/agent")}>Open</a>}>
+            {pending.length || open.length ? <div className="list flush">
+              {pending.map((a) => <a key={a.action_id} className="mrow" {...linkProps("/franchise/agent")}><Icon name="task_alt" className="warm" /><span className="grow sm">{a.outlet_id} · {actionLabel(a)}{a.predicted_rm_per_month != null && <><br /><span className="muted num">predicted {rm(a.predicted_rm_per_month, 2)}/mo</span></>}</span></a>)}
+              {open.filter((f) => !pending.some((a) => a.target === f.machine_id)).map((f) => <a key={f.machine_id} className="mrow" {...linkProps(`/franchise/run/${f.run_id}`)}><Icon name="build" className="peak" /><span className="grow sm">{f.outlet_id} · {f.verdict ?? short(f.machine_id)}<br /><span className="muted">{f.evidence}</span></span></a>)}
+            </div> : <p className="sm muted">Nothing waiting. The agent proposes, you approve, the next session checks it worked.</p>}
+          </Panel>
+          <RunLog runs={all.run_log.filter((r) => o.outlets.some((x) => x.outlet_id === r.outlet_id))} />
         </div>
       </div>
     </div>
   );
 }
 
-// The super admin's header on every staff screen: the three places they work, then the demo controls.
-const STAFF_NAV: [string, string, string][] = [["/franchise", "monitoring", "Franchise"], ["/", "storefront", "Outlet app"], ["/people", "group", "People"]];
-export function StaffBar({ back }: { back?: string }) {
-  const path = usePath(), { session } = usePrefs();
+type Machine = { machine_id: string; name: string; type: string; heat_source: string; price_from_rm: number | null; price_to_rm: number | null; status: string;
+  normal: { kwh_per_cycle: number | null; kwh_se: number | null; minutes_per_cycle: number | null; learned_as_of: string } | null; cost_per_cycle_rm: number | null;
+  health: string; flag: { verdict?: string; run_id: string } | null; customer_reports: unknown[]; weekly: Week[] };
+type OwnerView = { rates: { flat: number; peak: number; offpeak: number }; machines: Machine[] };
+
+function MachinesPage({ o, outlet }: { o: Overview; outlet: string }) {
+  const { asOf } = usePrefs();
+  const r = useApi<OwnerView>(`/outlets/${outlet}/owner?as_of=${asOf}`);
+  const name = o.outlets.find((x) => x.outlet_id === outlet)?.name ?? "";
+  const latest = (m: Machine) => { const w = m.weekly.filter((x) => x.value != null).at(-1); return w ? `${w.value!.toFixed(w.unit === "min" ? 0 : 2)} ${w.unit}` : "—"; };
+  const normalOf = (m: Machine) => (m.heat_source === "gas" ? m.normal?.minutes_per_cycle : m.normal?.kwh_per_cycle) ?? null;
   return (
-    <header className="topbar staff">
-      {back ? <a className="back" aria-label="Back" {...linkProps(back)}><Icon name="arrow_back" /></a> : null}
-      <a className="brand" {...linkProps("/franchise")}><span className="app-tile"><Icon name="local_laundry_service" /></span>SmartFlux HQ</a>
-      <nav className="staff-nav" aria-label="Sections">{STAFF_NAV.map(([href, icon, label]) =>
-        <a key={href} {...linkProps(href)} aria-current={(href === "/" ? path === "/" : path.startsWith(href)) ? "page" : undefined}><Icon name={icon} className="sm" />{label}</a>)}</nav>
-      <DemoControls />
-      <span className="avatar" title={`${session?.name ?? ""} · ${session?.email ?? ""}`}>{session?.name?.[0] ?? "?"}</span>
-    </header>
+    <div className="stack">
+      <Panel title="Virtual sub-metering" sub="One TNB meter · no sub-meters · per-machine energy from the cycle log" icon="device_hub">
+        <p>Each outlet has one meter. SmartFlux regresses the 30-minute meter readings on the cycle log the payment system already keeps, which gives every electric machine its own kWh per cycle. Gas dryers burn LPG, so they are tracked by minutes per cycle instead. The Skeptic re-runs the same regression before any fault reaches you.</p>
+      </Panel>
+      <div className="grid">
+        <div className="span-8 col">
+          <Panel title={`Machines · ${outlet} ${name}`} sub="Normal level learned per machine · last weeks against it">
+            {r.error ? <Failed error={r.error} /> : !r.data ? <Loading /> : (
+              <div className="table-wrap"><table><thead><tr><th>Machine</th><th>Type</th><th className="n">Latest week</th><th className="n">Normal per cycle</th><th>Weekly</th><th className="n">Cost / price</th><th>Health</th></tr></thead>
+                <tbody>{r.data.machines.map((m) => (
+                  <tr key={m.machine_id}><td><b>{m.name}</b></td><td className="sm">{m.type === "dryer" ? `Dryer · ${m.heat_source === "gas" ? "gas" : "electric"}` : "Washer"}</td>
+                    <td className="n">{latest(m)}</td>
+                    <td className="n">{m.normal ? (m.heat_source === "gas" ? `${m.normal.minutes_per_cycle?.toFixed(0)} min` : `${m.normal.kwh_per_cycle?.toFixed(2)} ± ${m.normal.kwh_se?.toFixed(2)} kWh`) : <span className="muted" title="Learned by the first session (13 Sep)">not learned yet</span>}</td>
+                    <td><Sparkline weeks={m.weekly} normal={normalOf(m)} /></td>
+                    <td className="n">{m.cost_per_cycle_rm != null ? `${rm(m.cost_per_cycle_rm, 2)} / ${rm(m.price_from_rm, 2)}` : "—"}</td>
+                    <td>{m.flag ? <a {...linkProps(`/franchise/run/${m.flag.run_id}`)}><StatusBadge s={m.health} /></a> : <StatusBadge s={m.health} />}</td></tr>
+                ))}</tbody></table></div>
+            )}
+            <p className="sm muted">Pick another outlet in the scope menu at the top.</p>
+          </Panel>
+        </div>
+        <div className="span-4 col"><SplitChart outlets={o.outlets} /></div>
+      </div>
+    </div>
+  );
+}
+
+function TariffPage({ o, outlet }: { o: Overview; outlet: string }) {
+  const { asOf } = usePrefs();
+  const r = useApi<OwnerView>(`/outlets/${outlet}/owner?as_of=${asOf}`);
+  return (
+    <div className="stack">
+      <div className="grid">
+        <div className="span-8 col"><EnergyChart outlets={o.outlets} /></div>
+        <div className="span-4 col">
+          <Panel title="Tariff rules" sub={`${outlet} · TNB rates in RM per kWh`} icon="receipt_long">
+            {r.data ? <dl className="rates">{([["Flat (current)", r.data.rates.flat], ["ToU peak", r.data.rates.peak], ["ToU off-peak", r.data.rates.offpeak]] as const).map(([l, v]) =>
+              <div key={l}><dt className="sm muted">{l}</dt><dd className="num">RM{v.toFixed(4)}</dd></div>)}</dl> : r.error ? <Failed error={r.error} /> : <Loading />}
+            <p className="sm muted">Peak is weekdays 14:00–22:00; weekends and public holidays are off-peak all day. The rule lives once, in the Zetaris semantic layer.</p>
+          </Panel>
+        </div>
+      </div>
+      <Panel title="ToU break-even by outlet" sub="Switch when the peak share is below the break-even">
+        <div className="table-wrap"><table><thead><tr><th>Outlet</th><th className="n">Peak share</th><th className="n">Break-even</th><th>Verdict</th><th className="n">ToU saving</th></tr></thead>
+          <tbody>{o.outlets.map((x) => (
+            <tr key={x.outlet_id}><td><span className="mono-id">{x.outlet_id}</span> {x.name}</td><td className="n">{pct(x.tariff.peak_share)}</td><td className="n">{pct(x.tariff.breakeven)}</td>
+              <td>{x.tariff.verdict === "stay" ? <span className="pill">Stay on flat</span> : <span className="pill ok">Switch to ToU</span>}</td>
+              <td className={`n ${x.tariff.tou_saving_rm_per_month > 0 ? "save" : "muted"}`}>{rm(x.tariff.tou_saving_rm_per_month, 2)}/mo</td></tr>
+          ))}</tbody></table></div>
+      </Panel>
+    </div>
+  );
+}
+
+function AgentPage({ o, reload }: { o: Overview; reload: () => void }) {
+  const toast = useToast(), [busy, setBusy] = useState("");
+  const pending = o.advice_scoreboard.filter((a) => a.status === "awaiting_approval");
+  const decide = async (a: Advice, decision: "approved" | "rejected") => {
+    setBusy(a.action_id);
+    try { await api("/approve", { action_id: a.action_id, decision }); toast.show(`${actionLabel(a)} ${decision}`); reload(); }
+    catch (e) { toast.show((e as Error).message); }
+    setBusy("");
+  };
+  return (
+    <div className="stack">
+      <Panel title="Awaiting your approval" sub="Nothing reaches a machine, a customer or TNB until you approve it" icon="task_alt">
+        {pending.length ? <div className="approvals">{pending.map((a) => (
+          <article key={a.action_id} className="approval">
+            <div className="row between wrap"><b>{a.outlet_id} · {actionLabel(a)}</b><span className="pill info">{a.risk.replace("_", " ")}</span></div>
+            {a.reason && <p className="sm">{a.reason}</p>}
+            <p className="sm muted">Advised {day(a.advised_as_of)}{a.predicted_rm_per_month != null && <> · predicted <span className="save num">{rm(a.predicted_rm_per_month, 2)}/mo</span></>} · <a {...linkProps(`/franchise/run/${a.run_id}`)}>evidence</a></p>
+            <div className="row"><button className="btn cta sm-btn" disabled={!!busy} onClick={() => decide(a, "approved")}>Approve</button>
+              <button className="btn outlined sm-btn" disabled={!!busy} onClick={() => decide(a, "rejected")}>Reject</button></div>
+          </article>
+        ))}</div> : <p className="sm muted">Nothing waiting for this date. Move the date back to 4 Oct to see the D4 service proposal.</p>}
+      </Panel>
+      <Panel title="Advice scoreboard" sub="What the agent advised · what you decided · what was measured after">
+        <div className="table-wrap"><table><thead><tr><th>Advised</th><th>Outlet</th><th>Action</th><th className="n">Predicted</th><th className="n">Verified</th><th>Status</th><th></th></tr></thead>
+          <tbody>{o.advice_scoreboard.length ? o.advice_scoreboard.map((a) => (
+            <tr key={a.action_id}><td className="nowrap">{day(a.advised_as_of)}</td><td className="mono-id">{a.outlet_id}</td><td>{actionLabel(a)}</td>
+              <td className="n">{a.predicted_rm_per_month != null ? rm(a.predicted_rm_per_month, 2) : "—"}</td>
+              <td className="n save">{a.verified && a.type !== "run_promo" ? rm(a.verified.realised_rm_per_month, 2) : ""}</td>
+              <td><StatusBadge s={a.verified?.verdict ?? a.status} /></td><td><a {...linkProps(`/franchise/run/${a.run_id}`)}>Evidence</a></td></tr>
+          )) : <tr><td colSpan={7} className="muted">No advice yet.</td></tr>}</tbody></table></div>
+        <p className={`num ${o.verified_savings_rm_per_month > 0 ? "save" : "muted"}`}>Verified so far: {rm(o.verified_savings_rm_per_month, 2)}/month</p>
+      </Panel>
+      <Panel title="Flagged machines" sub="Faults the Skeptic approved, from the meter and cycle log">
+        <div className="table-wrap"><table><thead><tr><th>Outlet</th><th>Machine</th><th>Finding</th><th className="n">RM/month</th><th>Status</th><th></th></tr></thead>
+          <tbody>{o.flagged_machines.length ? o.flagged_machines.map((f) => (
+            <tr key={f.machine_id}><td className="mono-id">{f.outlet_id}</td><td>{short(f.machine_id)}</td><td className="sm">{f.evidence ?? f.verdict}</td><td className="n">{f.rm_per_month?.toFixed(2) ?? "est."}</td>
+              <td><StatusBadge s={f.status.startsWith("verified: ") ? f.status.slice(10) : f.status} /></td><td><a {...linkProps(`/franchise/run/${f.run_id}`)}>Open</a></td></tr>
+          )) : <tr><td colSpan={6} className="muted">No flagged machines.</td></tr>}</tbody></table></div>
+      </Panel>
+      <RunLog runs={o.run_log} limit={10} />
+      {toast.node}
+    </div>
+  );
+}
+
+type Pipeline = { mode: { data: string; llm: string }; data: { source: string; host: string | null }; llm: { provider: string; host: string | null; models: { fast: string; deep: string } | null };
+  totals: Record<string, number | null>; runs_by_mode: { name: string; n: number }[]; models: { name: string; n: number }[];
+  agents: { agent: string; steps: number; llm_steps: number; sent_back: number; fallbacks: number }[];
+  recent: { ts: string; run_id: string; agent: string; action: string; status: string; target: string | null; summary: string }[] };
+
+function PipelinePage() {
+  const r = useApi<Pipeline>("/franchise/pipeline");
+  if (r.error) return <Failed error={r.error} />;
+  if (!r.data) return <Loading />;
+  const p = r.data, t = p.totals;
+  return (
+    <div className="stack">
+      <div className="grid">
+        <div className="span-6 col">
+          <Panel title="Data path" sub="Every query template, including the Skeptic's re-checks" icon="database"
+            right={<span className={`pill ${p.mode.data === "zetaris" ? "ok" : ""}`}><span className={`dot ${p.mode.data === "zetaris" ? "ok" : ""}`} />{p.data.source}</span>}>
+            <div className="stats-row"><span><b className="kpi num">{t.zetaris_queries}</b><span className="mono-label">Zetaris queries</span></span>
+              <span><b className="kpi num">{t.sqlite_queries}</b><span className="mono-label">Local SQLite</span></span>
+              <span><b className="kpi num">{t.median_query_ms ?? "—"}<small className="unit"> ms</small></b><span className="mono-label">Median query</span></span></div>
+            <p className="sm muted">{p.mode.data === "zetaris" ? `Live through ${p.data.host}. If Zetaris fails a query is retried once, then answered from the local copy and the run is marked mixed.` : "Sample mode: the same templates run on a local SQLite copy. Set DATA_MODE=zetaris to send them through Zetaris."}</p>
+          </Panel>
+        </div>
+        <div className="span-6 col">
+          <Panel title="Reasoning path" sub="Who reasons: Nemotron lanes or the rules agents" icon="psychology"
+            right={<span className={`pill ${p.llm.models ? "ok" : ""}`}><span className={`dot ${p.llm.models ? "ok" : ""}`} />{p.llm.provider}</span>}>
+            <div className="stats-row"><span><b className="kpi num">{t.llm_calls}</b><span className="mono-label">LLM calls</span></span>
+              <span><b className="kpi num">{t.sent_back}</b><span className="mono-label">Sent back</span></span>
+              <span><b className="kpi num">{(t.fallbacks ?? 0) + (t.retries ?? 0)}</b><span className="mono-label">Retries + fallbacks</span></span></div>
+            <p className="sm muted">{p.llm.models ? `Fast lane ${p.llm.models.fast} (Scout, Planner) · deep lane ${p.llm.models.deep} (Skeptic, Reporter) via ${p.llm.host}.` : "No LLM configured: the rules agents reason. Set LLM_MODE=nightshift for Nemotron through Meterless Nightshift."} Money is always computed by tested code, never by the model.</p>
+          </Panel>
+        </div>
+      </div>
+      <div className="grid">
+        <div className="span-8 col">
+          <Panel title="Agents" sub={`${t.runs} runs · ${t.events} logged steps`}>
+            <div className="table-wrap"><table><thead><tr><th>Agent</th><th className="n">Steps</th><th className="n">LLM steps</th><th className="n">Sent back</th><th className="n">Retries / fallbacks</th></tr></thead>
+              <tbody>{p.agents.map((a) => <tr key={a.agent}><td><b>{a.agent}</b></td><td className="n">{a.steps}</td><td className="n">{a.llm_steps}</td><td className={`n ${a.sent_back ? "warm" : ""}`}>{a.sent_back}</td><td className="n">{a.fallbacks}</td></tr>)}</tbody></table></div>
+          </Panel>
+        </div>
+        <div className="span-4 col">
+          <Panel title="Runs by mode" sub="sample · live · mixed">
+            <div className="row wrap">{p.runs_by_mode.map((m) => <span key={m.name} className="pill">{m.name} · {m.n}</span>)}</div>
+            {p.models.length > 0 && <><p className="mono-label">Models seen in the logs</p><div className="row wrap">{p.models.map((m) => <span key={m.name} className="pill info">{m.name} · {m.n}</span>)}</div></>}
+          </Panel>
+        </div>
+      </div>
+      <Panel title="Sent back, retried, fell back" sub="The latest steps that did not pass first time">
+        {p.recent.length ? <div className="table-wrap"><table><thead><tr><th>When</th><th>Agent</th><th>Status</th><th>What happened</th><th></th></tr></thead>
+          <tbody>{p.recent.map((e, i) => <tr key={i}><td className="nowrap sm">{when(e.ts)}</td><td>{e.agent}{e.target && <span className="muted"> → {e.target}</span>}</td>
+            <td><span className="pill accent">{e.status.replace("_", " ")}</span></td><td className="sm">{e.summary}</td><td><a {...linkProps(`/franchise/run/${e.run_id}`)}>Run</a></td></tr>)}</tbody></table></div>
+          : <p className="sm muted">Every step passed first time.</p>}
+      </Panel>
+    </div>
+  );
+}
+
+type AuditRow = { ts: string; as_of: string | null; actor: string; event: string; outlet: string | null; detail: string; status: string; run_id: string | null };
+const EVENTS: [string, string][] = [["all", "All"], ["decision", "Decisions"], ["advice", "Advice"], ["outcome", "Outcomes"], ["customer_report", "Customer reports"], ["account", "Accounts"]];
+function AuditPage({ outlet }: { outlet: string }) {
+  const r = useApi<AuditRow[]>("/franchise/audit");
+  const [kind, setKind] = useState("all"), [all, setAll] = useState(false);
+  if (r.error) return <Failed error={r.error} />;
+  if (!r.data) return <Loading />;
+  const rows = r.data.filter((x) => (kind === "all" || x.event === kind) && (outlet === "all" || !x.outlet || x.outlet === outlet));
+  return (
+    <Panel title="Audit log" sub="Append-only: agent advice and outcomes, approvals, customer reports, accounts" icon="shield"
+      right={<span className="pill ok"><Icon name="lock" className="xs" />H-MEM trust ledger</span>}>
+      <div className="filter" role="group" aria-label="Event type">{EVENTS.map(([k, l]) => <button key={k} aria-pressed={kind === k} onClick={() => setKind(k)}>{l}</button>)}</div>
+      <div className="table-wrap"><table><thead><tr><th>Recorded</th><th>Demo date</th><th>Actor</th><th>Event</th><th>Outlet</th><th>Detail</th><th>Status</th></tr></thead>
+        <tbody>{rows.length ? (all ? rows : rows.slice(0, 25)).map((x, i) => (
+          <tr key={i}><td className="nowrap sm mono-id">{when(x.ts)}</td><td className="nowrap sm">{x.as_of ? day(x.as_of) : "—"}</td><td className="sm warm nowrap">{x.actor}</td>
+            <td><span className="pill info">{EVENTS.find(([k]) => k === x.event)?.[1].replace(/s$/, "") ?? x.event}</span></td><td className="mono-id">{x.outlet ?? ""}</td>
+            <td className="sm">{x.run_id ? <a {...linkProps(`/franchise/run/${x.run_id}`)}>{x.detail}</a> : x.detail}</td><td>{["proposed", "created", "recorded"].includes(x.status) ? <span className="sm muted">{x.status}</span> : <StatusBadge s={x.status} />}</td></tr>
+        )) : <tr><td colSpan={7} className="muted">Nothing recorded yet.</td></tr>}</tbody></table></div>
+      {rows.length > 25 && <button className="textlink" onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show all ${rows.length}`}</button>}
+    </Panel>
+  );
+}
+
+// --- The shell ---
+
+const ROLE: Record<string, string> = { superadmin: "Super admin", admin: "Admin", customer: "Customer" };
+const PAGES: Record<string, [string, string]> = {
+  "/franchise": ["Overview", "dashboard"], "/franchise/machines": ["Machine energy", "device_hub"], "/franchise/tariff": ["Tariff and peak", "show_chart"],
+  "/franchise/agent": ["Agent interventions", "smart_toy"], "/franchise/ai-pipeline": ["Data and AI", "hub"], "/people": ["People", "group"], "/franchise/audit-log": ["Audit log", "shield"],
+};
+const GROUPS: [string, string[]][] = [["Monitor", ["/franchise", "/franchise/machines", "/franchise/tariff", "/franchise/agent"]], ["Operations", ["/franchise/ai-pipeline", "/people", "/franchise/audit-log"]]];
+
+export function HqShell({ crumb, actions, scope, overview, children }: { crumb: string; actions?: ReactNode; scope?: [string, (v: string) => void]; overview?: Overview; children: ReactNode }) {
+  const path = usePath().split("?")[0], p = usePrefs(), [menu, setMenu] = useState(false), head = useRef<HTMLDivElement>(null);
+  // The sidebar fits exactly under the sticky header + alert strip, whatever height they wrap to, so it never scrolls.
+  // If the nav still doesn't fit (a short window), the agent card sheds its text, then hides.
+  const side = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = head.current!, aside = side.current!;
+    const fit = () => {
+      el.parentElement!.style.setProperty("--hq-head", `${el.offsetHeight}px`);
+      aside.classList.remove("compact", "bare");
+      for (const c of ["compact", "bare"]) if (aside.scrollHeight > aside.clientHeight + 1) aside.classList.add(c);
+    };
+    const ro = new ResizeObserver(fit);
+    ro.observe(el); ro.observe(aside); ro.observe(document.documentElement);
+    return () => ro.disconnect();
+  }, []);
+  const own = useApi<Overview>(overview ? null : `/franchise/overview?as_of=${p.asOf}`), o = overview ?? own.data;
+  const health = useApi<{ mode: { data: string; llm: string } }>("/health");
+  const pending = o?.advice_scoreboard.filter((a) => a.status === "awaiting_approval") ?? [];
+  const open = o?.flagged_machines.filter((f) => !f.status.startsWith("verified")) ?? [];
+  const alert = pending.length ? `${pending.length} action${pending.length > 1 ? "s" : ""} awaiting approval: ${pending[0].outlet_id} ${actionLabel(pending[0])}${pending[0].reason ? `. ${pending[0].reason}` : ""}`
+    : open.length ? `${open[0].outlet_id} ${open[0].verdict ?? short(open[0].machine_id)}: ${open[0].evidence ?? "flagged"}` : null;
+  const mode = health.data?.mode;
+  const badge: Record<string, ReactNode> = {
+    "/franchise": mode && <span className={`tag ${mode.data === "zetaris" ? "ok" : ""}`}>{mode.data === "zetaris" ? "Live" : "Sample"}</span>,
+    "/franchise/machines": <span className="tag">Virtual</span>,
+    "/franchise/agent": pending.length > 0 && <span className="tag warm">{pending.length}</span>,
+    "/franchise/ai-pipeline": mode && <span className="tag">{mode.llm}</span>,
+  };
+  return (
+    <div className="hq">
+      <div className="hq-head" ref={head}>
+      <header className="hq-top">
+        <button className="icon-btn hq-menu" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(!menu)}><Icon name={menu ? "close" : "menu"} /></button>
+        <a className="hq-brand" {...linkProps("/franchise")}><span className="app-tile"><Icon name="local_laundry_service" /></span>
+          <span><b>SmartFlux <span className="accent">EDIS</span></b><span className="mono-label">Track 3 · Reasoning architecture</span></span></a>
+        {scope && o && <Dropdown label="Scope" value={scope[0]} onChange={scope[1]} options={[{ value: "all", label: `All outlets (${o.outlets.length})` }, ...o.outlets.map((x) => ({ value: x.outlet_id, label: `${x.outlet_id} ${x.name}` }))]} />}
+        <span className="grow" />
+        <div className="seg" role="group" aria-label="View"><button aria-pressed="true">HQ</button><button aria-pressed="false" onClick={() => navigate("/outlet")}>Outlet app</button></div>
+        <DatePicker value={p.asOf} onChange={(d) => setPref("asOf", d)} />
+        <div className="seg" role="group" aria-label="Language">{(["en", "ms"] as Lang[]).map((l) => <button key={l} aria-pressed={p.lang === l} onClick={() => setPref("lang", l)}>{l === "en" ? "EN" : "BM"}</button>)}</div>
+        <a className="icon-btn bell" aria-label={`${pending.length} awaiting approval`} {...linkProps("/franchise/agent")}><Icon name="notifications" />{pending.length > 0 && <span className="bell-dot" />}</a>
+        <span className="hq-user"><span className="right"><b className="sm">{p.session?.name}</b><span className="mono-label">{ROLE[p.session?.role ?? ""]}</span></span><span className="avatar">{p.session?.name?.[0] ?? "?"}</span></span>
+        <button className="icon-btn" aria-label="Sign out" title="Sign out" onClick={() => { setPref("session", null); navigate("/login"); }}><Icon name="logout" /></button>
+      </header>
+      <div className={`hq-alert ${alert ? "" : "calm"}`} role="status">
+        <Icon name={alert ? "warning" : "check_circle"} className="sm" /><span className="grow ellipsis"><b>{alert ? "Needs you" : "All clear"}</b> · {day(p.asOf)} · {alert ?? "No approvals waiting and no open machine flags."}</span>
+        {mode && <span className="hq-mode">Data <b>{mode.data === "zetaris" ? "Zetaris" : "SQLite"}</b> · Reasoning <b>{mode.llm}</b></span>}
+      </div>
+      </div>
+      <div className="hq-body">
+        <aside ref={side} className={`hq-side ${menu ? "open" : ""}`}>
+          <nav aria-label="HQ">{GROUPS.map(([g, hrefs]) => (
+            <div key={g} className="side-group"><p className="mono-label">{g}</p>
+              {hrefs.map((h) => <a key={h} {...linkProps(h)} onClick={(e) => { setMenu(false); linkProps(h).onClick(e); }} aria-current={path === h || (h === "/franchise" && path.startsWith("/franchise/run")) ? "page" : undefined}>
+                <Icon name={PAGES[h][1]} className="sm" /><span className="grow">{PAGES[h][0]}</span>{badge[h]}</a>)}
+            </div>
+          ))}</nav>
+          <div className="side-card">
+            <p className="mono-label">Reasoning agent</p>
+            <p className="sm">Ask about any outlet's bill, tariff, solar or machines. Five agents check the answer before you see it.</p>
+            <a className="btn cta sm-btn" {...linkProps("/ask")}><Icon name="auto_awesome" className="sm" />Ask the agent</a>
+          </div>
+        </aside>
+        <main className="hq-main">
+          <div className="row between wrap hq-crumbs"><p className="mono-label"><span>HQ</span> › <span className="crumb">{crumb}</span></p><div className="row wrap">{actions}</div></div>
+          {children}
+        </main>
+      </div>
+    </div>
   );
 }
 
 export function AdminApp() {
-  const path = usePath();
+  const path = usePath().split("?")[0], { asOf } = usePrefs();
+  const [scope, setScope] = useState("all");
+  const r = useApi<Overview>(`/franchise/overview?as_of=${asOf}`);
   const run = match("/franchise/run/:id", path);
-  return (
-    <div className="admin">
-      <StaffBar back={run ? "/franchise" : undefined} />
-      {run ? <div style={{ maxWidth: 960 }}><Evidence runId={run.id} /></div> : <Dashboard />}
-    </div>
-  );
+  const all = r.data;
+  const o = all && (scope === "all" ? all : { ...all, outlets: all.outlets.filter((x) => x.outlet_id === scope), flagged_machines: all.flagged_machines.filter((x) => x.outlet_id === scope),
+    advice_scoreboard: all.advice_scoreboard.filter((x) => x.outlet_id === scope), run_log: all.run_log.filter((x) => x.outlet_id === scope) });
+  const one = scope === "all" ? all?.outlets[0]?.outlet_id ?? "OUT-01" : scope;
+  const exportCsv = async () => {
+    const csv = await api<string>(`/franchise/scope2.csv?as_of=${asOf}`);
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })), download: `smartflux-scope2-${asOf}.csv` });
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+  let page: ReactNode, actions: ReactNode;
+  if (run) page = <div style={{ maxWidth: 960 }}><Evidence runId={run.id} /></div>;
+  else if (path === "/franchise/ai-pipeline") page = <PipelinePage />;
+  else if (path === "/franchise/audit-log") page = <AuditPage outlet={scope} />;
+  else if (!o) page = r.error ? <Failed error={r.error} /> : <Loading />;
+  else if (path === "/franchise/machines") page = <MachinesPage o={o} outlet={one} />;
+  else if (path === "/franchise/tariff") page = <TariffPage o={o} outlet={one} />;
+  else if (path === "/franchise/agent") page = <AgentPage o={o} reload={r.reload} />;
+  else { page = <OverviewPage o={o} all={all!} />; actions = <button className="btn primary sm-btn" onClick={exportCsv}><Icon name="download" className="sm" />Export Scope 2 CSV</button>; }
+  return <HqShell crumb={run ? `Run ${run.id}` : PAGES[path]?.[0] ?? "Overview"} actions={actions} scope={[scope, setScope]} overview={all}>{page}</HqShell>;
 }

@@ -8,8 +8,8 @@ import { DatabaseSync } from "node:sqlite";
 
 export type Role = "customer" | "admin" | "superadmin";
 export const ROLES: Role[] = ["customer", "admin", "superadmin"];
-export type User = { id: number; name: string; email: string; role: Role; outlets: string[]; google: boolean; password: boolean; created_at: string };
-type Row = { id: number; name: string; email: string; role: Role; outlets: string; password_hash: string | null; google_sub: string | null; created_at: string };
+export type User = { id: number; name: string; email: string; role: Role; outlets: string[]; google: boolean; password: boolean; created_at: string; created_by: number | null };
+type Row = { id: number; name: string; email: string; role: Role; outlets: string; password_hash: string | null; google_sub: string | null; created_at: string; created_by: number | null };
 
 const KEYLEN = 64;
 export function hashPassword(password: string) {
@@ -41,7 +41,7 @@ export function openUsers(path: string) {
     created_by INTEGER
   )`);
   const pub = (r?: Row): User | undefined => r && ({ id: r.id, name: r.name, email: r.email, role: r.role, outlets: JSON.parse(r.outlets),
-    google: !!r.google_sub, password: !!r.password_hash, created_at: r.created_at });
+    google: !!r.google_sub, password: !!r.password_hash, created_at: r.created_at, created_by: r.created_by });
   const row = (sql: string, ...args: (string | number)[]) => db.prepare(sql).get(...args) as Row | undefined;
 
   // Checks shared by sign-up and the People screen. Customers and super admins see every outlet; an admin needs at least one.
