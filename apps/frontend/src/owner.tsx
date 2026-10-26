@@ -7,7 +7,7 @@ import {
 } from "./ui.tsx";
 
 type Advice = { action_id: string; type: string; target: string; advised_as_of: string; risk: string; reason?: string; run_id: string; predicted_rm_per_month: number | null; status: string;
-  verified: { verdict: string; realised_rm_per_month: number; band_rm_per_month: number } | null };
+  verified: { verdict: string; realised_rm_per_month: number; band_rm_per_month: number; as_of: string } | null };
 type OwnerMachine = { machine_id: string; name: string; type: string; heat_source: string; status: string; minutes_left: number | null; price_from_rm: number | null; price_to_rm: number | null;
   normal: { kwh_per_cycle: number | null; kwh_se: number | null; minutes_per_cycle: number | null; learned_as_of: string } | null; cost_per_cycle_rm: number | null;
   health: string; flag: { verdict?: string; evidence?: string; rm_per_month?: number; run_id: string } | null; customer_reports: { reason: string; as_of: string }[];
@@ -20,6 +20,9 @@ type Ctx = { o: Owner; reload: () => void; outlet: string };
 
 const ACTION = { schedule_service: "aService", run_promo: "aPromo", switch_tariff: "aTou", request_solar_quote: "aQuote" } as const;
 const actionTitle = (a: Advice, t: T) => `${a.type in ACTION ? t(ACTION[a.type as keyof typeof ACTION]) : a.type} ${a.type === "schedule_service" ? `${t("dryer").toLowerCase()} ${short(a.target)}` : a.type === "run_promo" ? `· ${a.target}` : a.type === "request_solar_quote" ? `· ${a.target.split(" ").slice(1).join(" ")}` : ""}`;
+// Approval card header: icon and a short kind label (the machine for a service, else the kind of decision).
+const KIND: Record<string, [string, "tTariff" | "solar" | "tPromo" | "dryer"]> = { schedule_service: ["build", "dryer"], switch_tariff: ["schedule", "tTariff"], request_solar_quote: ["solar_power", "solar"], run_promo: ["local_offer", "tPromo"] };
+const kindLabel = (a: Advice, t: T) => a.type === "schedule_service" ? `${t("dryer")} ${short(a.target)}` : KIND[a.type] ? t(KIND[a.type][1]) : a.type.replace(/_/g, " ");
 const reasonLabel = (r: string, t: T) => (["wont_start", "not_heating", "too_long", "other"].includes(r) ? t(r as "other").toLowerCase() : r);
 
 async function ask(outlet: string, asOf: string, lang: string, body: { question?: string; briefing?: boolean }) {
@@ -256,25 +259,73 @@ function Plan({ outlet, o, reload }: Ctx) {
   );
   if (!r.data) return <Loading />;
   const d = r.data.result.decisions.find((x) => x.type === "energy_plan")!;
-  const options = d.evidence.filter((e) => /^\d+ kWp:/.test(e)).sort((a, b) => parseInt(a) - parseInt(b));
-  const kwp = /(\d+) kWp/.exec(d.verdict)?.[1];
-  const other = d.evidence.filter((e) => !/^\d+ kWp:/.test(e));
+  const kwp = Number(/(\d+) kWp/.exec(d.verdict)?.[1]);
+  const options = d.evidence.filter((e) => OPTION.test(e)).map(solarOption).sort((a, b) => a.kwp - b.kwp);
+  const rec = options.find((x) => x.kwp === kwp);
+  const without = d.evidence.find((e) => WITHOUT.test(e)), withSolar = d.evidence.find((e) => WITH.test(e));
+  const other = d.evidence.filter((e) => !OPTION.test(e) && e !== without && e !== withSolar);
   const action = r.data.result.actions.find((a) => a.type === "request_solar_quote");
+  const advice = action && o.advice.find((a) => a.action_id === action.id);
   return (
-    <div className="stack">
-      <article className="card">
+    <div className="stack plan">
+      <article className="card briefing hero">
+        <div className="row between wrap"><span className="chip soft sm-chip"><Icon name="solar_power" className="sm" /><span className="caps">{t("energyPlan")}</span></span><Confidence c={d.confidence} /></div>
         <h2>{d.verdict}</h2>
-        {d.rm_per_month != null && <p className="display save num">{rm(d.rm_per_month)}<span className="unit"> {t("perMonth")}</span></p>}
-        <p className="meta"><span className="row muted"><Icon name="solar_power" className="sm" />{t("energyPlan")}</span><Confidence c={d.confidence} /></p>
+        {d.rm_per_month != null && <div className="inset stack tight">
+          <span className="label caps muted">{t("estSaving")}</span>
+          <p className="display save num">{rm(d.rm_per_month, 2)}<span className="unit"> {t("perMonth")}</span></p>
+          {rec?.years != null && <p className="row sm"><Icon name="hourglass_bottom" className="sm" />{t("payback")} ≈ {rec.years} {t("yrs")}</p>}
+        </div>}
       </article>
-      {options.length > 0 && <section className="card"><h3>{t("solarOptions")}</h3>
-        {options.map((e) => <p key={e} className="row"><Icon name={e.startsWith(`${kwp} kWp`) ? "star" : "solar_power"} className={e.startsWith(`${kwp} kWp`) ? "save" : "muted"} /><span>{e}{e.startsWith(`${kwp} kWp`) ? ` · ${t("recommended")}` : ""}</span></p>)}
+      {options.length > 0 && <section className="stack tight">
+        <h3>{t("solarOptions")}</h3>
+        <div className="opts">{options.map((x) => (
+          <div key={x.kwp} className={`opt${x.kwp === kwp ? " rec" : ""}`}>
+            {x.kwp === kwp && <span className="opt-tag">{t("recommended")}</span>}
+            <b>{x.kwp} kWp</b>
+            {x.rm != null ? <><span className="num save">{rm(x.rm)}{t("perMo")}</span>{x.years != null && <span className="sm muted">{x.years} {t("yrs")}</span>}</> : <span className="sm">{x.text}</span>}
+          </div>))}
+        </div>
+        {rec?.use != null && <div className="card stack tight">
+          <div className="row between"><span className="sm">{t("usedOnSite")}</span><b className="num">{rec.use}%</b></div>
+          <div className="bar grad"><span style={{ width: `${rec.use}%` }} /></div>
+          <span className="sm muted">{100 - rec.use}% {t("exported")}</span>
+        </div>}
       </section>}
-      <section className="card"><h3>{t("tariffAfter")}</h3>{other.map((e) => <p key={e}>{e}</p>)}</section>
-      <section className="card"><h3>{t("ruledOut")}</h3>{d.ruled_out.map((x) => <p key={x} className="row"><Icon name="close" className="bad" />{x}</p>)}</section>
+      {(without || withSolar) && <section className="stack tight">
+        <h3 className="row"><Icon name="compare_arrows" className="sm" />{t("tariffCompare")}</h3>
+        <div className="ways">
+          {without && <Way label={t("withoutSolar")} line={without} />}
+          {withSolar && <Way label={t("withSolar")} extra={kwp ? ` · ${kwp} kWp` : ""} line={withSolar} rec />}
+        </div>
+      </section>}
+      {other.length > 0 && <section className="card explain">{other.map((e) => <p key={e} className="row"><Icon name="lightbulb" className="sm save" /><span>{e}</span></p>)}</section>}
+      {d.ruled_out.length > 0 && <section className="card ruled"><span className="label caps">{t("ruledOut")}</span>
+        {d.ruled_out.map((x) => <p key={x} className="row"><Icon name="close" /><span className="sm">{x}</span></p>)}</section>}
       <details className="card"><summary>{t("assumptions")}</summary><ul className="sm muted">{d.assumptions.map((a) => <li key={a}>{a}</li>)}</ul></details>
-      {action && <a className="btn cta" {...linkProps("/approvals")}>{t("requestQuote")} ({action.target.split(" ").slice(1).join(" ")})</a>}
-      <a className="textlink" {...linkProps(`/evidence/${run.run_id}`)}>{t("evidence")}</a>
+      {action && (!advice || advice.status === "awaiting_approval"
+        ? <a className="btn cta" {...linkProps("/approvals")}>{t("requestQuote")} ({action.target.split(" ").slice(1).join(" ")})<Icon name="arrow_forward" /></a>
+        : <p className="row between"><span>{t("requestQuote")} ({action.target.split(" ").slice(1).join(" ")})</span><StatusBadge s={advice.status} /></p>)}
+      <a className="textlink row" {...linkProps(`/evidence/${run.run_id}`)}><Icon name="query_stats" className="sm" />{t("evidence")}</a>
+    </div>
+  );
+}
+
+// The plan's option tiles and tariff comparison are read from the Reporter's evidence lines, whose wording is fixed in
+// both languages (rules/reporter.ts). A line that doesn't match is still shown, as plain text.
+const OPTION = /^\d+ kWp:/, WITHOUT = /^(Without solar|Tanpa solar):\s*/i, WITH = /^(With solar|Dengan solar):\s*/i;
+const firstNum = (s: string, re: RegExp) => { const m = re.exec(s); return m ? Number(m[1].replace(/,/g, "")) : null; };
+const solarOption = (e: string) => ({ kwp: parseInt(e), rm: firstNum(e, /RM([\d,.]+)/), years: firstNum(e, /(\d+(?:\.\d+)?) (?:years|tahun)/), use: firstNum(e, /(\d+)%/), text: e });
+function Way({ label, extra, line, rec }: { label: string; extra?: string; line: string; rec?: boolean }) {
+  const body = line.replace(WITHOUT, "").replace(WITH, "");
+  const m = /^([^(;]+)[(;]\s*(.+?)\)?$/.exec(body);
+  const head = (m?.[1] ?? body).trim(), sub = m?.[2]?.trim();
+  const saves = sub ? /saves|jimat/i.test(sub) : false;
+  return (
+    <div className={`way${rec ? " rec" : ""}`}>
+      <span className="label muted"><span className="caps">{label}</span>{extra}</span>
+      <b>{head.charAt(0).toUpperCase() + head.slice(1)}</b>
+      {sub && <span className={`sm row ${saves ? "ok" : "waste"}`}><Icon name={saves ? "trending_down" : "trending_up"} className="sm" />{sub}</span>}
     </div>
   );
 }
@@ -294,22 +345,51 @@ function Approvals({ o, reload }: Ctx) {
     } catch (e) { toast.show((e as Error).message); }
     setBusy("");
   };
+  const solarPending = o.advice.some((a) => a.type === "request_solar_quote" && (a.status === "awaiting_approval" || a.status === "approved"));
+  // Context for the card. The action's own reason only repeats the saving shown below it, so: the machine's flag for a
+  // service, today's peak share against the break-even for ToU, and the reason only when there is no predicted saving.
+  const tariff = o.outlet.tariff;
+  const why = (a: Advice) => a.type === "schedule_service" ? machine(a.target)?.flag?.evidence ?? a.reason
+    : a.type === "switch_tariff" ? `${t("peakShare")} ${(tariff.peak_share * 100).toFixed(1)}% · ${t("breakeven")} ${(tariff.breakeven * 100).toFixed(1)}%`
+    : a.predicted_rm_per_month == null ? a.reason : undefined;
+  const tabBtn = (k: "pending" | "history", n: number) =>
+    <button role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => navigate(k === "pending" ? "/approvals" : "/approvals?tab=history", true)}>
+      {t(k)}<span className={`count${k === "pending" && n ? " hot" : ""}`}>{n}</span></button>;
   return (
-    <div className="stack">
-      <div className="seg" role="tablist">
-        <button role="tab" aria-selected={tab === "pending"} aria-pressed={tab === "pending"} onClick={() => navigate("/approvals", true)}>{t("pending")} ({pending.length})</button>
-        <button role="tab" aria-selected={tab === "history"} aria-pressed={tab === "history"} onClick={() => navigate("/approvals?tab=history", true)}>{t("history")}</button>
-      </div>
+    <div className="stack approvals">
+      <div className="seg full" role="tablist">{tabBtn("pending", pending.length)}{tabBtn("history", done.length)}</div>
       {tab === "pending" && (pending.length ? pending.map((a) => (
-        <article key={a.action_id} className="card">
-          <div className="row between wrap"><h2>{actionTitle(a, t)}</h2><RiskBadge r={a.risk} /></div>
-          {a.reason && <p>{a.reason}</p>}
-          {a.predicted_rm_per_month != null && <p className="save num">{t("predictedSaving")} {rm(a.predicted_rm_per_month, 2)}{t("perMonth")}</p>}
-          <p className="sm muted">{t("advisedAsOf")} {day(a.advised_as_of)} · <a {...linkProps(`/evidence/${a.run_id}`)}>{t("evidence").toLowerCase()}</a></p>
-          <div className="row"><button className="btn cta grow" disabled={!!busy} onClick={() => decide(a, "approved")}>{t("approve")}</button>
-            <button className="btn outlined grow" disabled={!!busy} onClick={() => decide(a, "rejected")}>{t("reject")}</button></div>
+        <article key={a.action_id} className="card approval">
+          <div className="row between wrap">
+            <span className="label caps muted row"><Icon name={KIND[a.type]?.[0] ?? "task_alt"} className="sm" />{kindLabel(a, t)}</span>
+            <RiskBadge r={a.risk} />
+          </div>
+          <div className="row"><span className="app-tile lg"><Icon name={KIND[a.type]?.[0] ?? "task_alt"} /></span>
+            <div className="stack tight"><h2>{actionTitle(a, t)}</h2><span className="sm muted">{t("advisedOn")} {day(a.advised_as_of)}</span></div></div>
+          {why(a) && <p className="why row"><Icon name="insights" className="sm" /><span className="sm">{why(a)}</span></p>}
+          {a.type === "request_solar_quote" && <a className="textlink row" {...linkProps("/plan")}><Icon name="solar_power" className="sm" />{t("openPlan")}</a>}
+          {a.type === "switch_tariff" && solarPending && <a className="note row" {...linkProps("/plan")}><Icon name="info" className="sm" /><span className="sm">{t("touSolarNote")}</span></a>}
+          {a.predicted_rm_per_month != null && <div className="stack tight">
+            <span className="label caps muted">{t("predictedSaving")}</span>
+            <p className="h2 save num">{rm(a.predicted_rm_per_month, 2)}<span className="unit sm muted"> {t("perMonth")}</span></p>
+          </div>}
+          <a className="textlink row between" {...linkProps(`/evidence/${a.run_id}`)}><span className="row"><Icon name="query_stats" className="sm" />{t("viewEvidence")}</span><Icon name="arrow_forward" className="sm" /></a>
+          <div className="row">
+            <button className="btn outlined grow" disabled={!!busy} onClick={() => decide(a, "rejected")}><Icon name="close" className="sm" />{t("reject")}</button>
+            <button className="btn cta grow" disabled={!!busy} onClick={() => decide(a, "approved")}><Icon name="check" className="sm" />{t("approve")}</button>
+          </div>
         </article>
-      )) : <p className="muted">{t("nothingPending")}</p>)}
+      )) : <p className="card muted">{t("nothingPending")}</p>)}
+      {tab === "pending" && done.length > 0 && <section className="stack tight">
+        <div className="row between"><h3 className="row"><Icon name="history" className="sm" />{t("recentDecisions")}</h3>
+          <a className="textlink sm" {...linkProps("/approvals?tab=history")}>{t("seeAll")}</a></div>
+        {done.slice(0, 3).map((a) => (
+          <a key={a.action_id} className="card link recent" {...linkProps("/approvals?tab=history")}>
+            <div className="row between wrap"><span className="h3">{actionTitle(a, t)}</span><StatusBadge s={a.verified?.verdict ?? a.status} /></div>
+            <span className="sm muted">{t("advisedOn")} {day(a.advised_as_of)}{a.verified ? ` · ${t("verifiedOn")} ${day(a.verified.as_of)}` : ""}</span>
+            {a.verified?.verdict === "verified" && a.type !== "run_promo" && <span className="sm save num">{rm(a.verified.realised_rm_per_month, 2)}{t("perMonth")} {t("savedPm")}</span>}
+          </a>))}
+      </section>}
       {tab === "history" && done.map((a) => (
         <article key={a.action_id} className="card">
           <div className="row between wrap"><h3>{actionTitle(a, t)}</h3><StatusBadge s={a.verified?.verdict ?? a.status} /></div>

@@ -422,3 +422,41 @@ button.mrow { border: 0; width: 100%; font: inherit; color: inherit; cursor: poi
 .acct > summary::before { content: none; }
 .acct > summary::-webkit-details-marker { display: none; }
 .acct-pop { padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 180px; }
+
+/* Energy plan (Figma M-04) */
+.plan { padding-bottom: 8px; }
+.inset { background: rgb(0 0 0 / .22); border: 1px solid rgb(255 255 255 / .08); border-radius: var(--r-md); padding: 14px; }
+.opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.opt { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px 6px 12px; text-align: center;
+  background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-md); }
+.opt.rec { border-color: var(--secondary); background: linear-gradient(180deg, rgb(255 145 0 / .1), var(--surface) 70%); box-shadow: var(--glow-warm); }
+.opt-tag { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); white-space: nowrap; font: 600 11px/1 var(--font-body);
+  padding: 4px 8px; border-radius: var(--r-full); background: var(--secondary-300); color: var(--text-on-accent); }
+.ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.way { display: flex; flex-direction: column; gap: 6px; padding: 12px; background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-md); }
+.way.rec { border-color: rgb(157 78 221 / .6); background: linear-gradient(160deg, rgb(157 78 221 / .16), var(--surface) 70%); }
+.way .row { align-items: flex-start; gap: 4px; }
+.way .row .icon { margin-top: 1px; }
+.explain { background: var(--surface-2); }
+.explain .row { align-items: flex-start; }
+.ruled { border-color: rgb(242 139 130 / .3); }
+.ruled .row { align-items: flex-start; gap: 10px; }
+.ruled .row > .icon { flex: none; width: 32px; height: 32px; border-radius: var(--r-full); display: grid; place-items: center; font-size: 18px; background: rgb(242 139 130 / .16); color: var(--danger); }
+.ruled > .label { color: var(--danger); }
+.ruled .row > .icon { width: 28px; height: 28px; font-size: 16px; }
+
+/* Approvals (Figma M-09) */
+.seg.full { display: flex; width: 100%; }
+.seg.full button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--r-full); display: inline-grid; place-items: center; font: 600 12px/1 var(--font-body); background: var(--surface-3); color: var(--text); }
+.count.hot { background: var(--secondary); color: var(--text-on-accent); }
+.approval { border-color: rgb(157 78 221 / .4); }
+.approval h2 { font-size: 20px; line-height: 26px; }
+.approval .h2 { font: 800 28px/34px var(--font-head); }
+.approval .row:has(> .btn) { gap: 12px; }
+.why { align-items: flex-start; padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-2); }
+.why .icon { color: var(--secondary); margin-top: 2px; }
+.note { align-items: flex-start; padding: 10px 12px; border-radius: var(--r-md); background: rgb(157 78 221 / .14); border: 1px solid rgb(157 78 221 / .35); color: var(--text); text-decoration: none; }
+.note .icon { color: var(--primary-text); margin-top: 2px; }
+.approval .textlink { text-decoration: none; min-height: 32px; }
+.recent { gap: 6px; }

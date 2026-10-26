@@ -71,6 +71,12 @@ const DICT = {
   verifiedChip: ["Verified", "Disahkan"], reportChip: ["Customer report", "Laporan pelanggan"], openPlan: ["Open plan", "Buka pelan"], saves: ["Saves", "Jimat"],
   soFarCap: ["So far", "Setakat ini"], projectedCap: ["Projected", "Anggaran"], approvedN: ["approved", "diluluskan"], advisedN: ["advised", "dinasihatkan"],
   accountMenu: ["Account menu", "Menu akaun"], allClear: ["All clear: no flags and nothing new to verify.", "Semua baik: tiada bendera dan tiada yang perlu disahkan."],
+  estSaving: ["Estimated saving", "Anggaran penjimatan"], payback: ["Payback", "Pulang modal"], yrs: ["years", "tahun"], perMo: ["/mo", "/bln"],
+  usedOnSite: ["Solar used on site", "Solar digunakan di premis"], exported: ["exported to the grid", "dieksport ke grid"],
+  tariffCompare: ["Tariff without vs with solar", "Tarif tanpa vs dengan solar"], withoutSolar: ["Without solar", "Tanpa solar"], withSolar: ["With solar", "Dengan solar"],
+  recentDecisions: ["Recent decisions", "Keputusan terkini"], seeAll: ["See all", "Lihat semua"], advisedOn: ["Advised", "Dinasihatkan"], verifiedOn: ["Verified", "Disahkan"],
+  savedPm: ["saved", "dijimat"], viewEvidence: ["View evidence", "Lihat bukti"], solar: ["Solar", "Solar"],
+  touSolarNote: ["Going solar too? Your energy plan says stay on the flat tariff with solar, so approve one of these, not both.", "Mahu pasang solar juga? Pelan tenaga anda menyarankan kekal pada tarif rata jika ada solar, jadi luluskan salah satu sahaja."],
   aService: ["Service", "Servis"], aPromo: ["Run promo", "Adakan promosi"], aTou: ["Switch to ToU", "Tukar ke ToU"], aQuote: ["Request solar quote", "Minta sebut harga solar"],
 } satisfies Record<string, [string, string]>;
 export type T = ReturnType<typeof useT>;
