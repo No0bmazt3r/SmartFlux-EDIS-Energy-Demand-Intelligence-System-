@@ -1,5 +1,5 @@
 {
-  "run_id": "r-2652a595",
+  "run_id": "r-a366687b",
   "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
   "outlet_id": "OUT-01",
   "as_of": "2026-10-18",
@@ -13,7 +13,7 @@
         "No dryer is wasting energy",
         "Switch to the ToU tariff (RM7.6/month)",
         "Peak share last week 61.5% (+0.8 pts)",
-        "4 actions waiting for your approval"
+        "2 actions waiting for your approval"
       ],
       "ruled_out": [],
       "assumptions": [
@@ -56,7 +56,7 @@
   ],
   "actions": [
     {
-      "id": "r-2652a595-a1",
+      "id": "r-a8c07ca6-a2",
       "type": "switch_tariff",
       "target": "OUT-01",
       "reason": "ToU saves about RM7.6/month",

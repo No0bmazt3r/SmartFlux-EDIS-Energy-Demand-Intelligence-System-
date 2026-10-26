@@ -1,22 +1,9 @@
 {
-  "run_id": "r-760622b7",
+  "run_id": "r-f81d33df",
   "mode": "live (data: local sample; reasoning: Nemotron via build.nvidia.com)",
   "outlet_id": "OUT-01",
   "as_of": "2026-10-18",
   "decisions": [
-    {
-      "type": "machine_fault",
-      "verdict": "No dryer is wasting energy",
-      "confidence": "high",
-      "evidence": [
-        "All 6 dryers are within their normal range"
-      ],
-      "ruled_out": [],
-      "assumptions": [
-        "Normal level = the baseline week 7 Sept–13 Sept; compared with 5 Oct–18 Oct",
-        "Sample data: business data is synthetic, weather and holidays are real"
-      ]
-    },
     {
       "type": "energy_plan",
       "verdict": "Install 10 kWp solar, stay on your current tariff",
@@ -45,7 +32,7 @@
   ],
   "actions": [
     {
-      "id": "r-760622b7-a1",
+      "id": "r-f81d33df-a1",
       "type": "request_solar_quote",
       "target": "OUT-01 10 kWp",
       "reason": "10 kWp saves about RM502.75/month",

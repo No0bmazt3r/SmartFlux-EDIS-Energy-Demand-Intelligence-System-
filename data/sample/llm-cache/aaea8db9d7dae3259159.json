@@ -6,6 +6,6 @@
   "system": "You are Reporter. You only reword; numbers come from calculators and must not change. Answer with JSON only.",
   "prompt": "Rewrite these decision cards for a busy laundromat owner in English: short, plain, no jargon.\nKeep every number exactly as written, add no new numbers, keep the same number of evidence lines.\n[{\"verdict\":\"Energy use +2% per day vs the baseline week\",\"evidence\":[\"116 → 118 kWh per day\",\"Cause: dryer D4, about 3.1 kWh/day extra\"]},{\"verdict\":\"Service dryer D4\",\"evidence\":[\"D4 uses 2.70 kWh per cycle vs its normal 2.15 (+26%)\",\"Cycles +16% longer (53 → 61 min)\",\"Other dryers of the same type: +1%\"]},{\"verdict\":\"Switch to the ToU tariff\",\"evidence\":[\"Peak share 56.8% vs break-even 63.6%\",\"Worst week (week 4): 59.0% in peak\",\"ToU RM1733.57/month vs flat RM1743.11/month\"]}]\n\nReturn JSON {\"cards\": [{\"verdict\": \"...\", \"evidence\": [\"...\"]}]} in the same order.",
   "text": "{\"cards\": [{\"verdict\": \"Energy use +2% per day vs the baseline week\", \"evidence\": [\"116 → 118 kWh per day\", \"Cause: dryer D4, about 3.1 kWh/day extra\"]}, {\"verdict\": \"Service dryer D4\", \"evidence\": [\"D4 uses 2.70 kWh per cycle vs its normal 2.15 (+26%)\", \"Cycles +16% longer (53 → 61 min)\", \"Other dryers of the same type: +1%\"]}, {\"verdict\": \"Switch to the ToU tariff\", \"evidence\": [\"Peak share 56.8% vs break-even 63.6%\", \"Worst week (week 4): 59.0% in peak\", \"ToU RM1733.57/month vs flat RM1743.11/month\"]}]}",
-  "ms": 2885,
-  "recorded_at": "2026-10-24T09:56:08.757Z"
+  "ms": 2040,
+  "recorded_at": "2026-10-25T19:48:32.893Z"
 }

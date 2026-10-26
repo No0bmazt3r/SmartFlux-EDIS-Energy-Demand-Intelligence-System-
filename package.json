@@ -9,7 +9,7 @@
   "scripts": {
     "agent": "tsx apps/backend/src/cli.ts",
     "start": "tsx apps/backend/src/server.ts",
-    "demo": "pnpm web:build && pnpm start",
+    "demo": "pnpm web:build && tsx apps/backend/src/server.ts --demo",
     "dev": "pnpm run \"/^(api:dev|web:dev)$/\"",
     "api:dev": "tsx watch --clear-screen=false apps/backend/src/server.ts",
     "live": "docker compose up -d --wait smartflux-pg && pnpm smoke && pnpm demo",
