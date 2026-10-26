@@ -460,3 +460,27 @@ button.mrow { border: 0; width: 100%; font: inherit; color: inherit; cursor: poi
 .note .icon { color: var(--primary-text); margin-top: 2px; }
 .approval .textlink { text-decoration: none; min-height: 32px; }
 .recent { gap: 6px; }
+
+/* Customer machines (Figma: customer machines / outlet catalog) */
+.xs { font: 500 12px/16px var(--font-body); }
+.promo-card { background: linear-gradient(120deg, var(--secondary-300), var(--tertiary)); border-color: transparent; color: var(--text-on-accent); }
+.promo-card .eyebrow { color: rgb(15 6 30 / .7); }
+.promo-card .app-tile.warm { background: rgb(15 6 30 / .12); color: #7A3A00; border-color: rgb(15 6 30 / .15); box-shadow: none; }
+.live-status { gap: 10px; }
+.live-h { font: 800 20px/26px var(--font-head); display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; }
+.live-h b { font-weight: 800; }
+.split { display: flex; gap: 3px; height: 8px; border-radius: var(--r-full); background: var(--surface-3); overflow: hidden; }
+.split > span { display: block; height: 100%; border-radius: var(--r-full); }
+.split .w { background: var(--secondary); }
+.split .d { background: var(--primary-soft); }
+.tile { gap: 12px; }
+.tile .name b { font: 700 16px/20px var(--font-head); }
+.mini-tile { width: 36px; height: 36px; border-radius: var(--r-md); display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--edge); color: var(--primary-text); }
+.mini-tile .icon { font-size: 20px; }
+.tile.in_use .mini-tile { color: var(--secondary-300); }
+.tile .end-row { align-items: baseline; margin-top: auto; }
+.tile.maintenance { opacity: 1; background: var(--bg); border-style: dashed; }
+.tile.maintenance > * { opacity: .5; filter: grayscale(1); }
+.tile.maintenance .price { color: var(--text-muted); }
+.xs-label.block { display: block; }
+.tile .end-row { flex-wrap: wrap; gap: 2px 8px; align-items: flex-end; }
