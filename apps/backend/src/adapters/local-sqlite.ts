@@ -9,7 +9,7 @@ const NUMERIC = /^-?\d+(\.\d+)?$/;
 export function openSampleDb(dir: string) {
   const db = new DatabaseSync(":memory:");
   for (const file of readdirSync(dir).filter((f) => f.endsWith(".csv"))) {
-    const [head, ...lines] = readFileSync(join(dir, file), "utf8").trim().split("\n");
+    const [head, ...lines] = readFileSync(join(dir, file), "utf8").trim().split(/\r?\n/); // Windows checkouts have CRLF line endings
     if (!lines.length) continue;
     const cols = head.split(",");
     const first = lines[0].split(",");
