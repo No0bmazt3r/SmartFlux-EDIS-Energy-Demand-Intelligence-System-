@@ -80,6 +80,11 @@ const DICT = {
   liveStatus: ["Live outlet status", "Status premis langsung"], ofN: ["of", "daripada"], availableLc: ["available", "tersedia"],
   washerFree: ["washer free", "pembasuh kosong"], dryerFree: ["dryer free", "pengering kosong"],
   perCycleShort: ["/ cycle", "/ kitaran"], unavailable: ["Unavailable", "Tidak tersedia"],
+  inUseNow: ["In use now", "Digunakan kini"], health: ["Health", "Kesihatan"], needAttention: ["need attention", "perlu perhatian"], allOk: ["All OK", "Semua OK"],
+  energyMargin: ["Energy margin", "Margin tenaga"], afterEnergy: ["lowest price minus energy cost, per cycle", "harga terendah tolak kos tenaga, setiap kitaran"], marginLc: ["margin", "margin"],
+  vsNormal: ["vs normal", "berbanding biasa"], energyCycle: ["Energy per cycle", "Tenaga setiap kitaran"], minutesCycle: ["Minutes per cycle", "Minit setiap kitaran"],
+  howHelp: ["How can I help you today?", "Apa yang boleh saya bantu hari ini?"], suggestedQ: ["Suggested questions", "Soalan cadangan"], send: ["Send", "Hantar"],
+  askSub: ["Ask about your machines, bill, tariff or solar. Every answer comes with its evidence.", "Tanya tentang mesin, bil, tarif atau solar. Setiap jawapan disertakan bukti."],
   aService: ["Service", "Servis"], aPromo: ["Run promo", "Adakan promosi"], aTou: ["Switch to ToU", "Tukar ke ToU"], aQuote: ["Request solar quote", "Minta sebut harga solar"],
 } satisfies Record<string, [string, string]>;
 export type T = ReturnType<typeof useT>;
