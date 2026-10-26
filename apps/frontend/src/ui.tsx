@@ -66,6 +66,11 @@ const DICT = {
   machinesFree: ["machines free", "mesin kosong"], hq: ["Franchise dashboard", "Papan pemuka francais"],
   chooseDate: ["Choose date", "Pilih tarikh"], prevMonth: ["Previous month", "Bulan sebelumnya"], nextMonth: ["Next month", "Bulan seterusnya"],
   sessions: ["Demo sessions", "Sesi demo"], outlet: ["Outlet", "Premis"],
+  selectedOutlet: ["Selected outlet", "Premis dipilih"], machinesTracked: ["machines tracked", "mesin dijejak"], dataAsOf: ["data as of", "data pada"],
+  liveDiag: ["Live diagnostics", "Diagnostik semasa"], items: ["items", "perkara"], attention: ["Attention required", "Perlu perhatian"],
+  verifiedChip: ["Verified", "Disahkan"], reportChip: ["Customer report", "Laporan pelanggan"], openPlan: ["Open plan", "Buka pelan"], saves: ["Saves", "Jimat"],
+  soFarCap: ["So far", "Setakat ini"], projectedCap: ["Projected", "Anggaran"], approvedN: ["approved", "diluluskan"], advisedN: ["advised", "dinasihatkan"],
+  accountMenu: ["Account menu", "Menu akaun"], allClear: ["All clear: no flags and nothing new to verify.", "Semua baik: tiada bendera dan tiada yang perlu disahkan."],
   aService: ["Service", "Servis"], aPromo: ["Run promo", "Adakan promosi"], aTou: ["Switch to ToU", "Tukar ke ToU"], aQuote: ["Request solar quote", "Minta sebut harga solar"],
 } satisfies Record<string, [string, string]>;
 export type T = ReturnType<typeof useT>;

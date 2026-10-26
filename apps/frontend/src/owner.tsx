@@ -1,8 +1,8 @@
 // Owner app (features.md Part A): briefing, energy plan, ask, decisions, evidence, approvals, machines.
 import { useState } from "react";
-import { api, linkProps, match, navigate, usePath, usePrefs, useApi } from "./api.ts";
+import { api, linkProps, match, navigate, setPref, usePath, usePrefs, useApi } from "./api.ts";
 import {
-  BottomNav, Confidence, DecisionCard, DemoControls, Failed, Icon, Loading, ModeBadge, RiskBadge, Sparkline, StatusBadge, Timeline, TopBar, WeeklyChart,
+  BottomNav, Confidence, DatePicker, DecisionCard, Dropdown, Failed, Icon, Loading, ModeBadge, RiskBadge, Sparkline, StatusBadge, Timeline, TopBar, WeeklyChart,
   day, rm, short, useT, useToast, type Decision, type T, type LogEvent, type Week,
 } from "./ui.tsx";
 
@@ -27,56 +27,108 @@ async function ask(outlet: string, asOf: string, lang: string, body: { question?
   return r.run_id;
 }
 
-function Home({ o, outlet, reload }: Ctx) {
+// M-02 Home, laid out like the team's Figma design: outlet card (outlet and demo date live here, so the header stays
+// clean), briefing, this month, live diagnostics, energy plan, verified savings, and a floating Ask button.
+// Every figure comes from the API; nothing on this screen is a placeholder.
+const briefIcon = (b: string) => /saved|verified|disahkan|dijimat/i.test(b) ? "verified" : /ToU|tariff|tarif|peak|puncak/i.test(b) ? "bolt" : /dryer|washer|pengering|pembasuh|machine|mesin/i.test(b) ? "local_laundry_service" : "trending_up";
+type PlanRun = { result: { decisions: Decision[] } };
+function Home({ o, outlet, reload, outlets }: Ctx & { outlets?: { outlet_id: string; name: string }[] }) {
   const t = useT(), p = usePrefs();
   const [busy, setBusy] = useState(false);
   const k = o.outlet.kpis;
   const plan = o.run_log.find((r) => r.intents?.includes("energy_plan") && r.as_of === o.as_of);
-  const alerts = [
-    ...o.machines.filter((m) => m.health === "flagged" || m.health === "service_approved").map((m) => ({ icon: "warning", cls: "warn", text: m.flag?.verdict ?? `${m.name} flagged`, href: `/machines/${m.machine_id}` })),
-    ...o.advice.filter((a) => a.verified).map((a) => ({ icon: a.verified!.verdict === "verified" ? "check_circle" : "hourglass_empty", cls: a.verified!.verdict === "verified" ? "ok" : "muted",
-      text: `${actionTitle(a, t)}: ${a.verified!.verdict === "verified" ? `${t("savingVerified")} ${rm(a.verified!.realised_rm_per_month, 2)}${t("perMonth")}` : a.verified!.verdict.replace("_", " ")}`, href: "/approvals?tab=history" })),
-    ...o.machines.filter((m) => m.customer_reports.length).map((m) => ({ icon: "campaign", cls: "info", text: `${t("custReported")} ${m.name}: ${reasonLabel(m.customer_reports.at(-1)!.reason, t)}`, href: `/machines/${m.machine_id}` })),
+  const planRun = useApi<PlanRun>(plan ? `/runs/${plan.run_id}` : null);
+  const planSaving = planRun.data?.result.decisions.find((d) => d.type === "energy_plan" || d.type === "energy")?.rm_per_month;
+  const diag = [
+    ...o.machines.filter((m) => m.health === "flagged" || m.health === "service_approved").map((m) => ({ kind: "warn", chip: t("attention"), icon: "warning",
+      title: m.flag?.verdict ?? `${m.name} flagged`, body: [m.flag?.evidence, m.flag?.rm_per_month != null ? `${rm(m.flag.rm_per_month, 2)}${t("perMonth")} ${t("wasted")}` : null].filter(Boolean).join(" · "), href: `/machines/${m.machine_id}` })),
+    ...o.advice.filter((a) => a.verified).map((a) => ({ kind: a.verified!.verdict === "verified" ? "ok" : "muted", chip: a.verified!.verdict === "verified" ? t("verifiedChip") : a.verified!.verdict.replace("_", " "),
+      icon: a.verified!.verdict === "verified" ? "check_circle" : "hourglass_empty", title: actionTitle(a, t),
+      body: a.verified!.verdict === "verified" ? `${t("savingVerified")}: ${rm(a.verified!.realised_rm_per_month, 2)}${t("perMonth")}` : "", href: "/approvals?tab=history" })),
+    ...o.machines.filter((m) => m.customer_reports.length).map((m) => ({ kind: "info", chip: t("reportChip"), icon: "campaign", title: m.name,
+      body: `${t("custReported")}: ${reasonLabel(m.customer_reports.at(-1)!.reason, t)}`, href: `/machines/${m.machine_id}` })),
   ];
+  const advised = o.advice.length, approved = o.advice.filter((a) => a.status !== "awaiting_approval" && a.status !== "rejected").length;
+  const pctBill = Math.min(100, (k.cost_rm_month_to_date / k.projected_bill_rm) * 100);
   const brief = async () => { setBusy(true); try { navigate(`/briefing/${await ask(outlet, o.as_of, p.lang, { briefing: true })}`); reload(); } finally { setBusy(false); } };
+  const wd = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString(p.lang === "ms" ? "ms-MY" : "en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
   return (
-    <div className="stack">
-      <div className="hello">{p.session?.name && <p className="muted">{t("hello")}, {p.session.name.split(/[ (]/)[0]}</p>}<h2 className="title-lg">SmartFlux {o.outlet.name}</h2></div>
+    <div className="stack home">
+      {p.session?.name && <p className="muted">{t("hello")}, {p.session.name.split(/[ (]/)[0]}</p>}
+      <section className="card owner-outlet">
+        <div className="row"><span className="app-tile"><Icon name="storefront" /></span>
+          <div className="grow"><span className="mono-label">{t("selectedOutlet")}</span><h2 className="h3">{o.outlet.outlet_id} {o.outlet.name}</h2>
+            <span className="sm muted row"><span className="dot ok" aria-hidden />{o.machines.length} {t("machinesTracked")}</span></div></div>
+        <div className="row wrap">
+          {outlets && outlets.length > 1 && <Dropdown label={t("outlet")} value={outlet} onChange={(v) => setPref("outlet", v)}
+            options={outlets.map((x) => ({ value: x.outlet_id, label: `${x.outlet_id} ${x.name}` }))} />}
+          <DatePicker value={p.asOf} onChange={(d) => setPref("asOf", d)} />
+        </div>
+      </section>
       {o.briefing ? (
-        <section className="card briefing">
-          <span className="label">{t("weeklyBriefing")} · {day(o.briefing.as_of)}</span>
-          <ul>{o.briefing.decisions[0].evidence.slice(0, 3).map((b) => <li key={b}>{b}</li>)}</ul>
-          <a className="btn inverted" {...linkProps(`/briefing/${o.briefing.run_id}`)}>{t("open")}</a>
+        <section className="card briefing hero">
+          <div className="row between wrap"><span className="chip soft sm-chip"><Icon name="calendar_month" className="sm" /><span className="caps">{wd(o.briefing.as_of)} · {t("weeklyBriefing")}</span></span>
+            <a className="btn inverted sm-btn" {...linkProps(`/briefing/${o.briefing.run_id}`)}>{t("open")}<Icon name="chevron_right" className="sm" /></a></div>
+          <ul className="ticks">{o.briefing.decisions[0].evidence.slice(0, 3).map((b) => <li key={b}><Icon name={briefIcon(b)} className="sm" />{b}</li>)}</ul>
         </section>
       ) : (
-        <section className="card briefing">
-          <span className="label">{t("weeklyBriefing")}</span>
+        <section className="card briefing hero">
+          <span className="chip soft sm-chip"><Icon name="calendar_month" className="sm" /><span className="caps">{t("weeklyBriefing")}</span></span>
           <p>{t("briefingNone")}</p>
           <button className="btn inverted" disabled={busy} onClick={brief}>{busy ? t("preparing") : t("prepareNow")}</button>
         </section>
       )}
       <section className="card">
-        <span className="label muted">{t("thisMonth")} · {t("to")} {day(o.as_of)}</span>
-        <p className="display num">{Math.round(k.kwh_month_to_date).toLocaleString()} kWh</p>
-        <p className="num">{rm(k.cost_rm_month_to_date)} {t("soFar")} · {t("projected")} {rm(k.projected_bill_rm)}</p>
-        <div className="bar" role="progressbar" aria-label={t("billBar")} aria-valuenow={Math.round((k.cost_rm_month_to_date / k.projected_bill_rm) * 100)}><span style={{ width: `${Math.min(100, (k.cost_rm_month_to_date / k.projected_bill_rm) * 100)}%` }} /></div>
+        <div className="row between"><span className="h3 row"><Icon name="bolt" className="peak" />{t("thisMonth")}</span><span className="sm muted">{t("to")} {day(o.as_of)}</span></div>
+        <div><p className="display num">{Math.round(k.kwh_month_to_date).toLocaleString()} <span className="unit">kWh</span></p>
+          <p className="h3 num save">{rm(k.cost_rm_month_to_date)} <span className="sm muted">{t("soFar")}</span></p></div>
+        <div className="bar grad" role="progressbar" aria-label={t("billBar")} aria-valuenow={Math.round(pctBill)}><span style={{ width: `${pctBill}%` }} /></div>
+        <div className="row between sm"><span className="muted">{t("soFarCap")}</span><span>{t("projectedCap")}: <b className="num">{rm(k.projected_bill_rm)}</b></span></div>
         <p className="sm muted">{t("peakShare")} {(o.outlet.tariff.peak_share * 100).toFixed(1)}% · {t("breakeven")} {(o.outlet.tariff.breakeven * 100).toFixed(1)}%</p>
       </section>
-      {alerts.length > 0 && <section className="stack tight" aria-label={t("alerts")}>
-        <h3>{t("alerts")}</h3>
-        <div className="list">{alerts.map((a) => <a key={a.text} className="mrow" {...linkProps(a.href)}><Icon name={a.icon} className={a.cls} /><span className="grow">{a.text}</span><Icon name="chevron_right" className="muted" /></a>)}</div>
-      </section>}
-      <a className="card link" {...linkProps("/plan")}>
-        <span className="label muted row"><Icon name="solar_power" className="sm" />{t("energyPlan")}</span>
-        <div className="row between"><h3>{plan ? plan.verdicts[0] : t("planTeaser")}</h3><Icon name="chevron_right" className="muted" /></div>
+      <section className="stack tight" aria-label={t("liveDiag")}>
+        <div className="row between"><h3>{t("liveDiag")}</h3><span className="sm muted">{diag.length} {t("items")}</span></div>
+        {diag.length ? diag.map((a) => (
+          <a key={a.title + a.chip} className={`card link diag ${a.kind}`} {...linkProps(a.href)}>
+            <span className={`chip diag-chip ${a.kind}`}><Icon name={a.icon} className="sm" /><span className="caps">{a.chip}</span></span>
+            <span className="h3">{a.title}</span>
+            {a.body && <span className="sm muted">{a.body}</span>}
+            <span className="row end sm">{t("open")}<Icon name="arrow_forward" className="sm" /></span>
+          </a>
+        )) : <p className="card sm muted">{t("allClear")}</p>}
+      </section>
+      <a className="card link plan-teaser" {...linkProps("/plan")}>
+        <div className="row"><span className="app-tile"><Icon name="solar_power" /></span>
+          <div className="grow"><span className="mono-label">{t("energyPlan")}</span><h3>{plan ? plan.verdicts[0] : t("planTeaser")}</h3>
+            {planSaving != null && <span className="save num">{t("saves")} {rm(planSaving, 2)}{t("perMonth")}</span>}</div></div>
+        <span className="chip soft sm-chip end-self">{t("openPlan")}<Icon name="chevron_right" className="sm" /></span>
       </a>
       <section className="card">
-        <span className="label muted">{t("verifiedSavings")}</span>
-        {o.verified_savings_rm_per_month > 0 ? <p className="h3 save num">{rm(o.verified_savings_rm_per_month, 2)}{t("savedFromAdvice")}</p>
+        <span className="h3 row"><Icon name="verified" className="ok" />{t("verifiedSavings")}</span>
+        {o.verified_savings_rm_per_month > 0 ? <p className="num"><span className="display save">{rm(o.verified_savings_rm_per_month, 2)}</span><span className="muted">{t("savedFromAdvice")}</span></p>
           : <p className="sm muted"><span className="h3 num">{rm(0, 2)}</span><br />{t("noSavingsYet")}</p>}
+        <span className="sm muted num">{advised} {t("advisedN")} · {approved} {t("approvedN")}</span>
       </section>
+      <a className="fab" {...linkProps("/ask")}><Icon name="auto_awesome" />{t("ask")}</a>
     </div>
   );
+}
+
+// Header on Home: brand, language and account only (outlet and date sit in the outlet card).
+function HomeControls() {
+  const p = usePrefs(), t = useT();
+  return <>
+    <button className="icon-btn lang-btn" aria-label={`${t("language")}: ${p.lang === "en" ? "English" : "Bahasa Melayu"}`} onClick={() => setPref("lang", p.lang === "en" ? "ms" : "en")}>
+      <Icon name="translate" /><span className="sm num">{p.lang === "en" ? "EN" : "BM"}</span></button>
+    {p.session!.role === "superadmin" && <a className="back" aria-label={t("hq")} title={t("hq")} {...linkProps("/franchise")}><Icon name="monitoring" /></a>}
+    <details className="acct">
+      <summary className="avatar" aria-label={t("accountMenu")}>{p.session?.name?.[0] ?? "S"}</summary>
+      <div className="pop end acct-pop">
+        <span className="sm muted">{p.session?.name}</span>
+        <button className="btn secondary sm-btn" onClick={() => { setPref("session", null); navigate("/login"); }}><Icon name="logout" className="sm" />{t("signOut")}</button>
+      </div>
+    </details>
+  </>;
 }
 
 // M-06: progress while the agent works; the real steps come from the run's log afterwards.
@@ -366,13 +418,10 @@ export function OwnerApp() {
   else if (match("/approvals", path)) { screen = <Approvals {...ctx} />; title = t("approvals"); }
   else if (match("/ask", path)) { screen = <Ask {...ctx} />; title = t("ask"); }
   else if (match("/plan", path)) { screen = <Plan {...ctx} />; title = t("energyPlan"); back = "/outlet"; }
-  else screen = <Home {...ctx} />;
+  else screen = <Home {...ctx} outlets={outlets.data?.filter((x) => prefs.session!.outlets.includes(x.outlet_id))} />;
   return (
     <div className="app">
-      <TopBar title={title} back={back}>{!title && <>
-        <DemoControls outlets={outlets.data?.filter((x) => prefs.session!.outlets.includes(x.outlet_id)).map((x) => ({ id: x.outlet_id, name: x.name }))} />
-        {prefs.session!.role === "superadmin" && <a className="back" aria-label={t("hq")} title={t("hq")} {...linkProps("/franchise")}><Icon name="monitoring" /></a>}
-      </>}</TopBar>
+      <TopBar title={title} back={back}>{!title && <HomeControls />}</TopBar>
       {screen}
       <BottomNav pending={o?.advice.filter((a) => a.status === "awaiting_approval").length ?? 0} />
     </div>
