@@ -387,3 +387,38 @@ button.mrow { border: 0; width: 100%; font: inherit; color: inherit; cursor: poi
 .sentback p { margin: 4px 0 0; }
 @media (max-width: 1100px) { .trace { grid-template-columns: repeat(3, minmax(0, 1fr)); } .trace-step::after { display: none; } }
 @media (max-width: 640px) { .trace { grid-template-columns: 1fr; } }
+
+/* Owner Home (Figma M-02) */
+.home { gap: 16px; padding-bottom: 72px; } /* room for the floating Ask button */
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: var(--r-full); background: var(--text-muted); margin-right: 6px; }
+.dot.ok { background: var(--success); box-shadow: 0 0 8px rgb(110 231 183 / .6); }
+.owner-outlet .app-tile, .plan-teaser .app-tile { width: 44px; height: 44px; }
+.owner-outlet .row.wrap > .picker { flex: 1; min-width: 150px; }
+.briefing.hero { background: linear-gradient(140deg, var(--primary-deep-1), var(--primary-deep-2)); border-color: rgb(157 78 221 / .55); box-shadow: var(--glow); }
+.sm-chip { font-size: 12px; padding: 4px 10px; gap: 6px; }
+.briefing .chip.soft { background: rgb(255 255 255 / .1); color: var(--tertiary); white-space: normal; }
+.caps { text-transform: uppercase; letter-spacing: .04em; }
+.ticks { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.ticks li { display: flex; gap: 10px; align-items: flex-start; }
+.ticks .icon { color: var(--tertiary); margin-top: 2px; }
+.bar.grad { height: 8px; border-radius: var(--r-full); }
+.bar.grad > span { background: linear-gradient(90deg, var(--primary), var(--tertiary)); border-radius: var(--r-full); }
+.diag { gap: 8px; border: 1px solid var(--edge); }
+.diag.warn { border-color: rgb(255 145 0 / .45); background: linear-gradient(160deg, rgb(255 145 0 / .08), var(--surface) 60%); }
+.diag.ok { border-color: rgb(110 231 183 / .3); }
+.diag-chip { font-size: 11px; padding: 3px 8px; }
+.diag-chip.warn { background: rgb(242 139 130 / .16); color: var(--danger); }
+.diag-chip.ok { background: rgb(110 231 183 / .14); color: var(--success); }
+.diag-chip.info, .diag-chip.muted { background: var(--surface-3); color: var(--text); }
+.row.end { justify-content: flex-end; color: var(--primary-text); }
+.end-self { align-self: flex-end; }
+.plan-teaser { border: 1px solid var(--edge); }
+.fab { position: fixed; z-index: 9; right: max(16px, calc(50% - 224px)); bottom: calc(80px + env(safe-area-inset-bottom)); display: inline-flex; align-items: center; gap: 8px;
+  padding: 0 20px; height: 52px; border-radius: var(--r-full); background: linear-gradient(135deg, var(--secondary), var(--secondary-300)); color: var(--text-on-accent);
+  font: 700 16px/1 var(--font-head); text-decoration: none; box-shadow: var(--glow-warm); }
+.lang-btn { width: auto; padding: 0 10px; gap: 4px; display: inline-flex; align-items: center; color: var(--text); background: var(--surface-2); }
+.acct { position: relative; flex: none; width: 40px; }
+.acct > summary { list-style: none; cursor: pointer; min-height: 0; }
+.acct > summary::before { content: none; }
+.acct > summary::-webkit-details-marker { display: none; }
+.acct-pop { padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 180px; }
