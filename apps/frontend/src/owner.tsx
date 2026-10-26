@@ -154,6 +154,7 @@ const SUGGEST = {
   en: ["Solar, ToU or both?", "Why was my bill higher?", "Which machine is wasting money?", "Did the D4 service work?", "When should I run a promo?"],
   ms: ["Solar, ToU atau kedua-duanya?", "Kenapa bil saya lebih tinggi?", "Mesin mana yang membazir wang?", "Adakah servis D4 berkesan?", "Bila patut saya adakan promosi?"],
 };
+const SUGGEST_ICON = ["solar_power", "trending_up", "build", "verified", "local_offer"]; // same order as SUGGEST
 function Ask({ outlet, o, reload }: Ctx) {
   const p = usePrefs(), t = useT();
   const [q, setQ] = useState(""), [busy, setBusy] = useState(false), [err, setErr] = useState("");
@@ -162,20 +163,34 @@ function Ask({ outlet, o, reload }: Ctx) {
     try { const id = await ask(outlet, o.as_of, p.lang, { question }); reload(); navigate(`/result/${id}`); }
     catch (e) { setErr((e as Error).message); setBusy(false); }
   };
+  const recent = o.run_log.filter((r) => r.kind === "ask").slice(0, 5);
   return (
-    <div className="stack">
-      <form className="stack tight" onSubmit={(e) => { e.preventDefault(); q.trim() && go(q.trim()); }}>
-        <label htmlFor="q" className="h3">{t("askSF")}</label>
-        <textarea id="q" className="input" value={q} onChange={(e) => setQ(e.target.value)} lang={p.lang}
-          placeholder={t("askPh")} />
-        <button className="btn cta" disabled={busy || !q.trim()}>{t("ask")}</button>
-      </form>
-      <div className="filter wrap">{SUGGEST[p.lang].map((s) => <button key={s} disabled={busy} onClick={() => go(s)}>{s}</button>)}</div>
+    <div className="stack ask">
+      <section className="ask-hero">
+        <span className="app-tile lg"><Icon name="auto_awesome" /></span>
+        <h2>{t("howHelp")}</h2>
+        <p className="sm muted">{t("askSub")}</p>
+      </section>
+      <section className="stack tight">
+        <h3 className="row"><Icon name="lightbulb" className="sm warm" />{t("suggestedQ")}</h3>
+        <div className="qgrid">{SUGGEST[p.lang].map((s, i) =>
+          <button key={s} className="qcard" disabled={busy} onClick={() => go(s)}><Icon name={SUGGEST_ICON[i] ?? "help"} className="warm" /><span>{s}</span></button>)}</div>
+      </section>
       {busy && <section className="card"><Working /></section>}
       {err && <Failed error={err} />}
-      <h3>{t("recent")}</h3>
-      <div className="list">{o.run_log.filter((r) => r.kind === "ask").slice(0, 5).map((r) =>
-        <a key={r.run_id} className="mrow" {...linkProps(`/result/${r.run_id}`)}><Icon name="history" className="muted" /><span className="grow">{r.question}<br /><span className="sm muted">{r.verdicts[0]} · {t("asOfLc")} {day(r.as_of)}</span></span></a>)}</div>
+      {recent.length > 0 && <section className="stack tight">
+        <h3 className="row"><Icon name="history" className="sm" />{t("recent")}</h3>
+        {recent.map((r) =>
+          <a key={r.run_id} className="card link recent-q" {...linkProps(`/result/${r.run_id}`)}>
+            <div className="row"><Icon name="chat_bubble" className="sm muted" /><span className="grow clip">{r.question}</span><span className="xs muted">{day(r.as_of)}</span><Icon name="chevron_right" className="sm muted" /></div>
+            {r.verdicts[0] && <span className="sm muted clip">{r.verdicts[0]}</span>}
+          </a>)}
+      </section>}
+      <form className="ask-bar" onSubmit={(e) => { e.preventDefault(); q.trim() && go(q.trim()); }}>
+        <label htmlFor="q" className="sr-only">{t("askSF")}</label>
+        <input id="q" className="input" value={q} onChange={(e) => setQ(e.target.value)} lang={p.lang} placeholder={t("askPh")} autoComplete="off" />
+        <button className="send" aria-label={t("send")} disabled={busy || !q.trim()}><Icon name="arrow_upward" /></button>
+      </form>
     </div>
   );
 }
@@ -412,27 +427,58 @@ function Approvals({ o, reload }: Ctx) {
 function Machines({ o }: Ctx) {
   const t = useT();
   const [f, setF] = useState<"all" | "washer" | "dryer" | "flagged">("all");
-  const shown = o.machines.filter((m) => f === "all" || (f === "flagged" ? m.health !== "ok" : m.type === f));
+  const ms = o.machines;
+  const shown = ms.filter((m) => f === "all" || (f === "flagged" ? m.health !== "ok" : m.type === f));
+  const n = (k: typeof f) => ms.filter((m) => k === "all" || (k === "flagged" ? m.health !== "ok" : m.type === k)).length;
+  // Summary row (Figma M-11). Attention = flagged, or service approved and not yet verified. The margin is over energy
+  // only (lowest price minus the learned energy cost per cycle), averaged over machines SmartFlux has costed (dryers).
+  const inUse = ms.filter((m) => m.status === "in_use").length, maint = ms.filter((m) => m.status === "maintenance").length;
+  const attention = ms.filter((m) => m.health === "flagged" || m.health === "service_approved");
+  const costed = ms.filter((m) => m.cost_per_cycle_rm != null && m.price_from_rm);
+  const margin = costed.length ? costed.reduce((s, m) => s + (m.price_from_rm! - m.cost_per_cycle_rm!) / m.price_from_rm!, 0) / costed.length : null;
   return (
     <div className="stack">
-      <div className="filter" role="group" aria-label="Filter">
-        {([["all", t("all")], ["washer", t("washers")], ["dryer", t("dryers")], ["flagged", t("flagged")]] as const).map(([k, l]) => <button key={k} aria-pressed={f === k} onClick={() => setF(k)}>{l}</button>)}
+      <div className="stats">
+        <div className="stat"><span className="label caps muted">{t("inUseNow")}</span><b className="num">{inUse}<span className="muted">/{ms.length}</span></b>
+          {maint > 0 && <span className="xs muted">{maint} {t("maintShort").toLowerCase()}</span>}</div>
+        <div className="stat"><span className="label caps muted">{t("health")}</span>
+          {attention.length ? <><b className="num waste">{attention.length}</b><span className="xs muted">{t("needAttention")}: {attention.map((m) => m.name).join(", ")}</span></>
+            : <><b className="ok">{t("allOk")}</b></>}</div>
+        {margin != null && <div className="stat"><span className="label caps muted">{t("energyMargin")}</span><b className="num save">{Math.round(margin * 100)}%</b>
+          <span className="xs muted">{t("afterEnergy")}</span></div>}
       </div>
-      {!o.machines.some((m) => m.normal) && <p className="card sm">{t("normalHint")}</p>}
-      <div className="list">{shown.map((m) => (
-        <a key={m.machine_id} className="mrow" {...linkProps(`/machines/${m.machine_id}`)}>
-          <Icon name={m.type === "dryer" ? "mode_heat" : "local_laundry_service"} className="muted" />
-          <div className="grow stack tight">
-            <div className="row between wrap"><span className="h3">{m.name}</span><Sparkline weeks={m.weekly} normal={normalOf(m)} /><StatusBadge s={m.health} /></div>
-            <div className="row wrap sm">
-              {m.type === "dryer" && <span className="muted">{t(m.heat_source === "gas" ? "gas" : "electric")}</span>}
-              {m.normal && <span className="num">{m.heat_source === "gas" ? `${m.normal.minutes_per_cycle?.toFixed(0)} min` : `${m.normal.kwh_per_cycle?.toFixed(2)} kWh`} {t("perCycle")}</span>}
+      <div className="filter" role="group" aria-label="Filter">
+        {([["all", t("all")], ["washer", t("washers")], ["dryer", t("dryers")], ["flagged", t("flagged")]] as const).map(([k, l]) => <button key={k} aria-pressed={f === k} onClick={() => setF(k)}>{l} ({n(k)})</button>)}
+      </div>
+      {!ms.some((m) => m.normal) && <p className="card sm">{t("normalHint")}</p>}
+      {shown.map((m) => {
+        const latest = [...m.weekly].reverse().find((w) => w.value != null), normal = normalOf(m), gas = m.heat_source === "gas";
+        const delta = latest?.value != null && normal ? ((latest.value - normal) / normal) * 100 : null;
+        return (
+          <a key={m.machine_id} className={`card link mcard ${m.health}`} {...linkProps(`/machines/${m.machine_id}`)}>
+            <div className="row">
+              <span className="mini-tile"><Icon name={m.type === "dryer" ? "mode_heat" : "local_laundry_service"} /></span>
+              <span className="grow row wrap"><b className="h3">{t(m.type === "dryer" ? "dryer" : "washer")} {m.name}</b>
+                {m.type === "dryer" && <span className="chip soft sm-chip">{t(gas ? "gas" : "electric")}</span>}</span>
+              <StatusBadge s={m.health} />
             </div>
-            {m.cost_per_cycle_rm != null && <p className="sm">{t("costs")} {rm(m.cost_per_cycle_rm, 2)} · {t("youCharge")} {m.price_from_rm === m.price_to_rm ? rm(m.price_from_rm, 2) : `${rm(m.price_from_rm)}–${rm(m.price_to_rm)}`}</p>}
-            {m.customer_reports.length > 0 && <p className="sm info"><Icon name="campaign" className="sm" /> {m.customer_reports.length} {t("custReports")}</p>}
-          </div>
-        </a>
-      ))}</div>
+            {normal != null && latest?.value != null ? (
+              <div className="row between">
+                <div className="stack tight"><span className="label caps muted">{t(gas ? "minutesCycle" : "energyCycle")}</span>
+                  <span><b className="num">{gas ? latest.value.toFixed(0) : latest.value.toFixed(2)}</b> {gas ? "min" : "kWh"}
+                    {delta != null && <span className={`sm ${attention.includes(m) ? "waste" : "muted"}`}> {Math.round(delta) === 0 ? "±0" : `${delta > 0 ? "+" : ""}${Math.round(delta)}`}% {t("vsNormal")}</span>}</span></div>
+                <Sparkline weeks={m.weekly} normal={normal} />
+              </div>
+            ) : <div className="row end-self"><Sparkline weeks={m.weekly} normal={normal} /></div>}
+            <p className="sm mline">
+              {m.cost_per_cycle_rm != null && <>{t("costs")} <b>{rm(m.cost_per_cycle_rm, 2)}</b> · </>}
+              {t("youCharge")} <b>{m.price_from_rm === m.price_to_rm ? rm(m.price_from_rm, 2) : `${rm(m.price_from_rm)}–${rm(m.price_to_rm)}`}</b>
+              {m.cost_per_cycle_rm != null && m.price_from_rm != null && <> · <b className="save">{rm(m.price_from_rm - m.cost_per_cycle_rm, 2)}</b> {t("marginLc")}</>}
+            </p>
+            {m.customer_reports.length > 0 && <p className="sm info row"><Icon name="campaign" className="sm" />{m.customer_reports.length} {t("custReports")}</p>}
+          </a>
+        );
+      })}
     </div>
   );
 }
