@@ -17,8 +17,8 @@ const typeIcon = (m: Machine) => (m.type === "dryer" ? "mode_heat" : "local_laun
 function Pill({ m }: { m: Machine }) {
   const t = useT();
   if (m.status === "maintenance") return <span className="pill"><Icon name="build" className="xs" />{t("maintShort")}</span>;
-  if (m.status === "in_use") return <span className="pill busy">{m.minutes_left}{t("mLeft")}</span>;
-  return <span className="pill ok">{t("ready")}</span>;
+  if (m.status === "in_use") return <span className="pill busy"><Icon name="schedule" className="xs" />{m.minutes_left}{t("mLeft")}</span>;
+  return <span className="pill ok"><Icon name="check_circle" className="xs" />{t("ready")}</span>;
 }
 
 // The outlet the customer picked (a guest has exactly one), its name, and its live machines.
@@ -41,6 +41,7 @@ function Home() {
   const [filter, setFilter] = useState<"all" | "washer" | "dryer" | "free">("all");
   const v = view.data;
   const shown = v?.machines.filter((m) => filter === "all" || (filter === "free" ? m.status === "free" : m.type === filter)) ?? [];
+  const count = (type: string) => v?.machines.filter((m) => m.type === type).length ?? 0;
   return (
     <div className="stack">
       <div className="hello">
@@ -52,29 +53,32 @@ function Home() {
         {v && <span className="sm muted row wrap">{t("updated")} {day(v.at)}, {v.at.slice(11, 16)} <ModeBadge mode={v.mode} /></span>}
         <Icon name="chevron_right" className="muted corner" />
       </a>
+      {/* Only happy hours the owner approved reach this list (GET /availability), so nothing here is a guess. */}
       {v?.promos.map((p) => (
         <section key={p.slot} className="card promo-card">
           <span className="app-tile warm"><Icon name="bolt" /></span>
-          <div><span className="eyebrow warm">{t("happyHour")}</span><p className="h3">{slot(p.slot, lang)}</p></div>
+          <div><span className="eyebrow">{t("happyHour")}</span><p className="h3">{slot(p.slot, lang)}</p></div>
         </section>
       ))}
       {view.loading && !v && <Loading />}
       {view.error && <Failed error={view.error} />}
       {v && <>
-        <div className="row between"><span className="eyebrow">{t("liveMachines")}</span>
-          <span className="sm row legend"><span className="dot ok" aria-hidden />{t("available")}<span className="dot busy" aria-hidden />{t("busy")}</span></div>
+        <LiveStatus machines={v.machines} />
         <div className="filter" role="group" aria-label="Filter">
-          {([["all", `${t("all")} (${v.machines.length})`], ["washer", t("washers")], ["dryer", t("dryers")], ["free", t("freeNow")]] as const).map(([k, label]) =>
+          {([["all", `${t("all")} (${v.machines.length})`], ["washer", `${t("washers")} (${count("washer")})`], ["dryer", `${t("dryers")} (${count("dryer")})`], ["free", t("freeNow")]] as const).map(([k, label]) =>
             <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>)}
         </div>
         <div className="tiles">
           {shown.map((m) => (
             <a key={m.machine_id} className={`tile ${m.status}`} {...linkProps(`/customer/machine/${m.machine_id}`)}>
-              <span className="row between"><b>{m.name}</b><Pill m={m} /></span>
-              <span className="well"><Icon name={typeIcon(m)} /></span>
+              <span className="row between"><span className="mini-tile"><Icon name={m.status === "maintenance" ? "build" : typeIcon(m)} /></span><Pill m={m} /></span>
+              <span className="stack tight name">
+                <b>{m.name} {t(m.type === "dryer" ? "dryer" : "washer")}</b>
+                {(m.status === "maintenance" || m.type === "dryer") && <span className="sm muted">{m.status === "maintenance" ? t("maintShort") : t(m.heat_source === "gas" ? "gas" : "electric")}</span>}
+              </span>
               <span className="row between end-row">
-                <span className="sm muted">{t(m.type === "dryer" ? "dryer" : "washer")}{m.type === "dryer" ? <><br />{t(m.heat_source === "gas" ? "gas" : "electric")}</> : null}</span>
-                {m.price_from_rm != null && <span className="price right"><span className="xs-label">{t("from")}</span><br />{rmx(m.price_from_rm)}</span>}
+                {m.price_from_rm != null && <span className="price">{m.price_to_rm != null && m.price_to_rm !== m.price_from_rm && <span className="xs-label block">{t("from")}</span>}{rmx(m.price_from_rm)}</span>}
+                <span className="xs muted">{m.status === "maintenance" ? t("unavailable") : m.status === "in_use" ? t("inUse") : t("perCycleShort")}</span>
               </span>
             </a>
           ))}
@@ -82,6 +86,24 @@ function Home() {
         <p className="sm muted">{t("synthetic")}</p>
       </>}
     </div>
+  );
+}
+
+// Figma "Live outlet status": free washers and dryers right now, and a bar of the whole outlet where the orange and
+// purple parts are the free washers and dryers (busy and under-maintenance machines are the empty track).
+function LiveStatus({ machines }: { machines: Machine[] }) {
+  const t = useT();
+  const free = (type: string) => machines.filter((m) => m.type === type && m.status === "free").length;
+  const w = free("washer"), d = free("dryer"), total = machines.length;
+  const pct = (n: number) => `${total ? (n / total) * 100 : 0}%`;
+  return (
+    <section className="card live-status" aria-label={`${w} ${t(w === 1 ? "washerFree" : "washersFree")}, ${d} ${t(d === 1 ? "dryerFree" : "dryersFree")}`}>
+      <div className="row between wrap"><span className="eyebrow row"><span className="dot ok" aria-hidden />{t("liveStatus")}</span>
+        <span className="sm warm num">{w + d} {t("ofN")} {total} {t("availableLc")}</span></div>
+      <p className="live-h"><span className="warm"><b className="num">{w}</b> {t(w === 1 ? "washerFree" : "washersFree")}</span>
+<span className="info"><b className="num">{d}</b> {t(d === 1 ? "dryerFree" : "dryersFree")}</span></p>
+      <div className="split" aria-hidden><span className="w" style={{ width: pct(w) }} /><span className="d" style={{ width: pct(d) }} /></div>
+    </section>
   );
 }
 

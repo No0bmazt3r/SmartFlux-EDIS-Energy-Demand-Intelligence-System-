@@ -77,6 +77,9 @@ const DICT = {
   recentDecisions: ["Recent decisions", "Keputusan terkini"], seeAll: ["See all", "Lihat semua"], advisedOn: ["Advised", "Dinasihatkan"], verifiedOn: ["Verified", "Disahkan"],
   savedPm: ["saved", "dijimat"], viewEvidence: ["View evidence", "Lihat bukti"], solar: ["Solar", "Solar"],
   touSolarNote: ["Going solar too? Your energy plan says stay on the flat tariff with solar, so approve one of these, not both.", "Mahu pasang solar juga? Pelan tenaga anda menyarankan kekal pada tarif rata jika ada solar, jadi luluskan salah satu sahaja."],
+  liveStatus: ["Live outlet status", "Status premis langsung"], ofN: ["of", "daripada"], availableLc: ["available", "tersedia"],
+  washerFree: ["washer free", "pembasuh kosong"], dryerFree: ["dryer free", "pengering kosong"],
+  perCycleShort: ["/ cycle", "/ kitaran"], unavailable: ["Unavailable", "Tidak tersedia"],
   aService: ["Service", "Servis"], aPromo: ["Run promo", "Adakan promosi"], aTou: ["Switch to ToU", "Tukar ke ToU"], aQuote: ["Request solar quote", "Minta sebut harga solar"],
 } satisfies Record<string, [string, string]>;
 export type T = ReturnType<typeof useT>;
