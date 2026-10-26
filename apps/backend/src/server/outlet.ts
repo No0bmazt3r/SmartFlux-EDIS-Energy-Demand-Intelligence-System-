@@ -89,3 +89,38 @@ export async function ownerView(cfg: Config, db: SampleDb, outlet: string, asOf:
     verified_savings_rm_per_month: o.verified_savings_rm_per_month, run_log: o.run_log,
   };
 }
+
+// GET /outlets/:id/day?as_of&date: one day of half-hourly meter readings, the peak window and a typical day, for the
+// HQ "Daily load" chart. Only what the meter recorded: the typical line is the average of the same half-hour on the
+// same kind of day (working day vs weekend/holiday) over the 4 weeks before. Default date: the latest working day
+// (one with peak half-hours) up to as_of, since a Sunday has no peak window to show.
+export async function dayLoad(cfg: Config, db: SampleDb, outlet: string, asOf: string, date?: string) {
+  const q = dataQuery(cfg, asOf, db);
+  const from = addDays(asOf, -35) < WINDOW.start ? WINDOW.start : addDays(asOf, -35);
+  const rows = await q("interval_series", { outlet, from: `${from} 00:00:00`, to: `${addDays(asOf, 1)} 00:00:00` }) as { interval_start: string; kwh: number; period: string }[];
+  const byDay = new Map<string, { t: string; kwh: number; peak: boolean }[]>();
+  for (const r of rows) {
+    const d = r.interval_start.slice(0, 10);
+    if (!byDay.has(d)) byDay.set(d, []);
+    byDay.get(d)!.push({ t: r.interval_start.slice(11, 16), kwh: Number(r.kwh), peak: r.period === "peak" });
+  }
+  const dates = [...byDay.keys()].sort();
+  const working = (d: string) => byDay.get(d)!.some((x) => x.peak);
+  const day = date && byDay.has(date) ? date : [...dates].reverse().find(working) ?? dates.at(-1);
+  if (!day) return { outlet_id: outlet, as_of: asOf, date: null, dates, slots: [], summary: null };
+  const kind = working(day);
+  const peers = dates.filter((d) => d < day && d >= addDays(day, -28) && working(d) === kind);
+  const slots = byDay.get(day)!.map((s) => {
+    const same = peers.map((d) => byDay.get(d)!.find((x) => x.t === s.t)?.kwh).filter((v): v is number => v != null);
+    return { ...s, typical: same.length ? same.reduce((a, b) => a + b, 0) / same.length : null };
+  });
+  const rates = ratesFromRows(await q("tariff_rates", { outlet }) as any);
+  const kwh = slots.reduce((a, s) => a + s.kwh, 0), peakKwh = slots.filter((s) => s.peak).reduce((a, s) => a + s.kwh, 0);
+  const busiest = slots.reduce((m, s) => (s.kwh > m.kwh ? s : m), slots[0]);
+  return {
+    outlet_id: outlet, as_of: asOf, date: day, dates, working_day: kind, typical_days: peers.length, rates,
+    slots, // 48 half-hours: t (HH:MM), kwh, peak, typical
+    summary: { kwh, peak_kwh: peakKwh, peak_share: kwh ? peakKwh / kwh : 0, cost_flat_rm: kwh * rates.flat,
+      cost_tou_rm: peakKwh * rates.peak + (kwh - peakKwh) * rates.offpeak, busiest: { t: busiest.t, kw: busiest.kwh * 2 } },
+  };
+}
