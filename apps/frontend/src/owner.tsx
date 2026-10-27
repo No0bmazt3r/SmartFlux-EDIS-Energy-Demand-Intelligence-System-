@@ -150,7 +150,7 @@ function Working({ events }: { events?: LogEvent[] }) {
   );
 }
 
-const SUGGEST = {
+export const SUGGEST = {
   en: ["Solar, ToU or both?", "Why was my bill higher?", "Which machine is wasting money?", "Did the D4 service work?", "When should I run a promo?"],
   ms: ["Solar, ToU atau kedua-duanya?", "Kenapa bil saya lebih tinggi?", "Mesin mana yang membazir wang?", "Adakah servis D4 berkesan?", "Bila patut saya adakan promosi?"],
 };
@@ -199,8 +199,9 @@ type RunView = { result: { run_id: string; created_at: string; as_of: string; ou
   actions: { id: string; type: string; target: string; reason: string; risk: string }[]; unresolved: string[]; message?: string; ruled_out?: { kind: string; reason: string }[] };
   events: LogEvent[]; sql: Record<string, string> };
 
-function Result({ runId, only }: { runId: string; only?: number }) {
-  const t = useT();
+// hq: shown on the HQ run page (web), so its links stay in HQ and the evidence is already below it.
+export function Result({ runId, only, hq }: { runId: string; only?: number; hq?: boolean }) {
+  const t = useT(), approvals = hq ? "/franchise/agent" : "/approvals";
   const r = useApi<RunView>(`/runs/${runId}`);
   if (r.error) return <Failed error={r.error} />;
   if (!r.data) return <Loading />;
@@ -214,12 +215,12 @@ function Result({ runId, only }: { runId: string; only?: number }) {
       {!result.decisions.length && !result.message && <section className="card">
         <h3>{t("nothingNew")}</h3>
         {result.ruled_out?.map((r) => <p key={r.reason}>{r.reason}.</p>)}
-        <a className="textlink" {...linkProps("/approvals?tab=history")}>{t("seeVerified")}</a>
+        <a className="textlink" {...linkProps(hq ? approvals : "/approvals?tab=history")}>{t("seeVerified")}</a>
       </section>}
-      {cards.map((d, i) => <DecisionCard key={i} d={d} runId={runId} />)}
+      {cards.map((d, i) => <DecisionCard key={i} d={d} runId={hq ? undefined : runId} />)}
       {result.unresolved.length > 0 && <section className="card"><StatusBadge s="unresolved" /><ul>{result.unresolved.map((u) => <li key={u}>{u}</li>)}</ul></section>}
       {only == null && result.actions.map((a) =>
-        <a key={a.id} className="card link" {...linkProps("/approvals")}>
+        <a key={a.id} className="card link" {...linkProps(approvals)}>
           <div className="row between wrap"><span className="h3">{t("proposed")}: {a.type.replace(/_/g, " ")} {a.target}</span><RiskBadge r={a.risk} /></div>
           <p className="sm muted">{a.reason}</p><span className="btn cta">{t("goApproval")}</span>
         </a>)}
@@ -360,7 +361,6 @@ function Approvals({ o, reload }: Ctx) {
     } catch (e) { toast.show((e as Error).message); }
     setBusy("");
   };
-  const solarPending = o.advice.some((a) => a.type === "request_solar_quote" && (a.status === "awaiting_approval" || a.status === "approved"));
   // Context for the card. The action's own reason only repeats the saving shown below it, so: the machine's flag for a
   // service, today's peak share against the break-even for ToU, and the reason only when there is no predicted saving.
   const tariff = o.outlet.tariff;
@@ -383,7 +383,6 @@ function Approvals({ o, reload }: Ctx) {
             <div className="stack tight"><h2>{actionTitle(a, t)}</h2><span className="sm muted">{t("advisedOn")} {day(a.advised_as_of)}</span></div></div>
           {why(a) && <p className="why row"><Icon name="insights" className="sm" /><span className="sm">{why(a)}</span></p>}
           {a.type === "request_solar_quote" && <a className="textlink row" {...linkProps("/plan")}><Icon name="solar_power" className="sm" />{t("openPlan")}</a>}
-          {a.type === "switch_tariff" && solarPending && <a className="note row" {...linkProps("/plan")}><Icon name="info" className="sm" /><span className="sm">{t("touSolarNote")}</span></a>}
           {a.predicted_rm_per_month != null && <div className="stack tight">
             <span className="label caps muted">{t("predictedSaving")}</span>
             <p className="h2 save num">{rm(a.predicted_rm_per_month, 2)}<span className="unit sm muted"> {t("perMonth")}</span></p>
@@ -438,7 +437,7 @@ function Machines({ o }: Ctx) {
   const margin = costed.length ? costed.reduce((s, m) => s + (m.price_from_rm! - m.cost_per_cycle_rm!) / m.price_from_rm!, 0) / costed.length : null;
   return (
     <div className="stack">
-      <div className="stats">
+      <div className="mstats">
         <div className="stat"><span className="label caps muted">{t("inUseNow")}</span><b className="num">{inUse}<span className="muted">/{ms.length}</span></b>
           {maint > 0 && <span className="xs muted">{maint} {t("maintShort").toLowerCase()}</span>}</div>
         <div className="stat"><span className="label caps muted">{t("health")}</span>

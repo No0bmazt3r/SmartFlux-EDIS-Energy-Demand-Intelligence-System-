@@ -35,7 +35,7 @@ async function outletBasics(state: RunState, ctx: Ctx) {
   return basics;
 }
 
-function ruleOut(state: RunState, ctx: Ctx, h: Hypothesis, reason: string) {
+function ruleOut(ctx: Ctx, h: Hypothesis, reason: string) {
   h.status = "rejected";
   h.reason = reason;
   ctx.emit({ agent_name: AGENT, action: "rule_out", input_summary: h.text, output_summary: reason, target_agent: "Planner" });
@@ -225,7 +225,7 @@ async function investigateHumidity(state: RunState, ctx: Ctx, h: Hypothesis) {
   const a = await needWindows(state, ctx, h);
   if (!a) return;
   const electric = a.faults.filter((f: any) => f.heat_source === "electric");
-  if (!electric.length) return ruleOut(state, ctx, h, "Gas dryers: the meter doesn't see burner energy, so humidity can't explain an electricity rise");
+  if (!electric.length) return ruleOut(ctx, h, "Gas dryers: the meter doesn't see burner energy, so humidity can't explain an electricity rise");
   const w = a.windows;
   const rh = async (r: Range) => {
     const q = await query(state, ctx, AGENT, "weather_range", { outlet: state.outlet_id, from: ts(r.from), to: ts(r.to) });
@@ -233,8 +233,8 @@ async function investigateHumidity(state: RunState, ctx: Ctx, h: Hypothesis) {
   };
   const rhB = await rh(w.baseline), rhC = await rh(w.current);
   const dryerDelta = electric.reduce((s: number, f: any) => s + f.delta_pct, 0) / electric.length;
-  if (rhC.mean - rhB.mean < 1) return ruleOut(state, ctx, h, `Humidity was not higher (${rhB.mean.toFixed(0)}% → ${rhC.mean.toFixed(0)}%)`);
-  if (dryerDelta < 2) return ruleOut(state, ctx, h, `Dryers' energy per cycle didn't rise on average (${dryerDelta.toFixed(1)}%)`);
+  if (rhC.mean - rhB.mean < 1) return ruleOut(ctx, h, `Humidity was not higher (${rhB.mean.toFixed(0)}% → ${rhC.mean.toFixed(0)}%)`);
+  if (dryerDelta < 2) return ruleOut(ctx, h, `Dryers' energy per cycle didn't rise on average (${dryerDelta.toFixed(1)}%)`);
   claim(state, h, `Humid weather raised dryer energy (humidity ${rhB.mean.toFixed(0)}% → ${rhC.mean.toFixed(0)}%, dryers +${dryerDelta.toFixed(0)}% on average)`,
     { rh: { baseline: rhB.mean, current: rhC.mean }, dryer_delta_pct: dryerDelta, windows: w }, [rhB.id, rhC.id, a.evidence.faults]);
 }
@@ -244,7 +244,7 @@ async function investigateTraffic(state: RunState, ctx: Ctx, h: Hypothesis) {
   if (!a) return;
   const { baseline, current } = a.cycles_per_day;
   const delta = (current / baseline - 1) * 100;
-  if (Math.abs(delta) < 5) return ruleOut(state, ctx, h, `Customer numbers barely changed (${baseline.toFixed(0)} → ${current.toFixed(0)} cycles/day, ${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%)`);
+  if (Math.abs(delta) < 5) return ruleOut(ctx, h, `Customer numbers barely changed (${baseline.toFixed(0)} → ${current.toFixed(0)} cycles/day, ${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%)`);
   claim(state, h, `${delta > 0 ? "More" : "Fewer"} customers: ${baseline.toFixed(0)} → ${current.toFixed(0)} cycles/day`,
     { cycles_per_day: a.cycles_per_day, delta_pct: delta, kwh_per_day: (current - baseline) * a.avg_kwh_per_cycle, windows: a.windows }, a.evidence.regression.slice(0, 4));
 }
@@ -256,7 +256,7 @@ async function investigateHoliday(state: RunState, ctx: Ctx, h: Hypothesis) {
   if (inPeriod.rows.length)
     return claim(state, h, `Public holiday in the period: ${inPeriod.rows.map((x) => `${x.name} (${fmt(x.date)})`).join(", ")}`, { holidays: inPeriod.rows, windows: w }, [inPeriod.id]);
   const before = await query(state, ctx, AGENT, "holidays_range", { from: w.baseline.from, to: w.current.from });
-  ruleOut(state, ctx, h, before.rows.length
+  ruleOut(ctx, h, before.rows.length
     ? `${before.rows.map((x) => `${x.name} (${fmt(x.date)})`).join(", ")} fell before the period compared, so it can't explain it`
     : "No public holiday in the period");
 }
@@ -277,7 +277,7 @@ async function investigateShift(state: RunState, ctx: Ctx, h: Hypothesis) {
     dryers: dryers.length, kwhPerCycle: electric.length ? electric.reduce((s, x) => s + x, 0) / electric.length : 0.35,
     rates: ratesFromRows(tariffs.rows as any), days: days(w), holidays: new Set(hol.rows.map((x) => x.date)),
   }), (r) => `${r.slot.day} ${r.slot.hour}:00 has ${(r.slot.idle_share * 100).toFixed(0)}% idle dryers; shift ${r.shiftable_cycles_per_week.toFixed(1)} cycles/week = RM${r.saving_rm_per_month.toFixed(2)}/month on ToU`, "Skeptic");
-  if (!kwh.length) return ruleOut(state, ctx, h, "No dryer use to shift");
+  if (!kwh.length) return ruleOut(ctx, h, "No dryer use to shift");
   claim(state, h, `Off-peak promo: ${plan.out.slot.day} from ${plan.out.slot.hour}:00`, { ...plan.out, window: w, gas: dryers.every((d) => d.heat_source === "gas") }, [...fit.evidence, hol.id, plan.id]);
 }
 
@@ -324,7 +324,7 @@ async function investigateVerify(state: RunState, ctx: Ctx, h: Hypothesis) {
   }
   if (!targets.length) {
     if (state.claims.some((c) => c.hypothesis_id === h.id)) return; // promo claims only
-    return ruleOut(state, ctx, h, "No approved service is waiting to be verified, and no service is recorded in the period");
+    return ruleOut(ctx, h, "No approved service is waiting to be verified, and no service is recorded in the period");
   }
   const dryers = machines.rows.filter((m) => m.type === "dryer") as { machine_id: string; heat_source: string; name: string }[];
   for (const tg of targets) {

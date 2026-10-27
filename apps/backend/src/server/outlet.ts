@@ -4,7 +4,7 @@ import type { SampleDb } from "../adapters/local-sqlite.ts";
 import { ratesFromRows } from "../calc/tou.ts";
 import type { Config } from "../config.ts";
 import { openHmem, type MemoryRecord } from "../engines/hmem/index.ts";
-import { WINDOW } from "../orchestrator/state.ts";
+import { WINDOW, type Lang } from "../orchestrator/state.ts";
 import { addDays } from "../orchestrator/windows.ts";
 import { adminOverview, dataQuery, fitRange, readRuns } from "./admin.ts";
 
@@ -49,8 +49,8 @@ export function recordReport(cfg: Config, outlet: string, asOf: string, machine:
   });
 }
 
-export async function ownerView(cfg: Config, db: SampleDb, outlet: string, asOf: string) {
-  const o = await adminOverview(cfg, asOf, db, outlet);
+export async function ownerView(cfg: Config, db: SampleDb, outlet: string, asOf: string, lang: Lang = "en") {
+  const o = await adminOverview(cfg, asOf, db, outlet, lang);
   const q = dataQuery(cfg, asOf, db);
   const rates = ratesFromRows(await q("tariff_rates", { outlet }) as any);
   const lpg = Number((await q("outlet_info", { outlet }))[0].lpg_rm_per_dryer_minute);

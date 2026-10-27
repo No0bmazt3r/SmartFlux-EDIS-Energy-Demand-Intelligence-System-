@@ -34,7 +34,7 @@ export class ApiError extends Error { constructor(readonly status: number, messa
 export async function api<T = any>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method: body === undefined ? "GET" : "POST",
-    headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...(state.session ? { Authorization: `Bearer ${state.session.token}` } : {}) },
+    headers: { "Accept-Language": state.lang, ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...(state.session ? { Authorization: `Bearer ${state.session.token}` } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (res.status === 401) { setPref("session", null); navigate("/login"); }
@@ -48,20 +48,23 @@ export async function api<T = any>(path: string, body?: unknown): Promise<T> {
 export function useApi<T = any>(path: string | null) {
   const [s, setS] = useState<{ data?: T; error?: string; loading: boolean }>({ loading: true });
   const [n, setN] = useState(0);
+  const { lang } = usePrefs(); // screens built from stored text (machine flags) come back in the new language
   useEffect(() => {
     if (!path) return;
     let live = true;
     setS((p) => ({ ...p, loading: true }));
     api<T>(path).then((data) => live && setS({ data, loading: false }), (e) => live && setS({ error: e.message, loading: false }));
     return () => { live = false; };
-  }, [path, n]);
+  }, [path, n, lang]);
   return { ...s, reload: () => setN((x) => x + 1) };
 }
 
 // Router: history API plus a pattern match; enough for a dozen screens.
 const routeListeners = new Set<() => void>();
+// Pages opened from inside the app are marked, so a Back button can return to the page you came from (TopBar).
 export function navigate(to: string, replace = false) {
-  history[replace ? "replaceState" : "pushState"](null, "", to);
+  if (replace) history.replaceState(history.state, "", to);
+  else history.pushState({ inApp: true }, "", to);
   routeListeners.forEach((l) => l());
   window.scrollTo(0, 0);
 }

@@ -139,3 +139,18 @@ test("promo: advised in session 1, approved, measured in session 2 against the o
   assert.equal(s2.decisions.length, 1, "a follow-up does not propose a new promo");
   assert.match(s2.decisions[0].verdict, /promo moved use off-peak/);
 });
+
+test("a joint plan that picks solar + flat withdraws the open ToU switch, and ToU is not proposed again on top of it", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sf-joint-"));
+  const c = { ...cfg, logDir: join(dir, "logs"), hmemDir: join(dir, "hmem") };
+  const ask = (as_of: string, question: string) => run({ outlet_id: "OUT-01", as_of, question }, c, { echo: false });
+  const tou = await ask("2026-10-04", "Should I switch to the ToU tariff?");
+  assert.equal(tou.actions[0]?.type, "switch_tariff");
+  const plan = await ask("2026-10-18", "Solar, ToU or both?");
+  assert.deepEqual(plan.actions.map((a) => a.type), ["request_solar_quote"]);
+  assert.ok(readFileSync(plan.log, "utf8").includes(`Withdrawn: switch_tariff OUT-01`));
+  const again = await ask("2026-10-18", "Should I switch to the ToU tariff?");
+  assert.equal(again.actions.length, 0);
+  assert.equal(again.decisions[0].verdict, "Stay on your current flat tariff");
+  assert.match(again.decisions[0].assumptions[0], /solar on the flat tariff/);
+});

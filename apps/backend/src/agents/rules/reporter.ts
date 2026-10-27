@@ -6,7 +6,7 @@ import { SCHEME_TERM_YEARS, type SolarResult } from "../../calc/solar.ts";
 import type { TouResult } from "../../calc/tou.ts";
 import { ACTION_RISK, CAPABILITIES, gate } from "../../engines/scout/index.ts";
 import type { MvResult } from "../../calc/mv.ts";
-import { pendingApprovals, priorRejection, recentOutcomes, rememberAdvice, rememberOutcome, writeBaselines } from "../../orchestrator/memory.ts";
+import { pendingApprovals, priorRejection, recentOutcomes, rememberAdvice, rememberOutcome, withdrawAdvice, writeBaselines } from "../../orchestrator/memory.ts";
 import type { Ctx } from "../../orchestrator/tools.ts";
 import type { Claim, Decision, Lang, RunState } from "../../orchestrator/state.ts";
 import { addDays, fmt } from "../../orchestrator/windows.ts";
@@ -41,6 +41,7 @@ const TEXT = {
     learned: (n: number) => `Normal levels learned for ${n} dryers; I'll compare against them from next week`,
     learnedEv: (n: string, k: string, m: number) => `${n}: ${k}${m.toFixed(0)} min per cycle`,
     declined: (type: string, d: string) => `You declined "${type}" on ${d}, so it is not proposed again`,
+    solarPlanned: "Your energy plan has solar on the flat tariff, so a ToU switch is not proposed on top of it",
     mv: { verified: (n: string, x: number) => `Servicing ${n} saved RM${x}/month`, not_yet: (n: string) => `Too early to tell whether servicing ${n} worked`,
       not_achieved: (n: string) => `Servicing ${n} has not delivered the saving yet` },
     predicted: (p: number, r: number, s: number) => `Predicted RM${p} vs actual RM${r} (${s}% of prediction)`,
@@ -108,6 +109,7 @@ const TEXT = {
     learned: (n: number) => `Tahap biasa dipelajari untuk ${n} pengering; saya akan membandingkan mulai minggu depan`,
     learnedEv: (n: string, k: string, m: number) => `${n}: ${k}${m.toFixed(0)} minit setiap kitaran`,
     declined: (type: string, d: string) => `Anda menolak "${type}" pada ${d}, jadi ia tidak dicadangkan lagi`,
+    solarPlanned: "Pelan tenaga anda memasang solar pada tarif rata, jadi pertukaran ke ToU tidak dicadangkan bersamanya",
     mv: { verified: (n: string, x: number) => `Servis ${n} menjimatkan RM${x}/bulan`, not_yet: (n: string) => `Terlalu awal untuk tahu sama ada servis ${n} berkesan`,
       not_achieved: (n: string) => `Servis ${n} belum memberi penjimatan` },
     predicted: (p: number, r: number, s: number) => `Jangkaan RM${p} berbanding sebenar RM${r} (${s}% daripada jangkaan)`,
@@ -224,14 +226,14 @@ export function reporter(state: RunState, ctx: Ctx) {
   const ruledOut = state.hypotheses.filter((h) => h.status === "rejected" && h.reason).map((h) => `${h.text}: ${h.reason}`);
   // Every proposed action is remembered with its prediction; advice the owner already declined is not re-proposed,
   // and asking again while the same advice still awaits a decision points at that one instead of queuing a copy.
-  const propose = (type: string, target: string, reason: string, predicted?: number) => {
+  const propose = (type: string, target: string, reason: string, predicted?: number, extra?: Record<string, unknown>) => {
     const declined = priorRejection(state, ctx, type, target);
     if (declined) return state.decisions.at(-1)?.assumptions.unshift(t.declined(type, fmt(declined.as_of, state.lang)));
     const open = pendingApprovals(state, ctx).find((m) => m.data.type === type && m.data.target === target);
     if (open) return state.actions.push({ id: open.data.action_id, type, target, reason, risk: ACTION_RISK[type], status: "awaiting_approval" });
     const action = { id: `${state.run_id}-a${state.actions.length + 1}`, type, target, reason, risk: ACTION_RISK[type], status: gate(type) === "auto" ? "approved" as const : "awaiting_approval" as const };
     state.actions.push(action);
-    rememberAdvice(state, ctx, action, predicted);
+    rememberAdvice(state, ctx, action, predicted, extra);
   };
 
   const bill = approved.find((c) => c.kind === "bill");
@@ -253,10 +255,16 @@ export function reporter(state: RunState, ctx: Ctx) {
       const best = claim.data.joint?.best.option ?? (claim.data.grid.verdict === "stay" ? "flat" : "tou");
       if (best.startsWith("solar")) propose("request_solar_quote", `${state.outlet_id} ${claim.data.kwp} kWp`, t.actSolar(claim.data.kwp, card.rm_per_month!), card.rm_per_month);
       if (best.endsWith("tou")) propose("switch_tariff", state.outlet_id, t.actTouJoint);
+      else for (const m of pendingApprovals(state, ctx).filter((m) => m.data.type === "switch_tariff" && m.data.target === state.outlet_id))
+        withdrawAdvice(state, ctx, m, `the joint energy plan says ${best.replace("_", " + ")}`);
     } else if (claim.kind === "tou") {
-      state.decisions.push(tariffCard(claim, state.lang));
-      const r = claim.data as TouResult;
-      if (r.verdict !== "stay") propose("switch_tariff", state.outlet_id, t.actTou(rm(r.saving_per_month)), r.saving_per_month);
+      const card = tariffCard(claim, state.lang), r = claim.data as TouResult;
+      state.decisions.push(card);
+      // A solar quote still open or approved came from a joint plan that chose flat; ToU on today's load would contradict it.
+      const solarPlanned = [...pendingApprovals(state, ctx), ...ctx.hmem.all().filter((m) => m.tags.includes("approved") && m.as_of <= state.as_of)]
+        .some((m) => m.data.type === "request_solar_quote" && m.entities.includes(state.outlet_id));
+      if (r.verdict !== "stay" && solarPlanned) Object.assign(card, { verdict: t.stay, rm_per_month: undefined, assumptions: [t.solarPlanned, ...card.assumptions] });
+      else if (r.verdict !== "stay") propose("switch_tariff", state.outlet_id, t.actTou(rm(r.saving_per_month)), r.saving_per_month);
     } else if (claim.kind === "shift") {
       const d = claim.data;
       state.decisions.push({ type: "load_shift", verdict: t.promo(d.slot.day, d.slot.hour), rm_per_month: rm(d.saving_rm_per_month), confidence: "medium",
@@ -293,7 +301,9 @@ export function reporter(state: RunState, ctx: Ctx) {
         assumptions: [t.baseline(range(claim.data.windows.baseline, state.lang), range(claim.data.windows.current, state.lang)), t.synthetic] });
     } else if (claim.kind === "fault") {
       state.decisions.push(faultCard(claim, ruledOut, state.lang));
-      propose("schedule_service", claim.data.machine_id, t.actService(claim.data.name, rm(claim.data.waste_rm_per_month)), claim.data.waste_rm_per_month);
+      // The machine's flag outlives this answer (Home, Machines, HQ), so it is kept in both languages for any viewer.
+      const flag = Object.fromEntries((["en", "ms"] as const).map((l) => { const c = faultCard(claim, [], l); return [l, { verdict: c.verdict, evidence: c.evidence[0] }]; }));
+      propose("schedule_service", claim.data.machine_id, t.actService(claim.data.name, rm(claim.data.waste_rm_per_month)), claim.data.waste_rm_per_month, { flag });
     }
   }
   if (state.briefing) {

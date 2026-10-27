@@ -7,7 +7,8 @@ import type { ProposedAction, RunState } from "./state.ts";
 const AGENT = "H-MEM";
 
 export function recallContext(state: RunState, ctx: Ctx) {
-  const r = ctx.hmem.recall({ asOf: state.as_of, entities: [state.outlet_id], text: state.question || "weekly briefing", topN: 5 }, "Planner");
+  const r = ctx.hmem.recall({ asOf: state.as_of, entities: [state.outlet_id], text: state.question || "weekly briefing", topN: 6 }, "Planner");
+  r.memories = r.memories.filter((m) => !m.memory.tags.includes("withdrawn")).slice(0, 5); // bookkeeping, not something to plan around
   ctx.emit({ agent_name: AGENT, action: "hmem.recall", input_summary: r.retrievalReason,
     output_summary: r.memories.length ? r.memories.map((m) => `${m.memory.content} [${m.score.toFixed(2)}]`).join("; ") : "no memories yet", target_agent: "Planner" });
   return r.memories.map((m) => m.memory);
@@ -45,11 +46,11 @@ export function writeBaselines(state: RunState, ctx: Ctx, a: any) {
   ctx.emit({ agent_name: AGENT, action: "hmem.write", input_summary: `${a.readings.length} machine baselines + outlet baseline`, output_summary: `learned as of ${asOf}`, target_agent: "Planner" });
 }
 
-export function rememberAdvice(state: RunState, ctx: Ctx, action: ProposedAction, predicted?: number) {
+export function rememberAdvice(state: RunState, ctx: Ctx, action: ProposedAction, predicted?: number, extra: Record<string, unknown> = {}) {
   ctx.hmem.write({
     content: `Advised: ${action.type} ${action.target}${predicted ? `, predicted saving RM${predicted.toFixed(2)}/month` : ""} (${action.reason})`,
     type: "procedural", layer: "working", as_of: state.as_of, tags: ["advice", action.type], entities: [state.outlet_id, action.target, action.id],
-    agentId: "Reporter", runId: state.run_id, data: { action_id: action.id, type: action.type, target: action.target, risk: action.risk, reason: action.reason, predicted_rm_per_month: predicted ?? null },
+    agentId: "Reporter", runId: state.run_id, data: { action_id: action.id, type: action.type, target: action.target, risk: action.risk, reason: action.reason, predicted_rm_per_month: predicted ?? null, ...extra },
   });
 }
 
@@ -82,7 +83,19 @@ export function approvedTargets(state: RunState, ctx: Ctx) {
 export function pendingApprovals(state: RunState, ctx: Ctx) {
   const all = ctx.hmem.all();
   return all.filter((m) => m.tags.includes("advice") && m.as_of <= state.as_of && m.entities.includes(state.outlet_id) &&
-    !all.some((d) => d.tags.includes("decision") && d.data.action_id === m.data.action_id));
+    !all.some((d) => d.tags.includes("decision") && d.as_of <= state.as_of && d.data.action_id === m.data.action_id));
+}
+
+// Advice a newer run replaced (the joint plan now says stay flat, so the earlier ToU switch no longer applies):
+// recorded as a "withdrawn" decision so it stops awaiting the owner, without counting as their "no".
+export function withdrawAdvice(state: RunState, ctx: Ctx, advice: MemoryRecord, reason: string) {
+  const content = `Withdrawn: ${advice.data.type} ${advice.data.target} (${reason})`;
+  ctx.hmem.write({
+    content, type: "factual", layer: "long_term", as_of: state.as_of, tags: ["decision", "withdrawn", advice.data.type],
+    entities: [...advice.entities, advice.data.type], agentId: "Reporter", runId: state.run_id, derivedFrom: [advice.id],
+    data: { ...advice.data, decision: "withdrawn" },
+  });
+  ctx.emit({ agent_name: AGENT, action: "hmem.write", input_summary: `advice ${advice.data.action_id}`, output_summary: content, target_agent: "Planner" });
 }
 
 // Called by POST /approve and the CLI: records the owner's decision on a proposed action.

@@ -67,7 +67,7 @@ pnpm benchmark                                            # 30 generated outlets
 pnpm examples                                             # re-run the 8 examples → output_examples/
 ```
 
-No `.env` is needed for sample mode. On Windows, run it inside WSL2.
+No `.env` is needed for sample mode.
 
 ### Web app (customer, owner, admin)
 
@@ -171,8 +171,8 @@ Every step is one JSON line on stdout and in `logs/<run_id>.jsonl` (fields in [a
 
 ```text
 $ pnpm test        # calculators, H-MEM, Scout routing + risk gate, agents, live-path fakes, HTTP + roles
-ℹ tests 60
-ℹ pass 60
+ℹ tests 66
+ℹ pass 66
 ℹ fail 0
 
 $ pnpm eval        # outcomes O1–O11 + log assertions on seed 1 and the held-out seed 2 (report: eval/report.md)

@@ -64,4 +64,3 @@ export function regressMachines(intervals: IntervalRow[], cycles: CycleRow[], ma
   }
 }
 
-export type RegressResult = ReturnType<typeof regressMachines>;

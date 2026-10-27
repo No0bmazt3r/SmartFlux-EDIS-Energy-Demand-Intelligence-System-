@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, linkProps, match, navigate, setPref, usePath, usePrefs, useApi, type Lang } from "./api.ts";
 import { DatePicker, Dropdown, Failed, Icon, Loading, ModeBadge, Sparkline, StatusBadge, day, rm, short, useToast, type LogEvent, type Week } from "./ui.tsx";
-import { Evidence } from "./owner.tsx";
+import { Evidence, Result, SUGGEST } from "./owner.tsx";
 
 type Outlet = { outlet_id: string; name: string; kpis: Record<string, number>; weekly: { week: number; peak_kwh: number; offpeak_kwh: number }[];
   tariff: { peak_share: number; breakeven: number; verdict: string; tou_saving_rm_per_month: number };
@@ -499,12 +499,35 @@ function AuditPage({ outlet }: { outlet: string }) {
   );
 }
 
+// Ask from HQ: same agent run as the outlet app, but the answer opens on the HQ run page, so you stay in the web view.
+function AskPage({ outlet, name, reload }: { outlet: string; name: string; reload: () => void }) {
+  const { asOf, lang } = usePrefs();
+  const [q, setQ] = useState(""), [busy, setBusy] = useState(false), [err, setErr] = useState("");
+  const go = async (question: string) => {
+    setBusy(true); setErr("");
+    try { const r = await api<{ run_id: string }>("/run", { outlet_id: outlet, as_of: asOf, lang, question }); reload(); navigate(`/franchise/run/${r.run_id}`); }
+    catch (e) { setErr((e as Error).message); setBusy(false); }
+  };
+  return (
+    <Panel title={`Ask about ${outlet} ${name}`} sub={`As of ${day(asOf)} · pick another outlet with Scope`} icon="auto_awesome">
+      <form className="row" onSubmit={(e) => { e.preventDefault(); q.trim() && go(q.trim()); }}>
+        <input className="input grow" aria-label="Question" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask about the bill, tariff, solar or machines" />
+        <button className="btn cta" disabled={busy || !q.trim()}>{busy ? "Working…" : "Ask"}</button>
+      </form>
+      <div className="filter wrap">{SUGGEST[lang].map((s) => <button key={s} disabled={busy} onClick={() => go(s)}>{s}</button>)}</div>
+      {busy && <p className="sm muted">Five agents are checking the answer. This takes a few seconds.</p>}
+      {err && <Failed error={err} />}
+    </Panel>
+  );
+}
+
 // --- The shell ---
 
 const ROLE: Record<string, string> = { superadmin: "Super admin", admin: "Admin", customer: "Customer" };
 const PAGES: Record<string, [string, string]> = {
   "/franchise": ["Overview", "dashboard"], "/franchise/machines": ["Machine energy", "device_hub"], "/franchise/tariff": ["Tariff and peak", "show_chart"],
   "/franchise/agent": ["Agent interventions", "smart_toy"], "/franchise/ai-pipeline": ["Data and AI", "hub"], "/people": ["People", "group"], "/franchise/audit-log": ["Audit log", "shield"],
+  "/franchise/ask": ["Ask the agent", "auto_awesome"],
 };
 const GROUPS: [string, string[]][] = [["Monitor", ["/franchise", "/franchise/machines", "/franchise/tariff", "/franchise/agent"]], ["Operations", ["/franchise/ai-pipeline", "/people", "/franchise/audit-log"]]];
 
@@ -546,7 +569,7 @@ export function HqShell({ crumb, actions, scope, overview, children }: { crumb: 
           <span><b>SmartFlux <span className="accent">EDIS</span></b><span className="mono-label">Track 3 · Reasoning architecture</span></span></a>
         {scope && o && <Dropdown label="Scope" value={scope[0]} onChange={scope[1]} options={[{ value: "all", label: `All outlets (${o.outlets.length})` }, ...o.outlets.map((x) => ({ value: x.outlet_id, label: `${x.outlet_id} ${x.name}` }))]} />}
         <span className="grow" />
-        <div className="seg" role="group" aria-label="View"><button aria-pressed="true">HQ</button><button aria-pressed="false" onClick={() => navigate("/outlet")}>Outlet app</button></div>
+        <div className="seg" role="group" aria-label="View"><button aria-pressed="true">HQ</button><button aria-pressed="false" onClick={() => { if (scope && scope[0] !== "all") setPref("outlet", scope[0]); navigate("/outlet"); }}>Outlet app</button></div>
         <DatePicker value={p.asOf} onChange={(d) => setPref("asOf", d)} />
         <div className="seg" role="group" aria-label="Language">{(["en", "ms"] as Lang[]).map((l) => <button key={l} aria-pressed={p.lang === l} onClick={() => setPref("lang", l)}>{l === "en" ? "EN" : "BM"}</button>)}</div>
         <a className="icon-btn bell" aria-label={`${pending.length} awaiting approval`} {...linkProps("/franchise/agent")}><Icon name="notifications" />{pending.length > 0 && <span className="bell-dot" />}</a>
@@ -569,7 +592,7 @@ export function HqShell({ crumb, actions, scope, overview, children }: { crumb: 
           <div className="side-card">
             <p className="mono-label">Reasoning agent</p>
             <p className="sm">Ask about any outlet's bill, tariff, solar or machines. Five agents check the answer before you see it.</p>
-            <a className="btn cta sm-btn" {...linkProps("/ask")}><Icon name="auto_awesome" className="sm" />Ask the agent</a>
+            <a className="btn cta sm-btn" {...linkProps("/franchise/ask")}><Icon name="auto_awesome" className="sm" />Ask the agent</a>
           </div>
         </aside>
         <main className="hq-main">
@@ -596,13 +619,14 @@ export function AdminApp() {
     a.click(); URL.revokeObjectURL(a.href);
   };
   let page: ReactNode, actions: ReactNode;
-  if (run) page = <div style={{ maxWidth: 960 }}><Evidence runId={run.id} /></div>;
+  if (run) page = <div className="stack" style={{ maxWidth: 960 }}><Result runId={run.id} hq /><h2>Evidence</h2><Evidence runId={run.id} /></div>;
   else if (path === "/franchise/ai-pipeline") page = <PipelinePage />;
   else if (path === "/franchise/audit-log") page = <AuditPage outlet={scope} />;
   else if (!o) page = r.error ? <Failed error={r.error} /> : <Loading />;
   else if (path === "/franchise/machines") page = <MachinesPage o={o} outlet={one} />;
   else if (path === "/franchise/tariff") page = <TariffPage o={o} outlet={one} />;
   else if (path === "/franchise/agent") page = <AgentPage o={o} reload={r.reload} />;
+  else if (path === "/franchise/ask") page = <AskPage outlet={one} name={o.outlets.find((x) => x.outlet_id === one)?.name ?? ""} reload={r.reload} />;
   else { page = <OverviewPage o={o} all={all!} />; actions = <button className="btn primary sm-btn" onClick={exportCsv}><Icon name="download" className="sm" />Export Scope 2 CSV</button>; }
   return <HqShell crumb={run ? `Run ${run.id}` : PAGES[path]?.[0] ?? "Overview"} actions={actions} scope={[scope, setScope]} overview={all}>{page}</HqShell>;
 }

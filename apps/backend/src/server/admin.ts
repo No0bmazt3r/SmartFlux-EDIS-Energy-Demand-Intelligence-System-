@@ -10,7 +10,7 @@ import { regressMachines } from "../calc/regress.ts";
 import { ratesFromRows, touCalc, weeksFromRows } from "../calc/tou.ts";
 import type { Config } from "../config.ts";
 import { openHmem } from "../engines/hmem/index.ts";
-import { WINDOW } from "../orchestrator/state.ts";
+import { WINDOW, type Lang } from "../orchestrator/state.ts";
 import { addDays, ts } from "../orchestrator/windows.ts";
 import { checkCap, prepare, querySqlite } from "../templates/index.ts";
 
@@ -61,7 +61,7 @@ export function fitRange(q: Q, cfg: Config, asOf: string, outlet: string, from: 
 }
 
 // only: one outlet's slice (the Owner app); omitted for the franchise view.
-export async function adminOverview(cfg: Config, asOf: string, db: SampleDb = openSampleDb(cfg.dataDir), only?: string) {
+export async function adminOverview(cfg: Config, asOf: string, db: SampleDb = openSampleDb(cfg.dataDir), only?: string, lang: Lang = "en") {
   const q = dataQuery(cfg, asOf, db);
   const outlets = (db.prepare("SELECT outlet_id, name FROM outlets ORDER BY outlet_id").all() as { outlet_id: string; name: string }[]).filter((o) => !only || o.outlet_id === only);
   const monthStart = `${asOf.slice(0, 7)}-01` < WINDOW.start ? WINDOW.start : `${asOf.slice(0, 7)}-01`;
@@ -112,7 +112,9 @@ export async function adminOverview(cfg: Config, asOf: string, db: SampleDb = op
   const flagged = advice.filter((a) => a.type === "schedule_service").map((a) => {
     const r = allRuns.find((x) => x.run_id === a.run_id);
     const card = r?.decisions.find((d: any) => d.type === "machine_fault" && d.verdict.includes(a.target.split("-").pop()));
-    return { outlet_id: a.outlet_id, machine_id: a.target, verdict: card?.verdict, evidence: card?.evidence[0], rm_per_month: card?.rm_per_month ?? a.predicted_rm_per_month,
+    // In the viewer's language; advice from before flags were kept in both falls back to the run's own card.
+    const text = memory.find((m) => m.tags.includes("advice") && m.data.action_id === a.action_id)?.data.flag?.[lang];
+    return { outlet_id: a.outlet_id, machine_id: a.target, verdict: text?.verdict ?? card?.verdict, evidence: text?.evidence ?? card?.evidence[0], rm_per_month: card?.rm_per_month ?? a.predicted_rm_per_month,
       status: a.verified ? `verified: ${a.verified.verdict}` : a.status, run_id: a.run_id };
   });
 

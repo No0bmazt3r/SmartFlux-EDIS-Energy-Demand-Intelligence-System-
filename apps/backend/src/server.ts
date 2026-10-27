@@ -22,7 +22,7 @@ import { loadConfig, type Config } from "./config.ts";
 import { openHmem } from "./engines/hmem/index.ts";
 import { decideAction } from "./orchestrator/memory.ts";
 import { run } from "./orchestrator/run.ts";
-import { WINDOW, validateRequest } from "./orchestrator/state.ts";
+import { WINDOW, validateRequest, type Lang } from "./orchestrator/state.ts";
 import { seedDemoHistory } from "./demo-history.ts";
 import { startScheduler } from "./scheduler.ts";
 import { TEMPLATES } from "./templates/index.ts";
@@ -45,6 +45,8 @@ const send = (res: ServerResponse, status: number, body: unknown, type = "applic
   res.writeHead(status, { "Content-Type": type, "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type, Authorization" });
   res.end(typeof body === "string" || Buffer.isBuffer(body) ? body : JSON.stringify(body));
 };
+// The app sends its language setting; stored text kept in both languages (machine flags) comes back in it.
+const langOf = (req: IncomingMessage): Lang => (req.headers["accept-language"] === "ms" ? "ms" : "en");
 const asOfParam = (url: URL) => {
   const asOf = url.searchParams.get("as_of") ?? WINDOW.end;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf) || asOf < WINDOW.start || asOf > WINDOW.end) throw new HttpError(400, `as_of must be a date in ${WINDOW.start}..${WINDOW.end}`);
@@ -138,7 +140,7 @@ export function createApp(cfg: Config, opts: { webDir?: string; env?: NodeJS.Pro
           recordReport(cfg, outlet, asOf, machine as any, b.reason);
           return send(res, 200, { ok: true });
         }
-        if (req.method === "GET" && what === "owner") { need(POLICY.owner, outlet); return send(res, 200, await ownerView(cfg, db, outlet, asOfParam(url))); }
+        if (req.method === "GET" && what === "owner") { need(POLICY.owner, outlet); return send(res, 200, await ownerView(cfg, db, outlet, asOfParam(url), langOf(req))); }
         if (req.method === "GET" && what === "day") {
           need(POLICY.owner, outlet);
           const date = url.searchParams.get("date") ?? undefined, asOf = asOfParam(url);
@@ -176,7 +178,7 @@ export function createApp(cfg: Config, opts: { webDir?: string; env?: NodeJS.Pro
         const sql = Object.fromEntries([...used].map((n) => [n, cfg.mode.data === "zetaris" ? TEMPLATES[n].lightning : TEMPLATES[n].sqlite]));
         return send(res, 200, { result, events, sql });
       }
-      if (req.method === "GET" && url.pathname === "/franchise/overview") { need(POLICY.franchise); return send(res, 200, await adminOverview(cfg, asOfParam(url), db)); }
+      if (req.method === "GET" && url.pathname === "/franchise/overview") { need(POLICY.franchise); return send(res, 200, await adminOverview(cfg, asOfParam(url), db, undefined, langOf(req))); }
       if (req.method === "GET" && url.pathname === "/franchise/scope2.csv") { need(POLICY.franchise); return send(res, 200, scope2Csv(await adminOverview(cfg, asOfParam(url), db)), "text/csv"); }
       if (req.method === "GET" && url.pathname === "/franchise/pipeline") { need(POLICY.franchise); return send(res, 200, pipeline(cfg)); }
       if (req.method === "GET" && url.pathname === "/franchise/audit") { need(POLICY.franchise); return send(res, 200, auditLog(cfg, users.list())); }

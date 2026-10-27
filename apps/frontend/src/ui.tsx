@@ -13,11 +13,11 @@ const DICT = {
   notWorking: ["Not working?", "Tidak berfungsi?"], open: ["Open", "Buka"], thisMonth: ["This month", "Bulan ini"],
   briefingNone: ["Your first briefing arrives next Monday at 08:00, or prepare one now.", "Taklimat pertama anda tiba Isnin depan jam 8:00 pagi, atau sediakan sekarang."],
   prepareNow: ["Prepare briefing now", "Sediakan taklimat sekarang"], preparing: ["Preparing…", "Sedang menyediakan…"],
-  soFar: ["so far", "setakat ini"], projected: ["projected bill", "anggaran bil"], peakShare: ["Peak share", "Bahagian puncak"], breakeven: ["ToU break-even", "Titik pulang modal ToU"],
-  alerts: ["Alerts", "Amaran"], planTeaser: ["Solar, ToU or both? See your plan", "Solar, ToU atau kedua-duanya? Lihat pelan anda"],
+  soFar: ["so far", "setakat ini"], peakShare: ["Peak share", "Bahagian puncak"], breakeven: ["ToU break-even", "Titik pulang modal ToU"],
+  planTeaser: ["Solar, ToU or both? See your plan", "Solar, ToU atau kedua-duanya? Lihat pelan anda"],
   verifiedSavings: ["Verified savings", "Penjimatan disahkan"], savedFromAdvice: ["/month saved from past advice", "/bulan dijimatkan daripada nasihat lalu"],
   nothingPending: ["Nothing waiting for your approval.", "Tiada yang menunggu kelulusan anda."], predictedSaving: ["Predicted saving", "Anggaran penjimatan"],
-  advisedAsOf: ["Advised as of", "Dinasihatkan pada"], perMonth: ["/month", "/bulan"],
+  perMonth: ["/month", "/bulan"],
   toastService: ["Approved. Customers now see it as under maintenance; we'll check if it worked after 2 weeks.", "Diluluskan. Pelanggan kini melihatnya dalam penyelenggaraan; kami akan semak hasilnya selepas 2 minggu."],
   toastApproved: ["Approved. We'll check if it worked.", "Diluluskan. Kami akan semak sama ada ia berkesan."], toastRejected: ["Rejected. SmartFlux won't propose it again.", "Ditolak. SmartFlux tidak akan mencadangkannya lagi."],
   normalHint: ["Normal levels appear once SmartFlux has checked your machines. Ask “Which machine is wasting money?”.", "Tahap biasa dipaparkan selepas SmartFlux menyemak mesin anda. Tanya “Mesin mana yang membazir wang?”."],
@@ -28,7 +28,7 @@ const DICT = {
   wont_start: ["Won't start", "Tidak mahu mula"], not_heating: ["Not heating", "Tidak panas"], too_long: ["Takes too long", "Terlalu lama"], other: ["Other", "Lain-lain"],
   reportNote: ["Your report goes to the owner as a hint. It doesn't mark the machine broken on its own.", "Laporan anda dihantar kepada pemilik sebagai petunjuk. Ia tidak menandakan mesin rosak dengan sendirinya."],
   synthetic: ["Business data is synthetic (demo). Status comes from the payment system's cycle records.", "Data perniagaan adalah sintetik (demo). Status diambil daripada rekod kitaran sistem pembayaran."],
-  solarOptions: ["Solar options", "Pilihan solar"], tariffAfter: ["Tariff before and after solar", "Tarif sebelum dan selepas solar"], requestQuote: ["Request solar quote", "Minta sebut harga solar"],
+  solarOptions: ["Solar options", "Pilihan solar"], requestQuote: ["Request solar quote", "Minta sebut harga solar"],
   workOut: ["Work out my plan", "Kira pelan saya"], recommended: ["Recommended", "Disyorkan"], goApproval: ["Go to approval", "Pergi ke kelulusan"], proposed: ["Proposed", "Dicadangkan"],
   nothingNew: ["Nothing new to report", "Tiada perkara baharu"], recent: ["Recent questions", "Soalan terkini"],
   s1: ["Understanding your question", "Memahami soalan anda"], s2: ["Planning what to check", "Merancang apa yang perlu disemak"], s3: ["Checking your data", "Menyemak data anda"],
@@ -56,17 +56,17 @@ const DICT = {
   tEnergy: ["Energy plan", "Pelan tenaga"], tTariff: ["Tariff", "Tarif"], tFault: ["Machine fault", "Kerosakan mesin"], tBill: ["Bill", "Bil"],
   tVerify: ["Did it work?", "Adakah ia berkesan?"], tPromo: ["Promo", "Promosi"], tEsg: ["Emissions", "Pelepasan"], tBriefing: ["Weekly briefing", "Taklimat mingguan"],
   noSavingsYet: ["No verified savings yet. Approved advice is checked about 2 weeks after it's done.", "Belum ada penjimatan disahkan. Nasihat yang diluluskan disemak kira-kira 2 minggu selepas dilaksanakan."],
-  liveMachines: ["Live outlet machines", "Mesin premis secara langsung"], available: ["Available", "Ada"], busy: ["Busy", "Sibuk"], ready: ["Ready", "Sedia"],
+  ready: ["Ready", "Sedia"],
   mLeft: ["m left", "m lagi"], from: ["From", "Dari"], outlets: ["Outlets", "Premis"], account: ["Account", "Akaun"], select: ["Select", "Pilih"],
   current: ["Current outlet", "Premis semasa"], happyHour: ["Off-peak happy hour", "Waktu gembira luar puncak"], remaining: ["remaining", "lagi"],
   cycleOf: ["of a", "daripada kitaran"], minCycle: ["min cycle", "min"], guest: ["Guest", "Tetamu"], hello: ["Hello", "Hai"],
   createAccount: ["Create an account", "Cipta akaun"], guestNote: ["You're browsing this outlet as a guest. An account lets you see every outlet.", "Anda melayari premis ini sebagai tetamu. Akaun membolehkan anda melihat semua premis."],
   language: ["Language", "Bahasa"], demoDate: ["Demo date", "Tarikh demo"], maintShort: ["Maintenance", "Penyelenggaraan"],
   machineDetail: ["Machine detail", "Butiran mesin"], perCycleRange: ["per cycle", "setiap kitaran"], reportIt: ["Report a problem", "Laporkan masalah"],
-  machinesFree: ["machines free", "mesin kosong"], hq: ["Franchise dashboard", "Papan pemuka francais"],
+  hq: ["Franchise dashboard", "Papan pemuka francais"],
   chooseDate: ["Choose date", "Pilih tarikh"], prevMonth: ["Previous month", "Bulan sebelumnya"], nextMonth: ["Next month", "Bulan seterusnya"],
   sessions: ["Demo sessions", "Sesi demo"], outlet: ["Outlet", "Premis"],
-  selectedOutlet: ["Selected outlet", "Premis dipilih"], machinesTracked: ["machines tracked", "mesin dijejak"], dataAsOf: ["data as of", "data pada"],
+  selectedOutlet: ["Selected outlet", "Premis dipilih"], machinesTracked: ["machines tracked", "mesin dijejak"],
   liveDiag: ["Live diagnostics", "Diagnostik semasa"], items: ["items", "perkara"], attention: ["Attention required", "Perlu perhatian"],
   verifiedChip: ["Verified", "Disahkan"], reportChip: ["Customer report", "Laporan pelanggan"], openPlan: ["Open plan", "Buka pelan"], saves: ["Saves", "Jimat"],
   soFarCap: ["So far", "Setakat ini"], projectedCap: ["Projected", "Anggaran"], approvedN: ["approved", "diluluskan"], advisedN: ["advised", "dinasihatkan"],
@@ -76,7 +76,6 @@ const DICT = {
   tariffCompare: ["Tariff without vs with solar", "Tarif tanpa vs dengan solar"], withoutSolar: ["Without solar", "Tanpa solar"], withSolar: ["With solar", "Dengan solar"],
   recentDecisions: ["Recent decisions", "Keputusan terkini"], seeAll: ["See all", "Lihat semua"], advisedOn: ["Advised", "Dinasihatkan"], verifiedOn: ["Verified", "Disahkan"],
   savedPm: ["saved", "dijimat"], viewEvidence: ["View evidence", "Lihat bukti"], solar: ["Solar", "Solar"],
-  touSolarNote: ["Going solar too? Your energy plan says stay on the flat tariff with solar, so approve one of these, not both.", "Mahu pasang solar juga? Pelan tenaga anda menyarankan kekal pada tarif rata jika ada solar, jadi luluskan salah satu sahaja."],
   liveStatus: ["Live outlet status", "Status premis langsung"], ofN: ["of", "daripada"], availableLc: ["available", "tersedia"],
   washerFree: ["washer free", "pembasuh kosong"], dryerFree: ["dryer free", "pengering kosong"],
   perCycleShort: ["/ cycle", "/ kitaran"], unavailable: ["Unavailable", "Tidak tersedia"],
@@ -103,7 +102,7 @@ export const short = (id: string) => id.split("-").pop()!;
 // Badge text in [English, Malay]; components re-render on a language change through usePrefs.
 const STATUS: Record<string, [string, string, [string, string]]> = {
   verified: ["check_circle", "ok", ["Verified", "Disahkan"]], awaiting_approval: ["hourglass_top", "warn", ["Awaiting approval", "Menunggu kelulusan"]], approved: ["thumb_up", "ok", ["Approved", "Diluluskan"]],
-  rejected: ["cancel", "bad", ["Rejected", "Ditolak"]], not_achieved: ["error", "bad", ["Not achieved", "Tidak tercapai"]], not_yet: ["hourglass_empty", "muted", ["Not yet", "Belum lagi"]],
+  rejected: ["cancel", "bad", ["Rejected", "Ditolak"]], withdrawn: ["undo", "muted", ["Withdrawn", "Ditarik balik"]], not_achieved: ["error", "bad", ["Not achieved", "Tidak tercapai"]], not_yet: ["hourglass_empty", "muted", ["Not yet", "Belum lagi"]],
   unresolved: ["help", "muted", ["Unresolved", "Belum selesai"]], flagged: ["warning", "warn", ["Flagged", "Dibenderakan"]], ok: ["check", "ok", ["OK", "OK"]],
   service_approved: ["build", "warn", ["Service approved", "Servis diluluskan"]], serviced_verified: ["verified", "ok", ["Serviced · verified", "Diservis · disahkan"]],
 };
@@ -339,7 +338,9 @@ export function DemoControls({ outlets }: { outlets?: { id: string; name: string
 export function TopBar({ title, back, children }: { title?: string; back?: string; children?: ReactNode }) {
   return (
     <header className="topbar">
-      {back ? <a className="back" aria-label="Back" {...linkProps(back)}><Icon name="arrow_back" /></a> : null}
+      {/* Back returns to the page you came from; opened from a link outside the app, it goes to `back` instead. */}
+      {back ? <a className="back" aria-label="Back" {...linkProps(back)}
+        onClick={(e) => { if (history.state?.inApp) { e.preventDefault(); history.back(); } else linkProps(back).onClick(e); }}><Icon name="arrow_back" /></a> : null}
       {title ? <h1 className="grow row" style={{ fontSize: 22, lineHeight: "28px" }}>{!back && <span className="app-tile"><Icon name="local_laundry_service" /></span>}{title}</h1>
         : <h1 className="brand-h"><a className="brand" {...linkProps("/outlet")}><span className="app-tile"><Icon name="local_laundry_service" /></span>SmartFlux</a></h1>}
       {children && <div className="controls">{children}</div>}

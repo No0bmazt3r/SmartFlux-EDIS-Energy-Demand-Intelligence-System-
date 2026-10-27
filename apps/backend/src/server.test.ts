@@ -135,6 +135,14 @@ test("run → approve → verify over HTTP, and the run's evidence is readable",
   assert.equal((await get("/franchise/audit", customer)).status, 403);
 });
 
+test("a machine flag found in a Malay answer reads in the viewer's language", async () => {
+  assert.equal((await post("/run", { outlet_id: "OUT-02", as_of: "2026-10-18", question: "Mesin mana yang rugi?", lang: "ms" })).status, 200);
+  const flag = async (lang: string) => (await (await fetch(base() + "/outlets/OUT-02/owner?as_of=2026-10-18", { headers: { ...auth(owner), "Accept-Language": lang } })).json())
+    .machines.find((m: any) => m.flag)?.flag;
+  assert.equal((await flag("en")).verdict, "Service dryer G3");
+  assert.equal((await flag("ms")).verdict, "Servis pengering G3");
+});
+
 test("customer view: a promo shows only after the owner approves it", async () => {
   const customer = issueToken("customer", ["OUT-01"]);
   const promo = await (await post("/run", { outlet_id: "OUT-01", as_of: "2026-09-13", question: "When should I run a promo to shift load off-peak?" })).json();
