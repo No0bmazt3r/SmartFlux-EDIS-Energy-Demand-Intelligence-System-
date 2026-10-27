@@ -141,6 +141,10 @@ test("a machine flag found in a Malay answer reads in the viewer's language", as
     .machines.find((m: any) => m.flag)?.flag;
   assert.equal((await flag("en")).verdict, "Service dryer G3");
   assert.equal((await flag("ms")).verdict, "Servis pengering G3");
+  const reason = async (lang: string) => (await (await fetch(base() + "/outlets/OUT-02/owner?as_of=2026-10-18", { headers: { ...auth(owner), "Accept-Language": lang } })).json())
+    .advice.find((a: any) => a.target === "OUT-02-G3").reason;
+  assert.match(await reason("en"), /wastes about/);
+  assert.match(await reason("ms"), /membazir/);
 });
 
 test("customer view: a promo shows only after the owner approves it", async () => {

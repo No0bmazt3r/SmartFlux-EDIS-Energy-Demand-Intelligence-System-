@@ -226,14 +226,16 @@ export function reporter(state: RunState, ctx: Ctx) {
   const ruledOut = state.hypotheses.filter((h) => h.status === "rejected" && h.reason).map((h) => `${h.text}: ${h.reason}`);
   // Every proposed action is remembered with its prediction; advice the owner already declined is not re-proposed,
   // and asking again while the same advice still awaits a decision points at that one instead of queuing a copy.
-  const propose = (type: string, target: string, reason: string, predicted?: number, extra?: Record<string, unknown>) => {
+  // The reason is kept in both languages too: it shows on Approvals and in HQ for whoever reads it later.
+  const propose = (type: string, target: string, say: (t: (typeof TEXT)[Lang]) => string, predicted?: number, extra: Record<string, unknown> = {}) => {
+    const reason = say(t);
     const declined = priorRejection(state, ctx, type, target);
     if (declined) return state.decisions.at(-1)?.assumptions.unshift(t.declined(type, fmt(declined.as_of, state.lang)));
     const open = pendingApprovals(state, ctx).find((m) => m.data.type === type && m.data.target === target);
     if (open) return state.actions.push({ id: open.data.action_id, type, target, reason, risk: ACTION_RISK[type], status: "awaiting_approval" });
     const action = { id: `${state.run_id}-a${state.actions.length + 1}`, type, target, reason, risk: ACTION_RISK[type], status: gate(type) === "auto" ? "approved" as const : "awaiting_approval" as const };
     state.actions.push(action);
-    rememberAdvice(state, ctx, action, predicted, extra);
+    rememberAdvice(state, ctx, action, predicted, { ...extra, reasons: { en: say(TEXT.en), ms: say(TEXT.ms) } });
   };
 
   const bill = approved.find((c) => c.kind === "bill");
@@ -253,8 +255,8 @@ export function reporter(state: RunState, ctx: Ctx) {
       const card = energyCard(claim, state.claims.filter((c) => c.hypothesis_id === claim.hypothesis_id && c.status === "rejected"), state.lang);
       state.decisions.push(card);
       const best = claim.data.joint?.best.option ?? (claim.data.grid.verdict === "stay" ? "flat" : "tou");
-      if (best.startsWith("solar")) propose("request_solar_quote", `${state.outlet_id} ${claim.data.kwp} kWp`, t.actSolar(claim.data.kwp, card.rm_per_month!), card.rm_per_month);
-      if (best.endsWith("tou")) propose("switch_tariff", state.outlet_id, t.actTouJoint);
+      if (best.startsWith("solar")) propose("request_solar_quote", `${state.outlet_id} ${claim.data.kwp} kWp`, (t) => t.actSolar(claim.data.kwp, card.rm_per_month!), card.rm_per_month);
+      if (best.endsWith("tou")) propose("switch_tariff", state.outlet_id, (t) => t.actTouJoint);
       else for (const m of pendingApprovals(state, ctx).filter((m) => m.data.type === "switch_tariff" && m.data.target === state.outlet_id))
         withdrawAdvice(state, ctx, m, `the joint energy plan says ${best.replace("_", " + ")}`);
     } else if (claim.kind === "tou") {
@@ -264,12 +266,12 @@ export function reporter(state: RunState, ctx: Ctx) {
       const solarPlanned = [...pendingApprovals(state, ctx), ...ctx.hmem.all().filter((m) => m.tags.includes("approved") && m.as_of <= state.as_of)]
         .some((m) => m.data.type === "request_solar_quote" && m.entities.includes(state.outlet_id));
       if (r.verdict !== "stay" && solarPlanned) Object.assign(card, { verdict: t.stay, rm_per_month: undefined, assumptions: [t.solarPlanned, ...card.assumptions] });
-      else if (r.verdict !== "stay") propose("switch_tariff", state.outlet_id, t.actTou(rm(r.saving_per_month)), r.saving_per_month);
+      else if (r.verdict !== "stay") propose("switch_tariff", state.outlet_id, (t) => t.actTou(rm(r.saving_per_month)), r.saving_per_month);
     } else if (claim.kind === "shift") {
       const d = claim.data;
       state.decisions.push({ type: "load_shift", verdict: t.promo(d.slot.day, d.slot.hour), rm_per_month: rm(d.saving_rm_per_month), confidence: "medium",
         evidence: t.promoEv(d.peak_dryer_cycles_per_week, d.shiftable_cycles_per_week, d.slot.idle_share * 100), ruled_out: [], assumptions: [...t.promoNotes(d.promo_response), t.synthetic] });
-      propose("run_promo", `${d.slot.day} ${d.slot.hour}:00`, t.actPromo(d.shiftable_cycles_per_week.toFixed(1)), d.saving_rm_per_month);
+      propose("run_promo", `${d.slot.day} ${d.slot.hour}:00`, (t) => t.actPromo(d.shiftable_cycles_per_week.toFixed(1)), d.saving_rm_per_month);
     } else if (claim.kind === "verify" && claim.data.promo) {
       const d = claim.data, r = d.result;
       state.decisions.push({ type: "verification", verdict: t.promoResult[r.verdict as keyof typeof t.promoResult](d.name, r.offpeak_share_change_pts), confidence: r.verdict === "verified" ? "high" : "medium",
@@ -303,7 +305,7 @@ export function reporter(state: RunState, ctx: Ctx) {
       state.decisions.push(faultCard(claim, ruledOut, state.lang));
       // The machine's flag outlives this answer (Home, Machines, HQ), so it is kept in both languages for any viewer.
       const flag = Object.fromEntries((["en", "ms"] as const).map((l) => { const c = faultCard(claim, [], l); return [l, { verdict: c.verdict, evidence: c.evidence[0] }]; }));
-      propose("schedule_service", claim.data.machine_id, t.actService(claim.data.name, rm(claim.data.waste_rm_per_month)), claim.data.waste_rm_per_month, { flag });
+      propose("schedule_service", claim.data.machine_id, (t) => t.actService(claim.data.name, rm(claim.data.waste_rm_per_month)), claim.data.waste_rm_per_month, { flag });
     }
   }
   if (state.briefing) {

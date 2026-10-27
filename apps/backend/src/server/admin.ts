@@ -101,7 +101,7 @@ export async function adminOverview(cfg: Config, asOf: string, db: SampleDb = op
     const outcome = memory.filter((m) => m.tags.includes("outcome") && m.data.action_id === a.data.action_id).at(-1);
     return {
       action_id: a.data.action_id, outlet_id: a.entities[0], type: a.data.type, target: a.data.target, advised_as_of: a.as_of,
-      risk: a.data.risk, reason: a.data.reason ?? a.content.match(/\(([^()]*)\)$/)?.[1], run_id: a.runId,
+      risk: a.data.risk, reason: a.data.reasons?.[lang] ?? a.data.reason ?? a.content.match(/\(([^()]*)\)$/)?.[1], run_id: a.runId,
       predicted_rm_per_month: a.data.predicted_rm_per_month, status: decision?.data.decision ?? "awaiting_approval",
       verified: outcome ? { verdict: outcome.data.verdict, realised_rm_per_month: outcome.data.realised_rm_per_month, band_rm_per_month: outcome.data.band_rm_per_month, as_of: outcome.as_of } : null,
     };
